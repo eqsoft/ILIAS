@@ -95,6 +95,7 @@ class ilSAHSPresentationGUI
 		}
 		
 		if (substr($cmd,0,11) == "offlineMode" || $this->offline_mode) $next_class = "ilscormofflinemodegui";
+		if (substr($cmd,0,12) == "offlineMode2" || $this->offline_mode) $next_class = "ilscormofflinemode2gui";
 		
 		switch($type)
 		{
@@ -125,6 +126,7 @@ class ilSAHSPresentationGUI
 			$next_class != "ilobjscorm2004learningmodulegui" &&
 			$next_class != "ilobjscormlearningmodulegui" &&
 			$next_class != "ilscormofflinemodegui" &&
+			$next_class != "ilscormofflinemode2gui" &&
 			$next_class != "illearningprogressgui")
 		{
 			include_once("./Services/License/classes/class.ilLicense.php");
@@ -196,6 +198,12 @@ class ilSAHSPresentationGUI
 				$this->ctrl->forwardCommand($new_gui);
 				break;
 			
+			case "ilscormofflinemode2gui":
+				include_once "./Modules/ScormAicc/classes/class.ilSCORMOfflineMode2GUI.php";
+				$new_gui =& new ilSCORMOfflineMode2GUI($type);
+				$this->ctrl->forwardCommand($new_gui);
+				break;
+				
 			case "ilobjscorm2004learningmodulegui":
 				include_once './Modules/Scorm2004/classes/class.ilObjSCORM2004LearningModuleGUI.php';
 				$new_gui =& new ilObjSCORM2004LearningModuleGUI("", $_GET["ref_id"],true,false);

@@ -109,7 +109,12 @@ class ilObjSAHSLearningModuleListGUI extends ilObjectListGUI
 				$cmd_link = "ilias.php?baseClass=ilSAHSPresentationGUI&amp;ref_id=".$this->ref_id."&amp;cmd=offlineModeStart";
 //				$cmd_link = $ilCtrl->getLinkTargetByClass(array('ilsahspresentationgui', 'ilscormofflinemodegui'),'start&amp;ref_id='.$_GET["ref_id"]);
 				break;
-
+				
+			case "offlineModeStart2":
+				$cmd_link = "ilias.php?baseClass=ilSAHSPresentationGUI&amp;ref_id=".$this->ref_id."&amp;cmd=offlineModeStart2";
+//				$cmd_link = $ilCtrl->getLinkTargetByClass(array('ilsahspresentationgui', 'ilscormofflinemodegui'),'start&amp;ref_id='.$_GET["ref_id"]);
+				break;
+				
 			case "offlineModeStop":
 				$cmd_link = "ilias.php?baseClass=ilSAHSPresentationGUI&amp;ref_id=".$this->ref_id."&amp;cmdClass=ilSCORMOfflineModeGUI&amp;cmd=stop";
 				break;
