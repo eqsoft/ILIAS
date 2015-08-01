@@ -4,12 +4,12 @@
 //require_once "./Services/Object/classes/class.ilObject.php";
 
 /**
-* Class ilSCORMOfflineMode
+* Class ilSCORMOfflineMode2
 *
 * Class for scorm offline player connection
 *
-* @author Uwe Kohnle <kohnle@internetlehrer-gmbh.de>
-* @version $Id: class.ilSCORMOfflineMode.php  $
+* @author Stefan Schneider <schneider@hrz.uni-marburg.de>
+* @version $Id: class.ilSCORMOfflineMode2.php  $
 *
 * @ingroup ModulesScormAicc
 */

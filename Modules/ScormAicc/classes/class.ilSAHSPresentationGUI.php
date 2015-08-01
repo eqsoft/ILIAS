@@ -13,7 +13,7 @@
 *
 * @ilCtrl_Calls ilSAHSPresentationGUI: ilSCORMPresentationGUI, ilAICCPresentationGUI, ilHACPPresentationGUI
 * @ilCtrl_Calls ilSAHSPresentationGUI: ilInfoScreenGUI, ilscorm13player, ilShopPurchaseGUI
-* @ilCtrl_Calls ilSAHSPresentationGUI: ilLearningProgressGUI, ilSCORMOfflineModeGUI
+* @ilCtrl_Calls ilSAHSPresentationGUI: ilLearningProgressGUI, ilSCORMOfflineModeGUI, ilSCORMOfflineMode2GUI 
 * @ilCtrl_Calls ilSAHSPresentationGUI: ilObjSCORMLearningModuleGUI, ilObjSCORM2004LearningModuleGUI
 * 
 * @ingroup ModulesScormAicc
@@ -95,7 +95,7 @@ class ilSAHSPresentationGUI
 		}
 		
 		if (substr($cmd,0,11) == "offlineMode" || $this->offline_mode) $next_class = "ilscormofflinemodegui";
-		if (substr($cmd,0,12) == "offlineMode2" || $this->offline_mode) $next_class = "ilscormofflinemode2gui";
+		if (substr($cmd,0,12) == "offlineMode2" || $this->offline_mode2) $next_class = "ilscormofflinemode2gui";
 		
 		switch($type)
 		{
