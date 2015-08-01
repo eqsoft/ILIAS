@@ -5895,3 +5895,1322 @@ $ilDB->manipulate("DELETE FROM il_dcl_datatype_prop WHERE title = " . $ilDB->quo
 <?php
 	$ilCtrlStructureReader->getStructure();
 ?>
+<#4484>
+<?php
+if( !$ilDB->tableColumnExists('qpl_questionpool', 'skill_service') )
+{
+	$ilDB->addTableColumn('qpl_questionpool', 'skill_service', array(
+		'type' => 'integer',
+		'length' => 1,
+		'notnull' => false,
+		'default' => null
+	));
+
+	$ilDB->manipulateF(
+		'UPDATE qpl_questionpool SET skill_service = %s',
+		array('integer'), array(0)
+	);
+}
+?>
+<#4485>
+<?php
+if( !$ilDB->tableExists('qpl_qst_skl_assigns') )
+{
+	$ilDB->createTable('qpl_qst_skl_assigns', array(
+		'obj_fi' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'question_fi' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'skill_base_fi' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'skill_tref_fi' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'skill_points' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		)
+	));
+
+	$ilDB->addPrimaryKey('qpl_qst_skl_assigns', array('obj_fi', 'question_fi', 'skill_base_fi', 'skill_tref_fi'));
+
+	if( $ilDB->tableExists('tst_skl_qst_assigns') )
+	{
+		$res = $ilDB->query("
+			SELECT tst_skl_qst_assigns.*, tst_tests.obj_fi
+			FROM tst_skl_qst_assigns
+			INNER JOIN tst_tests ON test_id = test_fi
+		");
+
+		while( $row = $ilDB->fetchAssoc($res) )
+		{
+			$ilDB->replace('qpl_qst_skl_assigns',
+				array(
+					'obj_fi' => array('integer', $row['obj_fi']),
+					'question_fi' => array('integer', $row['question_fi']),
+					'skill_base_fi' => array('integer', $row['skill_base_fi']),
+					'skill_tref_fi' => array('integer', $row['skill_tref_fi'])
+				),
+				array(
+					'skill_points' => array('integer', $row['skill_points'])
+				)
+			);
+		}
+
+		$ilDB->dropTable('tst_skl_qst_assigns');
+	}
+}
+?>
+<#4486>
+<?php
+$setting = new ilSetting();
+
+if( !$setting->get('dbup_tst_skl_thres_mig_done', 0) )
+{
+	if( !$ilDB->tableExists('tst_threshold_tmp') )
+	{
+		$ilDB->createTable('tst_threshold_tmp', array(
+			'test_id' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => true,
+				'default' => 0
+			),
+			'obj_id' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => true,
+				'default' => 0
+			)
+		));
+
+		$ilDB->addPrimaryKey('tst_threshold_tmp', array('test_id'));
+	}
+
+	$res = $ilDB->query("
+		SELECT DISTINCT tst_tests.test_id, obj_fi FROM tst_tests
+		INNER JOIN tst_skl_thresholds ON test_fi = tst_tests.test_id
+		LEFT JOIN tst_threshold_tmp ON tst_tests.test_id = tst_threshold_tmp.test_id
+		WHERE tst_threshold_tmp.test_id IS NULL
+	");
+
+	while( $row = $ilDB->fetchAssoc($res) )
+	{
+		$ilDB->replace('tst_threshold_tmp',
+			array('test_id' => array('integer', $row['test_id'])),
+			array('obj_id' => array('integer', $row['obj_fi']))
+		);
+	}
+
+	if( !$ilDB->tableColumnExists('tst_skl_thresholds', 'tmp') )
+	{
+		$ilDB->addTableColumn('tst_skl_thresholds', 'tmp', array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => false,
+			'default' => null
+		));
+	}
+
+	$setting->set('dbup_tst_skl_thres_mig_done', 1);
+}
+?>
+<#4487>
+<?php
+if( $ilDB->tableExists('tst_threshold_tmp') )
+{
+	$stmtSelectSklPointSum = $ilDB->prepare(
+		"SELECT skill_base_fi, skill_tref_fi, SUM(skill_points) points_sum FROM qpl_qst_skl_assigns
+			WHERE obj_fi = ? GROUP BY skill_base_fi, skill_tref_fi", array('integer')
+	);
+
+	$stmtUpdatePercentThresholds = $ilDB->prepareManip(
+		"UPDATE tst_skl_thresholds SET tmp = ROUND( ((threshold * 100) / ?), 0 )
+			WHERE test_fi = ? AND skill_base_fi = ? AND skill_tref_fi = ?",
+		array('integer', 'integer', 'integer', 'integer')
+	);
+
+	$res1 = $ilDB->query("
+		SELECT DISTINCT test_id, obj_id FROM tst_threshold_tmp
+		INNER JOIN tst_skl_thresholds ON test_fi = test_id
+		WHERE tmp IS NULL
+	");
+
+	while( $row1 = $ilDB->fetchAssoc($res1) )
+	{
+		$res2 = $ilDB->execute($stmtSelectSklPointSum, array($row1['obj_id']));
+
+		while( $row2 = $ilDB->fetchAssoc($res2) )
+		{
+			$ilDB->execute($stmtUpdatePercentThresholds, array(
+				$row2['points_sum'], $row1['test_id'], $row2['skill_base_fi'], $row2['skill_tref_fi']
+			));
+		}
+	}
+}
+?>
+<#4488>
+<?php
+if( $ilDB->tableExists('tst_threshold_tmp') )
+{
+	$ilDB->dropTable('tst_threshold_tmp');
+}
+?>
+<#4489>
+<?php
+if( $ilDB->tableColumnExists('tst_skl_thresholds', 'tmp') )
+{
+	$ilDB->manipulate("UPDATE tst_skl_thresholds SET threshold = tmp");
+	$ilDB->dropTableColumn('tst_skl_thresholds', 'tmp');
+}
+?>
+<#4490>
+<?php
+if( !$ilDB->tableColumnExists('qpl_qst_skl_assigns', 'eval_mode') )
+{
+	$ilDB->addTableColumn('qpl_qst_skl_assigns', 'eval_mode', array(
+		'type' => 'text',
+		'length' => 16,
+		'notnull' => false,
+		'default' => null
+	));
+
+	$ilDB->manipulateF(
+		"UPDATE qpl_qst_skl_assigns SET eval_mode = %s", array('text'), array('result')
+	);
+}
+?>
+<#4491>
+<?php
+if( !$ilDB->tableExists('qpl_qst_skl_sol_expr') )
+{
+	$ilDB->createTable('qpl_qst_skl_sol_expr', array(
+		'question_fi' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'skill_base_fi' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'skill_tref_fi' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'order_index' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		),
+		'expression' => array(
+			'type' => 'text',
+			'length' => 255,
+			'notnull' => true,
+			'default' => ''
+		),
+		'points' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true,
+			'default' => 0
+		)
+	));
+
+	$ilDB->addPrimaryKey('qpl_qst_skl_sol_expr', array(
+		'question_fi', 'skill_base_fi', 'skill_tref_fi', 'order_index'
+	));
+}
+?>
+<#4492>
+<?php
+$res = $ilDB->query("
+	SELECT DISTINCT(question_fi) FROM qpl_qst_skl_assigns
+	LEFT JOIN qpl_questions ON question_fi = question_id
+	WHERE question_id IS NULL
+");
+
+$deletedQuestionIds = array();
+
+while($row = $ilDB->fetchAssoc($res))
+{
+	$deletedQuestionIds[] = $row['question_fi'];
+}
+
+$inDeletedQuestionIds = $ilDB->in('question_fi', $deletedQuestionIds, false, 'integer');
+
+$ilDB->query("
+	DELETE FROM qpl_qst_skl_assigns WHERE $inDeletedQuestionIds
+");
+?>
+<#4493>
+<?php
+$row = $ilDB->fetchAssoc($ilDB->queryF(
+	'SELECT COUNT(*) cnt FROM qpl_qst_skl_assigns LEFT JOIN skl_tree_node ON skill_base_fi = obj_id WHERE type = %s',
+	array('text'), array('sktr')
+));
+
+if( $row['cnt'] )
+{
+	$res = $ilDB->queryF(
+		'SELECT obj_fi, question_fi, skill_base_fi, skill_tref_fi FROM qpl_qst_skl_assigns LEFT JOIN skl_tree_node ON skill_base_fi = obj_id WHERE type = %s',
+		array('text'), array('sktr')
+	);
+
+	while($row = $ilDB->fetchAssoc($res))
+	{
+		$ilDB->update('qpl_qst_skl_assigns',
+			array(
+				'skill_base_fi' => array('integer', $row['skill_tref_fi']),
+				'skill_tref_fi' => array('integer', $row['skill_base_fi'])
+			),
+			array(
+				'obj_fi' => array('integer', $row['obj_fi']),
+				'question_fi' => array('integer', $row['question_fi']),
+				'skill_base_fi' => array('integer', $row['skill_base_fi']),
+				'skill_tref_fi' => array('integer', $row['skill_tref_fi'])
+			)
+		);
+	}
+}
+?>
+<#4494>
+<?php
+$ilDB->manipulateF(
+	"UPDATE qpl_qst_skl_assigns SET eval_mode = %s WHERE eval_mode IS NULL", array('text'), array('result')
+);
+?>
+<#4495>
+<?php
+	$ilCtrlStructureReader->getStructure();
+?>
+<#4496>
+<?php
+if( !$ilDB->tableExists('mail_cron_orphaned') )
+{
+	$ilDB->createTable('mail_cron_orphaned', array(
+		'mail_id' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true
+		),
+		'folder_id' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true
+		),
+		'ts_do_delete' => array(
+			'type' => 'integer',
+			'length' => 4,
+			'notnull' => true
+		)
+	));
+
+	$ilDB->addPrimaryKey('mail_cron_orphaned', array('mail_id', 'folder_id'));
+}
+?>
+<#4497>
+<?php
+if($ilDB->tableExists('chat_blocked'))
+{
+	$ilDB->dropTable('chat_blocked');
+}
+?>
+<#4498>
+<?php
+// Don't remove this comment
+?>
+<#4499>
+<?php
+if($ilDB->tableExists('chat_invitations'))
+{
+	$ilDB->dropTable('chat_invitations');
+}
+?>
+<#4500>
+<?php
+if($ilDB->tableExists('chat_records'))
+{
+	$ilDB->dropTable('chat_records');
+}
+?>
+<#4501>
+<?php
+if($ilDB->sequenceExists('chat_records'))
+{
+	$ilDB->dropSequence('chat_records');
+}
+?>
+<#4502>
+<?php
+if($ilDB->sequenceExists('chat_rooms'))
+{
+	$ilDB->dropSequence('chat_rooms');
+}
+?>
+<#4503>
+<?php
+if($ilDB->tableExists('chat_rooms'))
+{
+	$ilDB->dropTable('chat_rooms');
+}
+?>
+<#4504>
+<?php
+if($ilDB->tableExists('chat_room_messages'))
+{
+	$ilDB->dropTable('chat_room_messages');
+}
+?>
+<#4505>
+<?php
+if($ilDB->sequenceExists('chat_room_messages'))
+{
+	$ilDB->dropSequence('chat_room_messages');
+}
+?>
+<#4506>
+<?php
+if($ilDB->sequenceExists('chat_smilies'))
+{
+	$ilDB->dropSequence('chat_smilies');
+}
+?>
+<#4507>
+<?php
+if($ilDB->tableExists('chat_smilies'))
+{
+	$ilDB->dropTable('chat_smilies');
+}
+?>
+<#4508>
+<?php
+if($ilDB->tableExists('chat_user'))
+{
+	$ilDB->dropTable('chat_user');
+}
+?>
+<#4509>
+<?php
+if($ilDB->tableExists('chat_record_data'))
+{
+	$ilDB->dropTable('chat_record_data');
+}
+?>
+<#4510>
+<?php
+if($ilDB->sequenceExists('chat_record_data'))
+{
+	$ilDB->dropSequence('chat_record_data');
+}
+?>
+<#4511>
+<?php
+if($ilDB->tableExists('ilinc_data'))
+{
+	$ilDB->dropTable('ilinc_data');
+}
+?>
+<#4512>
+<?php
+if($ilDB->tableExists('ilinc_registration'))
+{
+	$ilDB->dropTable('ilinc_registration');
+}
+?>
+<#4513>
+<?php
+if($ilDB->tableColumnExists('usr_data', 'ilinc_id'))
+{
+	$ilDB->dropTableColumn('usr_data', 'ilinc_id');
+}
+
+if($ilDB->tableColumnExists('usr_data', 'ilinc_login'))
+{
+	$ilDB->dropTableColumn('usr_data', 'ilinc_login');
+}
+
+if($ilDB->tableColumnExists('usr_data', 'ilinc_passwd'))
+{
+	$ilDB->dropTableColumn('usr_data', 'ilinc_passwd');
+}
+?>
+<#4514>
+<?php
+if( $ilDB->uniqueConstraintExists('tst_sequence', array('active_fi', 'pass')) )
+{
+	$ilDB->dropUniqueConstraintByFields('tst_sequence', array('active_fi', 'pass'));
+	$ilDB->addPrimaryKey('tst_sequence', array('active_fi', 'pass'));
+}
+?>
+<#4515>
+<?php
+if( $ilDB->uniqueConstraintExists('tst_pass_result', array('active_fi', 'pass')) )
+{
+	$ilDB->dropUniqueConstraintByFields('tst_pass_result', array('active_fi', 'pass'));
+	$ilDB->addPrimaryKey('tst_pass_result', array('active_fi', 'pass'));
+}
+?>
+<#4516>
+<?php
+$crpra_dup_query_num = "
+SELECT COUNT(*) cnt
+FROM (
+	SELECT proom_id, user_id
+    FROM chatroom_proomaccess
+    GROUP BY proom_id, user_id
+    HAVING COUNT(*) > 1
+) duplicateChatProoms
+";
+$res  = $ilDB->query($crpra_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'])
+{
+	$mopt_dup_query = "
+	SELECT proom_id, user_id
+	FROM chatroom_proomaccess
+	GROUP BY proom_id, user_id
+	HAVING COUNT(*) > 1
+	";
+	$res = $ilDB->query($mopt_dup_query);
+
+	$stmt_del = $ilDB->prepareManip("DELETE FROM chatroom_proomaccess WHERE proom_id = ? AND user_id = ?", array('integer', 'integer'));
+	$stmt_in  = $ilDB->prepareManip("INSERT INTO chatroom_proomaccess (proom_id, user_id) VALUES(?, ?)", array('integer', 'integer'));
+
+	while($row = $ilDB->fetchAssoc($res))
+	{
+		$ilDB->execute($stmt_del, array($row['proom_id'], $row['user_id']));
+		$ilDB->execute($stmt_in, array($row['proom_id'], $row['user_id']));
+	}
+}
+
+$res  = $ilDB->query($crpra_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'] > 0)
+{
+	throw new Exception("There are still duplicate entries in table 'chatroom_proomaccess'. Please execute this database update step again.");
+}
+
+$ilDB->addPrimaryKey('chatroom_proomaccess', array('proom_id', 'user_id'));
+?>
+<#4517>
+<?php
+$mopt_dup_query_num = "
+SELECT COUNT(*) cnt
+FROM (
+	SELECT user_id
+    FROM mail_options
+    GROUP BY user_id
+    HAVING COUNT(*) > 1
+) duplicateMailOptions
+";
+$res  = $ilDB->query($mopt_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'])
+{
+	$mopt_dup_query = "
+	SELECT user_id
+	FROM mail_options
+	GROUP BY user_id
+	HAVING COUNT(*) > 1
+	";
+	$res = $ilDB->query($mopt_dup_query);
+
+	$stmt_sel = $ilDB->prepare("SELECT * FROM mail_options WHERE user_id = ?", array('integer'));
+	$stmt_del = $ilDB->prepareManip("DELETE FROM mail_options WHERE user_id = ?", array('integer'));
+	$stmt_in  = $ilDB->prepareManip("INSERT INTO mail_options (user_id, linebreak, signature, incoming_type, cronjob_notification) VALUES(?, ?, ?, ?, ?)", array('integer', 'integer', 'text', 'integer', 'integer'));
+
+	while($row = $ilDB->fetchAssoc($res))
+	{
+		$opt_res = $ilDB->execute($stmt_sel, array($row['user_id']));
+		$opt_row = $ilDB->fetchAssoc($opt_res);
+		if($opt_row)
+		{
+			$ilDB->execute($stmt_del, array($opt_row['user_id']));
+			$ilDB->execute($stmt_in, array($opt_row['user_id'], $opt_row['linebreak'], $opt_row['signature'], $opt_row['incoming_type'], $opt_row['cronjob_notification']));
+		}
+	}
+}
+
+$res  = $ilDB->query($mopt_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'] > 0)
+{
+	throw new Exception("There are still duplicate entries in table 'mail_options'. Please execute this database update step again.");
+}
+
+$ilDB->addPrimaryKey('mail_options', array('user_id'));
+?>
+<#4518>
+<?php
+$psc_dup_query_num = "
+SELECT COUNT(*) cnt
+FROM (
+	SELECT psc_ps_fk, psc_pc_fk, psc_pcc_fk
+    FROM payment_statistic_coup
+    GROUP BY psc_ps_fk, psc_pc_fk, psc_pcc_fk
+    HAVING COUNT(*) > 1
+) duplicatePaymentStatistics
+";
+$res  = $ilDB->query($psc_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'])
+{
+	$psc_dup_query = "
+	SELECT psc_ps_fk, psc_pc_fk, psc_pcc_fk
+	FROM payment_statistic_coup
+	GROUP BY psc_ps_fk, psc_pc_fk, psc_pcc_fk
+	HAVING COUNT(*) > 1
+	";
+	$res = $ilDB->query($psc_dup_query);
+
+	$stmt_del = $ilDB->prepareManip("DELETE FROM payment_statistic_coup WHERE psc_ps_fk = ? AND psc_pc_fk = ? AND psc_pcc_fk = ?", array('integer', 'integer', 'integer'));
+	$stmt_in  = $ilDB->prepareManip("INSERT INTO payment_statistic_coup (psc_ps_fk, psc_pc_fk, psc_pcc_fk) VALUES(?, ?, ?)", array('integer', 'integer', 'integer'));
+
+	while($row = $ilDB->fetchAssoc($res))
+	{
+		$ilDB->execute($stmt_del, array($row['psc_ps_fk'], $row['psc_pc_fk'], $row['psc_pcc_fk']));
+		$ilDB->execute($stmt_in, array($row['psc_ps_fk'], $row['psc_pc_fk'], $row['psc_pcc_fk']));
+	}
+}
+
+$res  = $ilDB->query($psc_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'] > 0)
+{
+	throw new Exception("There are still duplicate entries in table 'payment_statistic_coup'. Please execute this database update step again.");
+}
+
+$ilDB->addPrimaryKey('payment_statistic_coup', array('psc_ps_fk', 'psc_pc_fk', 'psc_pcc_fk'));
+?>
+<#4519>
+<?php
+$msave_dup_query_num = "
+SELECT COUNT(*) cnt
+FROM (
+	SELECT user_id
+    FROM mail_saved
+    GROUP BY user_id
+    HAVING COUNT(*) > 1
+) duplicateMailSaved
+";
+$res  = $ilDB->query($msave_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'])
+{
+	$msave_dup_query = "
+	SELECT user_id
+	FROM mail_saved
+	GROUP BY user_id
+	HAVING COUNT(*) > 1
+	";
+	$res = $ilDB->query($msave_dup_query);
+
+	$stmt_sel = $ilDB->prepare("SELECT * FROM mail_saved WHERE user_id = ?", array('integer'));
+	$stmt_del = $ilDB->prepareManip("DELETE FROM mail_saved WHERE user_id = ?", array('integer'));
+
+	while($row = $ilDB->fetchAssoc($res))
+	{
+		$opt_res = $ilDB->execute($stmt_sel, array($row['user_id']));
+		$opt_row = $ilDB->fetchAssoc($opt_res);
+		if($opt_row)
+		{
+			$ilDB->execute($stmt_del, array($opt_row['user_id']));
+			$ilDB->insert(
+				'mail_saved',
+				array(
+					'user_id'          => array('integer', $opt_row['user_id']),
+					'm_type'           => array('text', $opt_row['m_type']),
+					'm_email'          => array('integer', $opt_row['m_email']),
+					'm_subject'        => array('text', $opt_row['m_subject']),
+					'use_placeholders' => array('integer', $opt_row['use_placeholders']),
+					'm_message'        => array('clob', $opt_row['m_message']),
+					'rcp_to'           => array('clob', $opt_row['rcp_to']),
+					'rcp_cc'           => array('clob', $opt_row['rcp_cc']),
+					'rcp_bcc'          => array('clob', $opt_row['rcp_bcc']),
+					'attachments'      => array('clob', $opt_row['attachments'])
+				)
+			);
+		}
+	}
+}
+
+$res  = $ilDB->query($msave_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'])
+{
+	throw new ilException("There are still duplicate entries in table 'mail_saved'. Please execute this database update step again.");
+}
+
+$ilDB->addPrimaryKey('mail_saved', array('user_id'));
+?>
+<#4520>
+<?php
+$chrban_dup_query_num = "
+SELECT COUNT(*) cnt
+FROM (
+	SELECT room_id, user_id
+    FROM chatroom_bans
+    GROUP BY room_id, user_id
+    HAVING COUNT(*) > 1
+) duplicateChatroomBans
+";
+$res  = $ilDB->query($chrban_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'])
+{
+	$chrban_dup_query = "
+	SELECT DISTINCT finalDuplicateChatroomBans.room_id, finalDuplicateChatroomBans.user_id, finalDuplicateChatroomBans.timestamp, finalDuplicateChatroomBans.remark
+	FROM (
+		SELECT chatroom_bans.*
+		FROM chatroom_bans
+		INNER JOIN (
+			SELECT room_id, user_id, MAX(timestamp) ts
+			FROM chatroom_bans
+			GROUP BY room_id, user_id
+			HAVING COUNT(*) > 1
+		) duplicateChatroomBans
+			ON duplicateChatroomBans.room_id = chatroom_bans.room_id
+			AND duplicateChatroomBans.user_id = chatroom_bans.user_id 
+			AND duplicateChatroomBans.ts = chatroom_bans.timestamp 
+	) finalDuplicateChatroomBans
+	";
+	$res = $ilDB->query($chrban_dup_query);
+
+	$stmt_del = $ilDB->prepareManip("DELETE FROM chatroom_bans WHERE room_id = ? AND user_id = ?", array('integer', 'integer'));
+	$stmt_in  = $ilDB->prepareManip("INSERT INTO chatroom_bans (room_id, user_id, timestamp, remark) VALUES(?, ?, ?, ?)", array('integer', 'integer',  'integer',  'text'));
+
+	while($row = $ilDB->fetchAssoc($res))
+	{
+		$ilDB->execute($stmt_del, array($row['room_id'], $row['user_id']));
+		$ilDB->execute($stmt_in, array($row['room_id'], $row['user_id'], $row['timestamp'], $row['remark']));
+	}
+}
+
+$res  = $ilDB->query($chrban_dup_query_num);
+$data = $ilDB->fetchAssoc($res);
+if($data['cnt'])
+{
+	throw new ilException("There are still duplicate entries in table 'chatroom_bans'. Please execute this database update step again.");
+}
+
+$ilDB->addPrimaryKey('chatroom_bans', array('room_id', 'user_id'));
+?>
+<#4521>
+<?php
+if(!$ilDB->sequenceExists('chatroom_psessionstmp'))
+{
+	$ilDB->createSequence('chatroom_psessionstmp');
+}
+?>
+<#4522>
+<?php
+if(!$ilDB->tableExists('chatroom_psessionstmp'))
+{
+	$fields = array(
+		'psess_id'     => array('type' => 'integer', 'length' => 8, 'notnull' => true, 'default' => 0),
+		'proom_id'     => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'user_id'      => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'connected'    => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'disconnected' => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0)
+	);
+	$ilDB->createTable('chatroom_psessionstmp', $fields);
+	$ilDB->addPrimaryKey('chatroom_psessionstmp', array('psess_id'));
+}
+?>
+<#4523>
+<?php
+$query = '
+SELECT chatroom_psessions.proom_id, chatroom_psessions.user_id, chatroom_psessions.connected, chatroom_psessions.disconnected
+FROM chatroom_psessions
+LEFT JOIN chatroom_psessionstmp
+	ON chatroom_psessionstmp.proom_id = chatroom_psessions.proom_id
+	AND chatroom_psessionstmp.user_id = chatroom_psessions.user_id
+	AND chatroom_psessionstmp.connected = chatroom_psessions.connected
+	AND chatroom_psessionstmp.disconnected = chatroom_psessions.disconnected
+WHERE chatroom_psessionstmp.psess_id IS NULL
+GROUP BY chatroom_psessions.proom_id, chatroom_psessions.user_id, chatroom_psessions.connected, chatroom_psessions.disconnected
+';
+$res = $ilDB->query($query);
+
+$stmt_in = $ilDB->prepareManip('INSERT INTO chatroom_psessionstmp (psess_id, proom_id, user_id, connected, disconnected) VALUES(?, ?, ?, ?, ?)', array('integer', 'integer', 'integer', 'integer','integer'));
+
+while($row = $ilDB->fetchAssoc($res))
+{
+	$psess_id = $ilDB->nextId('chatroom_psessionstmp');
+	$ilDB->execute($stmt_in, array($psess_id, (int)$row['proom_id'], (int)$row['user_id'], (int)$row['connected'], (int)$row['disconnected']));
+}
+?>
+<#4524>
+<?php
+$ilDB->dropTable('chatroom_psessions');
+?>
+<#4525>
+<?php
+$ilDB->renameTable('chatroom_psessionstmp', 'chatroom_psessions');
+?>
+<#4526>
+<?php
+if(!$ilDB->sequenceExists('chatroom_psessions'))
+{
+	$query = "SELECT MAX(psess_id) mpsess_id FROM chatroom_psessions";
+	$row = $ilDB->fetchAssoc($ilDB->query($query));
+	$ilDB->createSequence('chatroom_psessions', (int)$row['mpsess_id'] + 1);
+}
+?>
+<#4527>
+<?php
+if($ilDB->sequenceExists('chatroom_psessionstmp'))
+{
+	$ilDB->dropSequence('chatroom_psessionstmp');
+}
+?>
+<#4528>
+<?php
+$ilDB->addIndex('chatroom_psessions', array('proom_id', 'user_id'), 'i1');
+?>
+<#4529>
+<?php
+$ilDB->addIndex('chatroom_psessions', array('disconnected'), 'i2');
+?>
+<#4530>
+<?php
+if(!$ilDB->sequenceExists('chatroom_sessionstmp'))
+{
+	$ilDB->createSequence('chatroom_sessionstmp');
+}
+?>
+<#4531>
+<?php
+if(!$ilDB->tableExists('chatroom_sessionstmp'))
+{
+	$fields = array(
+		'sess_id'     => array('type' => 'integer', 'length' => 8, 'notnull' => true, 'default' => 0),
+		'room_id'      => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'user_id'      => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'userdata'     => array('type' => 'text', 'length' => 4000, 'notnull' => false, 'default' => null),
+		'connected'    => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'disconnected' => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0)
+	);
+	$ilDB->createTable('chatroom_sessionstmp', $fields);
+	$ilDB->addPrimaryKey('chatroom_sessionstmp', array('sess_id'));
+}
+?>
+<#4532>
+<?php
+$query = '
+SELECT chatroom_sessions.room_id, chatroom_sessions.user_id, chatroom_sessions.connected, chatroom_sessions.disconnected, chatroom_sessions.userdata
+FROM chatroom_sessions
+LEFT JOIN chatroom_sessionstmp
+	ON chatroom_sessionstmp.room_id = chatroom_sessions.room_id
+	AND chatroom_sessionstmp.user_id = chatroom_sessions.user_id
+	AND chatroom_sessionstmp.connected = chatroom_sessions.connected
+	AND chatroom_sessionstmp.disconnected = chatroom_sessions.disconnected
+	AND chatroom_sessionstmp.userdata = chatroom_sessions.userdata
+WHERE chatroom_sessionstmp.sess_id IS NULL
+GROUP BY chatroom_sessions.room_id, chatroom_sessions.user_id, chatroom_sessions.connected, chatroom_sessions.disconnected, chatroom_sessions.userdata
+';
+$res = $ilDB->query($query);
+
+$stmt_in = $ilDB->prepareManip('INSERT INTO chatroom_sessionstmp (sess_id, room_id, user_id, connected, disconnected, userdata) VALUES(?, ?, ?, ?, ?, ?)', array('integer', 'integer', 'integer', 'integer','integer', 'text'));
+
+while($row = $ilDB->fetchAssoc($res))
+{
+	$sess_id = $ilDB->nextId('chatroom_sessionstmp');
+	$ilDB->execute($stmt_in, array($sess_id, (int)$row['room_id'], (int)$row['user_id'], (int)$row['connected'], (int)$row['disconnected'], (string)$row['userdata']));
+}
+?>
+<#4533>
+<?php
+$ilDB->dropTable('chatroom_sessions');
+?>
+<#4534>
+<?php
+$ilDB->renameTable('chatroom_sessionstmp', 'chatroom_sessions');
+?>
+<#4535>
+<?php
+if(!$ilDB->sequenceExists('chatroom_sessions'))
+{
+	$query = "SELECT MAX(sess_id) msess_id FROM chatroom_sessions";
+	$row = $ilDB->fetchAssoc($ilDB->query($query));
+	$ilDB->createSequence('chatroom_sessions', (int)$row['msess_id'] + 1);
+}
+?>
+<#4536>
+<?php
+if($ilDB->sequenceExists('chatroom_sessionstmp'))
+{
+	$ilDB->dropSequence('chatroom_sessionstmp');
+}
+?>
+<#4537>
+<?php
+$ilDB->addIndex('chatroom_sessions', array('room_id', 'user_id'), 'i1');
+?>
+<#4538>
+<?php
+$ilDB->addIndex('chatroom_sessions', array('disconnected'), 'i2');
+?>
+<#4539>
+<?php
+$ilDB->addIndex('chatroom_sessions', array('user_id'), 'i3');
+?>
+<#4540>
+<?php
+// qpl_a_cloze_combi_res - primary key step 1/8
+
+$dupsCountRes = $ilDB->query("
+		SELECT COUNT(*) dups_cnt FROM (
+			SELECT combination_id, question_fi, gap_fi, row_id
+			FROM qpl_a_cloze_combi_res
+			GROUP BY combination_id, question_fi, gap_fi, row_id
+		HAVING COUNT(*) > 1
+	) dups");
+
+$dupsCountRow = $ilDB->fetchAssoc($dupsCountRes);
+
+if($dupsCountRow['dups_cnt'] > 0)
+{
+	if( !$ilDB->tableExists('dups_clozecombis_qst') )
+	{
+		$ilDB->createTable('dups_clozecombis_qst', array(
+			'qst' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => true
+			),
+			'num' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => false
+			)
+		));
+
+		$ilDB->addPrimaryKey('dups_clozecombis_qst', array('qst'));
+	}
+
+	if( !$ilDB->tableExists('dups_clozecombis_rows') )
+	{
+		$ilDB->createTable('dups_clozecombis_rows', array(
+			'combination_id' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => true
+			),
+			'question_fi' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => true
+			),
+			'gap_fi' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => true
+			),
+			'answer' => array(
+				'type' => 'text',
+				'length' => 1000,
+				'notnull' => false
+			),
+			'points' => array(
+				'type' => 'float',
+				'notnull' => false
+			),
+			'best_solution' => array(
+				'type' => 'integer',
+				'length' => 1,
+				'notnull' => false
+			),
+			'row_id' => array(
+				'type' => 'integer',
+				'length' => 4,
+				'notnull' => false,
+				'default' => 0
+			)
+		));
+
+		$ilDB->addPrimaryKey('dups_clozecombis_rows', array(
+			'combination_id', 'question_fi', 'gap_fi', 'row_id'
+		));
+	}
+}
+?>
+<#4541>
+<?php
+// qpl_a_cloze_combi_res - primary key step 2/8
+
+// break safe update step
+
+if( $ilDB->tableExists('dups_clozecombis_qst') )
+{
+	$res = $ilDB->query("
+			SELECT combination_id, question_fi, gap_fi, row_id, COUNT(*)
+			FROM qpl_a_cloze_combi_res
+			LEFT JOIN dups_clozecombis_qst ON qst = question_fi
+			WHERE qst IS NULL
+			GROUP BY combination_id, question_fi, gap_fi, row_id
+			HAVING COUNT(*) > 1
+		");
+
+	while( $row = $ilDB->fetchAssoc($res) )
+	{
+		$ilDB->replace('dups_clozecombis_qst',
+			array(
+				'qst' => array('integer', $row['question_fi'])
+			),
+			array(
+				'num' => array('integer', null)
+			)
+		);
+	}
+}
+?>
+<#4542>
+<?php
+// qpl_a_cloze_combi_res - primary key step 3/8
+
+// break safe update step
+
+if( $ilDB->tableExists('dups_clozecombis_qst') )
+{
+	$selectNumQuery = "
+			SELECT COUNT(*) num FROM (
+				SELECT question_fi FROM qpl_a_cloze_combi_res WHERE question_fi = ?
+				GROUP BY combination_id, question_fi, gap_fi, row_id
+			) numrows
+		";
+	$selectNumStmt = $ilDB->prepare($selectNumQuery, array('integer'));
+
+	$updateNumQuery = "
+			UPDATE dups_clozecombis_qst SET num = ? WHERE qst = ?
+		";
+	$updateNumStmt = $ilDB->prepareManip($updateNumQuery, array('integer', 'integer'));
+
+	$qstRes = $ilDB->query("SELECT qst FROM dups_clozecombis_qst WHERE num IS NULL");
+
+	while( $qstRow = $ilDB->fetchAssoc($qstRes) )
+	{
+		$selectNumRes = $ilDB->execute($selectNumStmt, array($qstRow['qst']));
+		$selectNumRow = $ilDB->fetchAssoc($selectNumRes);
+
+		$ilDB->execute($updateNumStmt, array($selectNumRow['num'], $qstRow['qst']));
+	}
+}
+?>
+<#4543>
+<?php
+// qpl_a_cloze_combi_res - primary key step 4/8
+
+// break safe update step
+
+if( $ilDB->tableExists('dups_clozecombis_qst') )
+{
+	$deleteRowsStmt = $ilDB->prepareManip(
+		"DELETE FROM dups_clozecombis_rows WHERE question_fi = ?", array('integer')
+	);
+
+	$selectRowsStmt = $ilDB->prepare(
+		"SELECT * FROM qpl_a_cloze_combi_res WHERE question_fi = ? ORDER BY combination_id, row_id, gap_fi",
+		array('integer')
+	);
+
+	$insertRowStmt = $ilDB->prepareManip(
+		"INSERT INTO dups_clozecombis_rows (combination_id, question_fi, gap_fi, answer, points, best_solution, row_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?)", array('integer', 'integer', 'integer', 'text', 'float', 'integer', 'integer')
+	);
+
+	$qstRes = $ilDB->query("
+			SELECT qst, num
+			FROM dups_clozecombis_qst
+			LEFT JOIN dups_clozecombis_rows
+			ON question_fi = qst
+			GROUP BY qst, num, question_fi
+			HAVING COUNT(question_fi) < num
+		");
+
+	while( $qstRow = $ilDB->fetchAssoc($qstRes) )
+	{
+		$ilDB->execute($deleteRowsStmt, array($qstRow['qst']));
+
+		$selectRowsRes = $ilDB->execute($selectRowsStmt, array($qstRow['qst']));
+
+		$existingRows = array();
+		while( $selectRowsRow = $ilDB->fetchAssoc($selectRowsRes) )
+		{
+			$combinationId = $selectRowsRow['combination_id'];
+			$rowId = $selectRowsRow['row_id'];
+			$gapFi = $selectRowsRow['gap_fi'];
+
+			if( !isset($existingRows[$combinationId]) )
+			{
+				$existingRows[$combinationId] = array();
+			}
+
+			if( !isset($existingRows[$combinationId][$rowId]) )
+			{
+				$existingRows[$combinationId][$rowId] = array();
+			}
+
+			if( !isset($existingRows[$combinationId][$rowId][$gapFi]) )
+			{
+				$existingRows[$combinationId][$rowId][$gapFi] = array();
+			}
+
+			$existingRows[$combinationId][$rowId][$gapFi][] = array(
+				'answer' => $selectRowsRow['answer'],
+				'points' => $selectRowsRow['points']
+			);
+		}
+
+		$newRows = array();
+		foreach($existingRows as $combinationId => $combination)
+		{
+			if( !isset($newRows[$combinationId]) )
+			{
+				$newRows[$combinationId] = array();
+			}
+
+			$maxPointsForCombination = null;
+			$maxPointsRowIdForCombination = null;
+			foreach($combination as $rowId => $row)
+			{
+				if( !isset($newRows[$combinationId][$rowId]) )
+				{
+					$newRows[$combinationId][$rowId] = array();
+				}
+
+				$maxPointsForRow = null;
+				foreach($row as $gapFi => $gap)
+				{
+					foreach($gap as $dups)
+					{
+						if( !isset($newRows[$combinationId][$rowId][$gapFi]) )
+						{
+							$newRows[$combinationId][$rowId][$gapFi] = array(
+								'answer' => $dups['answer']
+							);
+
+							if($maxPointsForRow === null || $maxPointsForRow < $dups['points'] )
+							{
+								$maxPointsForRow = $dups['points'];
+							}
+						}
+					}
+				}
+
+				foreach($newRows[$combinationId][$rowId] as $gapFi => $gap)
+				{
+					$newRows[$combinationId][$rowId][$gapFi]['points'] = $maxPointsForRow;
+				}
+
+				if( $maxPointsForCombination === null || $maxPointsForCombination < $maxPointsForRow )
+				{
+					$maxPointsForCombination = $maxPointsForRow;
+					$maxPointsRowIdForCombination = $rowId;
+				}
+			}
+
+			foreach($combination as $rowId => $row)
+			{
+				foreach($newRows[$combinationId][$rowId] as $gapFi => $gap)
+				{
+					$newRows[$combinationId][$rowId][$gapFi]['best_solution'] = ($rowId == $maxPointsRowIdForCombination ? 1 : 0);
+				}
+			}
+		}
+
+		foreach($newRows as $combinationId => $combination)
+		{
+			foreach($combination as $rowId => $row)
+			{
+				foreach($row as $gapFi => $gap)
+				{
+					$ilDB->execute($insertRowStmt, array(
+						$combinationId, $qstRow['qst'], $gapFi, $gap['answer'],
+						$gap['points'], $gap['best_solution'], $rowId
+					));
+				}
+			}
+		}
+	}
+}
+?>
+<#4544>
+<?php
+// qpl_a_cloze_combi_res - primary key step 5/8
+
+if( $ilDB->tableExists('dups_clozecombis_rows') )
+{
+	$ilDB->manipulate("
+		DELETE FROM qpl_a_cloze_combi_res WHERE question_fi IN(
+			SELECT DISTINCT question_fi FROM dups_clozecombis_rows
+		)
+	");
+}
+?>
+<#4545>
+<?php
+// qpl_a_cloze_combi_res - primary key step 6/8
+
+if( $ilDB->tableExists('dups_clozecombis_rows') )
+{
+	$ilDB->manipulate("
+		INSERT INTO qpl_a_cloze_combi_res (
+			combination_id, question_fi, gap_fi, answer, points, best_solution, row_id
+		) SELECT combination_id, question_fi, gap_fi, answer, points, best_solution, row_id
+		FROM dups_clozecombis_rows
+	");
+}
+?>
+<#4546>
+<?php
+// qpl_a_cloze_combi_res - primary key step 7/8
+
+if( $ilDB->tableExists('dups_clozecombis_qst') )
+{
+	$ilDB->dropTable('dups_clozecombis_qst');
+}
+
+if( $ilDB->tableExists('dups_clozecombis_rows') )
+{
+	$ilDB->dropTable('dups_clozecombis_rows');
+}
+?>
+<#4547>
+<?php
+// qpl_a_cloze_combi_res - primary key step 8/8
+
+$ilDB->addPrimaryKey('qpl_a_cloze_combi_res', array(
+	'combination_id', 'question_fi', 'gap_fi', 'row_id'
+));
+?>
+<#4548>
+<?php
+if(!$ilDB->sequenceExists('chatroom_historytmp'))
+{
+	$ilDB->createSequence('chatroom_historytmp');
+}
+?>
+<#4549>
+<?php
+if(!$ilDB->tableExists('chatroom_historytmp'))
+{
+	$fields = array(
+		'hist_id'   => array('type' => 'integer', 'length' => 8, 'notnull' => true, 'default' => 0),
+		'room_id'   => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'message'   => array('type' => 'text', 'length' => 4000, 'notnull' => false, 'default' => null),
+		'timestamp' => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0),
+		'sub_room'  => array('type' => 'integer', 'length' => 4, 'notnull' => true, 'default' => 0)
+	);
+	$ilDB->createTable('chatroom_historytmp', $fields);
+	$ilDB->addPrimaryKey('chatroom_historytmp', array('hist_id'));
+}
+?>
+<#4550>
+<?php
+require_once 'Services/Migration/DBUpdate_4550/classes/class.ilDBUpdate4550.php';
+ilDBUpdate4550::cleanupOrphanedChatRoomData();
+
+$query = '
+SELECT chatroom_history.room_id, chatroom_history.timestamp, chatroom_history.sub_room, chatroom_history.message
+FROM chatroom_history
+LEFT JOIN chatroom_historytmp
+	ON chatroom_historytmp.room_id = chatroom_history.room_id
+	AND chatroom_historytmp.timestamp = chatroom_history.timestamp
+	AND chatroom_historytmp.sub_room = chatroom_history.sub_room
+	AND chatroom_historytmp.message = chatroom_history.message
+WHERE chatroom_historytmp.hist_id IS NULL
+GROUP BY chatroom_history.room_id, chatroom_history.timestamp, chatroom_history.sub_room, chatroom_history.message
+';
+$res = $ilDB->query($query);
+
+$stmt_in = $ilDB->prepareManip('INSERT INTO chatroom_historytmp (hist_id, room_id, timestamp, sub_room, message) VALUES(?, ?, ?, ?, ?)', array('integer', 'integer', 'integer', 'integer', 'text'));
+
+while($row = $ilDB->fetchAssoc($res))
+{
+	$hist_id = $ilDB->nextId('chatroom_historytmp');
+	$ilDB->execute($stmt_in, array($hist_id, (int)$row['room_id'], (int)$row['timestamp'], (int)$row['sub_room'], (string)$row['message']));
+}
+?>
+<#4551>
+<?php
+$ilDB->dropTable('chatroom_history');
+?>
+<#4552>
+<?php
+$ilDB->renameTable('chatroom_historytmp', 'chatroom_history');
+?>
+<#4553>
+<?php
+if(!$ilDB->sequenceExists('chatroom_history'))
+{
+	$query = "SELECT MAX(hist_id) mhist_id FROM chatroom_history";
+	$row = $ilDB->fetchAssoc($ilDB->query($query));
+	$ilDB->createSequence('chatroom_history', (int)$row['mhist_id'] + 1);
+}
+?>
+<#4554>
+<?php
+if($ilDB->sequenceExists('chatroom_historytmp'))
+{
+	$ilDB->dropSequence('chatroom_historytmp');
+}
+?>
+<#4555>
+<?php
+$ilDB->addIndex('chatroom_history', array('room_id', 'sub_room'), 'i1');
+?>
+<#4556>
+<?php
+require_once 'Services/Migration/DBUpdate_4550/classes/class.ilDBUpdate4550.php';
+ilDBUpdate4550::cleanupOrphanedChatRoomData();
+?>
+<#4557>
+<?php
+$ilDB->addIndex('chatroom_prooms', array('parent_id'), 'i1');
+?>
+<#4558>
+<?php
+$ilDB->addIndex('chatroom_prooms', array('owner'), 'i2');
+?>
+<#4559>
+<?php
+if($ilDB->getDBType() == 'postgres')
+{
+	$ilDB->manipulate("ALTER TABLE chatroom_prooms ALTER COLUMN parent_id SET DEFAULT 0");
+	$ilDB->manipulate("ALTER TABLE chatroom_prooms ALTER parent_id TYPE INTEGER USING (parent_id::INTEGER)");
+}
+else
+{
+	$ilDB->modifyTableColumn('chatroom_prooms', 'parent_id', array(
+		'type'    => 'integer',
+		'length'  => 4,
+		'notnull' => true,
+		'default' => 0
+	));
+}
+?>

@@ -17,6 +17,7 @@ sop2.sh
 .DS_Store
 *~
 db_template_writer.php
+.svn
 
 
 # /Customizing/
