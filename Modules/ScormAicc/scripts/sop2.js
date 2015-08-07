@@ -6,6 +6,7 @@ $( document ).ready( function() {
 		var cmdUrl = "";
 		var init = function () {
 			log("sop2: init");
+			$('#ilDownloadedFiles').hide();
 			cmdUrl = document.URL.substring(0,document.URL.indexOf('?'))+'?baseClass=ilSAHSPresentationGUI&ref_id='+sop2Globals.refId+'&client_id='+sop2Globals.ilClient+'&cmd=',
 			log("sop2: cmdUrl = " + cmdUrl);
 			//offline = !navigator.onLine;
@@ -24,29 +25,50 @@ $( document ).ready( function() {
 		var importLm = function () {
 			log("sop2: importLm");
 			$('#iliasOfflineManager').after('<iframe id="appCacheDownloadFrame" src="' + cmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createAppCacheEventHandler(this);"></iframe>');
-			//alert("importLm");
 		};
 		
 		// AppCache Event Handler
 		
 		var acChecking = function() {
 			log("sop2: appcache on checking...");
+			$('#ilAppCacheEvents').show();
+			$('#ilAppCacheEvent').text("Checking for appcache update...");
 		};
 		
 		var acNoupdate = function() {
 			log("sop2: appcache on noupdate...");
+			$('#ilAppCacheEvents').show();
+			$('#ilAppCacheEvent').text("Content is already cached, no updated needed.");
+			$('#ilAppCacheEventProgress').text("");
 		};
 		
 		var acDownloading = function() {
 			log("sop2: appcache on downloading...");
+			$('#ilAppCacheEvents').show();
+			$('#ilAppCacheEvent').text("Downloading appcache manifest...");
+			$('#ilAppCacheEventProgress').text("");
 		};
 		
-		var acProgress = function() {
+		var acProgress = function(evt) {
 			log("sop2: appcache on progress...");
+			var progress = $('#ilAppCacheEventProgress').text() + ". ";
+			$('#ilAppCacheEventProgress').text(progress);
+			//log($('#filesLoaded').text());
+			//log(evt.total);
+			//log(evt.lengthComputable);
+			//$('#filesLoaded').text(evt.loaded);
+			/*
+			if (parseInt($('#filesTotal').text()) == 0) {
+				$('#filesTotal').text(evt.total);
+			}
+			$('#filesLoaded').text(evt.loaded);
+			*/
 		};
 		
 		var acCached = function() {
 			log("sop2: appcache on cached...");
+			var finished = $('#ilAppCacheEventProgress').text() + " Files are downloaded into the browsers application cache!"
+			$('#ilAppCacheEventProgress').text(finished);
 		};
 		
 		var acUpdateready = function() {
@@ -57,8 +79,9 @@ $( document ).ready( function() {
 			log("sop2: appcache on obsolete...");
 		};
 		
-		var acError = function() {
-			log("sop2: appcache on error...");
+		var acError = function(evt) {
+			log("sop2: appcache on error: " + evt);
+			//log(evt.originalEvent.message);
 		};
 		
 		var createAppCacheEventHandler = function(iframe) {
