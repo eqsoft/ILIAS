@@ -1,8 +1,22 @@
 <!-- BEGIN offline_content -->
-<script type="text/javascript">
-//alert("sdfsdfsdfsdf");
+<script>
+	//globals
+	var sop2Globals = {
+		"ilClient" 	: '{CLIENT_ID}',
+		"refId"		: {REF_ID},
+		"lmId" 		: {LM_ID},
+		"client"	: '{CLIENT_ID_SOP}',
+		"mode"		: '{OFFLINE_MODE}'
+	};
+		
 </script>
-<div id="divOfflineManager2">
-	Manager for Offline Mode2: {Test}
+<div id="iliasOfflineManager">
+	<div id="sop2Message">
+		Manager for Offline Mode2: Command {Command}
+	</div>
+	<div id="onlineForm">
+		<div><input class="submit" type="button" value="{EXPORT}" onclick="sop2.importLm()"/>&nbsp;&nbsp;{TEXT_EXPORT}</div>
+		<div class="ilHeaderDesc">{DESC_EXPORT}</div>
+	</div>
 </div>
 <!-- END offline_content -->
