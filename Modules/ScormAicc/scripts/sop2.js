@@ -9,6 +9,7 @@ $( document ).ready( function() {
 			$('#ilDownloadedFiles').hide();
 			cmdUrl = document.URL.substring(0,document.URL.indexOf('?'))+'?baseClass=ilSAHSPresentationGUI&ref_id='+sop2Globals.refId+'&client_id='+sop2Globals.ilClient+'&cmd=',
 			log("sop2: cmdUrl = " + cmdUrl);
+			resetAppCacheGUI();
 			//offline = !navigator.onLine;
 			//log("offline: " + offline);
 		};
@@ -24,6 +25,7 @@ $( document ).ready( function() {
 		
 		var importLm = function () {
 			log("sop2: importLm");
+			resetAppCacheGUI();
 			$('#iliasOfflineManager').after('<iframe id="appCacheDownloadFrame" src="' + cmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createAppCacheEventHandler(this);"></iframe>');
 		};
 		
@@ -43,14 +45,18 @@ $( document ).ready( function() {
 		};
 		
 		var acDownloading = function() {
-			log("sop2: appcache on downloading...");
+			log("sop2: appcache on downloading");
 			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Downloading appcache manifest...");
+			$('#ilAppCacheEvent').text("Downloading appcache manifest");
 			$('#ilAppCacheEventProgress').text("");
 		};
 		
 		var acProgress = function(evt) {
 			log("sop2: appcache on progress...");
+			var msg = "Downloading appcache content";
+			if ($('#ilAppCacheEvent').text() != msg) {
+				$('#ilAppCacheEvent').text(msg); 
+			}
 			var progress = $('#ilAppCacheEventProgress').text() + ". ";
 			$('#ilAppCacheEventProgress').text(progress);
 			//log($('#filesLoaded').text());
@@ -71,18 +77,31 @@ $( document ).ready( function() {
 			$('#ilAppCacheEventProgress').text(finished);
 		};
 		
-		var acUpdateready = function() {
+		var acUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
 			log("sop2: appcache on updateready...");
+			var msg = "Appcache updated successfully";
+			$('#ilAppCacheEvents').show();
+			var progress = $('#ilAppCacheEventProgress').text() + "Appcache updated successfully";
+			$('#ilAppCacheEventProgress').text(progress);
 		};
 		
 		var acObsolete = function() {
 			log("sop2: appcache on obsolete...");
+			$('#ilAppCacheEvents').show();
+			$('#ilAppCacheEvent').text("Failed to load the appcache manifest from server!");
 		};
 		
 		var acError = function(evt) {
 			log("sop2: appcache on error: " + evt);
 			//log(evt.originalEvent.message);
 		};
+		
+		// gui events
+		var resetAppCacheGUI = function() {
+			$('#ilAppCacheEvent').text("");
+			$('#ilAppCacheEventProgress').text("");
+			$('#ilAppCacheEvents').hide();
+		}
 		
 		var createAppCacheEventHandler = function(iframe) {
 			log("sop2: createAppCacheEventHandler: " + iframe);
