@@ -3,13 +3,21 @@ var sop2;
 $( document ).ready( function() {
 	sop2 = (function() {
 		//var offline = true;
-		var cmdUrl = "";
+		var iliasPhp = "";
+		var sopCmdUrl = "";
+		var lmCmdUrl = "";
+		var webroot = "";
 		var init = function () {
 			log("sop2: init");
-			$('#ilDownloadedFiles').hide();
-			cmdUrl = document.URL.substring(0,document.URL.indexOf('?'))+'?baseClass=ilSAHSPresentationGUI&ref_id='+sop2Globals.refId+'&client_id='+sop2Globals.ilClient+'&cmd=',
-			log("sop2: cmdUrl = " + cmdUrl);
+			iliasPhp = document.URL.substring(0,document.URL.indexOf('?'));
+			webroot = iliasPhp.replace(/ilias.php/,"");
+			lmCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&ref_id='+sop2Globals.refId+'&client_id='+sop2Globals.ilClient+'&cmd=';
+			sopCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sop2Globals.ilClient+'&cmd=offlineMode2_sop2';
+			
+			//load sop resources into appcache if not exists
+			$('#iliasOfflineManager').after('<iframe id="sopAppCacheDownloadFrame" src="' + sopCmdUrl + '" onload="sop2.createSopAppCacheEventHandler(this);"></iframe>');
 			resetAppCacheGUI();
+			//log("sop2: cmdUrl = " + sopCmdUrl);
 			//offline = !navigator.onLine;
 			//log("offline: " + offline);
 		};
@@ -26,34 +34,67 @@ $( document ).ready( function() {
 		var importLm = function () {
 			log("sop2: importLm");
 			resetAppCacheGUI();
-			$('#iliasOfflineManager').after('<iframe id="appCacheDownloadFrame" src="' + cmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createAppCacheEventHandler(this);"></iframe>');
+			$('#iliasOfflineManager').after('<iframe id="lmAppCacheDownloadFrame" src="' + lmCmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createLmAppCacheEventHandler(this);"></iframe>');
 		};
 		
-		// AppCache Event Handler
-		
-		var acChecking = function() {
-			log("sop2: appcache on checking...");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Checking for appcache update...");
+		// AppCache Event Handler for Sop
+		var sopAppCacheChecking = function() {
+			log("sop appcache on checking...");
 		};
 		
-		var acNoupdate = function() {
-			log("sop2: appcache on noupdate...");
+		var sopAppCacheNoupdate = function() {
+			log("sop appcache on noupdate...");
+		};
+		
+		var sopAppCacheDownloading = function() {
+			log("sop appcache on downloading");
+		};
+		
+		var sopAppCacheProgress = function(evt) {
+			log("sop appcache on progress...");
+		};
+		
+		var sopAppCacheCached = function() {
+			log("sop appcache on cached...");
+		};
+		
+		var sopAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
+			log("sop appcache on updateready...");
+		};
+		
+		var sopAppCacheObsolete = function() {
+			log("sop appcache on obsolete...");
+		};
+		
+		var sopAppCacheError = function(evt) {
+			log("sop appcache on error: " + evt);
+		};
+		
+		
+		// AppCache Event Handler for LearningModule
+		var lmAppCacheChecking = function() {
+			log("lm appcache on checking...");
 			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Content is already cached, no updated needed.");
+			$('#ilAppCacheEvent').text("Checking for lm appcache update...");
+		};
+		
+		var lmAppCacheNoupdate = function() {
+			log("lm appcache on noupdate...");
+			$('#ilAppCacheEvents').show();
+			$('#ilAppCacheEvent').text("lm content is already cached, no updated needed.");
 			$('#ilAppCacheEventProgress').text("");
 		};
 		
-		var acDownloading = function() {
-			log("sop2: appcache on downloading");
+		var lmAppCacheDownloading = function() {
+			log("lm appcache on downloading");
 			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Downloading appcache manifest");
+			$('#ilAppCacheEvent').text("Downloading lm appcache manifest");
 			$('#ilAppCacheEventProgress').text("");
 		};
 		
-		var acProgress = function(evt) {
-			log("sop2: appcache on progress...");
-			var msg = "Downloading appcache content";
+		var lmAppCacheProgress = function(evt) {
+			log("lm appcache on progress...");
+			var msg = "Downloading lm appcache content";
 			if ($('#ilAppCacheEvent').text() != msg) {
 				$('#ilAppCacheEvent').text(msg); 
 			}
@@ -71,28 +112,28 @@ $( document ).ready( function() {
 			*/
 		};
 		
-		var acCached = function() {
-			log("sop2: appcache on cached...");
-			var finished = $('#ilAppCacheEventProgress').text() + " Files are downloaded into the browsers application cache!"
+		var lmAppCacheCached = function() {
+			log("lm appcache on cached...");
+			var finished = $('#ilAppCacheEventProgress').text() + " lm files are downloaded into the browsers application cache!"
 			$('#ilAppCacheEventProgress').text(finished);
 		};
 		
-		var acUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
-			log("sop2: appcache on updateready...");
-			var msg = "Appcache updated successfully";
+		var lmAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
+			log("lm appcache on updateready...");
+			var msg = "lm appcache updated successfully";
 			$('#ilAppCacheEvents').show();
-			var progress = $('#ilAppCacheEventProgress').text() + "Appcache updated successfully";
+			var progress = $('#ilAppCacheEventProgress').text() + "lm appcache updated successfully";
 			$('#ilAppCacheEventProgress').text(progress);
 		};
 		
-		var acObsolete = function() {
-			log("sop2: appcache on obsolete...");
+		var lmAppCacheObsolete = function() {
+			log("lm appcache on obsolete...");
 			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Failed to load the appcache manifest from server!");
+			$('#ilAppCacheEvent').text("Failed to load the lm appcache manifest from server!");
 		};
 		
-		var acError = function(evt) {
-			log("sop2: appcache on error: " + evt);
+		var lmAppCacheError = function(evt) {
+			log("lm appcache on error: " + evt);
 			//log(evt.originalEvent.message);
 		};
 		
@@ -101,32 +142,37 @@ $( document ).ready( function() {
 			$('#ilAppCacheEvent').text("");
 			$('#ilAppCacheEventProgress').text("");
 			$('#ilAppCacheEvents').hide();
-		}
+		};
 		
-		var createAppCacheEventHandler = function(iframe) {
-			log("sop2: createAppCacheEventHandler: " + iframe);
-			$(iframe.contentWindow.applicationCache).on('checking', acChecking);
-			$(iframe.contentWindow.applicationCache).on('noupdate', acNoupdate);
-			$(iframe.contentWindow.applicationCache).on('downloading', acDownloading);
-			$(iframe.contentWindow.applicationCache).on('progress', acProgress);
-			$(iframe.contentWindow.applicationCache).on('cached', acCached);
-			$(iframe.contentWindow.applicationCache).on('updateready', acUpdateready);
-			$(iframe.contentWindow.applicationCache).on('obsolete', acObsolete);
-			$(iframe.contentWindow.applicationCache).on('error', acError);
+		var createSopAppCacheEventHandler = function(iframe) {
+			log("sop2: createSopAppCacheEventHandler: " + iframe);
+			$(iframe.contentWindow.applicationCache).on('checking', sopAppCacheChecking);
+			$(iframe.contentWindow.applicationCache).on('noupdate', sopAppCacheNoupdate);
+			$(iframe.contentWindow.applicationCache).on('downloading', sopAppCacheDownloading);
+			$(iframe.contentWindow.applicationCache).on('progress', sopAppCacheProgress);
+			$(iframe.contentWindow.applicationCache).on('cached', sopAppCacheCached);
+			$(iframe.contentWindow.applicationCache).on('updateready', sopAppCacheUpdateready);
+			$(iframe.contentWindow.applicationCache).on('obsolete', sopAppCacheObsolete);
+			$(iframe.contentWindow.applicationCache).on('error', sopAppCacheError);
+		};
+		
+		var createLmAppCacheEventHandler = function(iframe) {
+			log("sop2: createLmAppCacheEventHandler: " + iframe);
+			$(iframe.contentWindow.applicationCache).on('checking', lmAppCacheChecking);
+			$(iframe.contentWindow.applicationCache).on('noupdate', lmAppCacheNoupdate);
+			$(iframe.contentWindow.applicationCache).on('downloading', lmAppCacheDownloading);
+			$(iframe.contentWindow.applicationCache).on('progress', lmAppCacheProgress);
+			$(iframe.contentWindow.applicationCache).on('cached', lmAppCacheCached);
+			$(iframe.contentWindow.applicationCache).on('updateready', lmAppCacheUpdateready);
+			$(iframe.contentWindow.applicationCache).on('obsolete', lmAppCacheObsolete);
+			$(iframe.contentWindow.applicationCache).on('error', lmAppCacheError);
 		};
 		
 		return {
 			init 				: init,
 			importLm 			: importLm,
-			acChecking 			: acChecking,
-			acNoupdate 			: acNoupdate,
-			acDownloading 			: acDownloading,
-			acProgress 			: acProgress,
-			acCached			: acCached,
-			acUpdateready			: acUpdateready,
-			acObsolete			: acObsolete,
-			acError				: acError,
-			createAppCacheEventHandler 	: createAppCacheEventHandler	
+			createSopAppCacheEventHandler 	: createSopAppCacheEventHandler,
+			createLmAppCacheEventHandler 	: createLmAppCacheEventHandler	
 		};
 	}());
 	sop2.init();

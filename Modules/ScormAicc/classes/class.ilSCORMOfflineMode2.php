@@ -71,11 +71,27 @@ class ilSCORMOfflineMode2
 		return $this->offlineMode;
 	}
 	
-	function createManifestFileIfNotExists() {
+	function createSopManifestFileIfNotExists() {
+		global $log;
+		$log->write("createSop2ManifestFileIfNotExists");
+		$this->sop2_appcache = "./Modules/ScormAicc/sop2/sop2.appcache";
+		if (!file_exists($this->sop2_appcache)) {
+			$manifest_file = fopen($this->sop2_appcache, "w");
+			if (!$manifest_file) {
+				$log->write("Unable to open file!");
+				return false;
+			}
+			$manifest_string = "CACHE MANIFEST\n\nCACHE:\n";
+			fwrite($manifest_string);
+			fclose($manifest_file);
+		}
+	}
+	
+	function createLmManifestFileIfNotExists() {
 		global $log;
 		$log->write("createManifestFileIfNotExists");
 		$this->lm_dir = ilUtil::getWebspaceDir("filesystem").'/lm_data/lm_'.$this->obj_id;
-		if (!file_exists($this->lm_dir)){
+		if (!file_exists($this->lm_dir)) {
 			$log->write("could not find " . $this->lm_dir);
 			return false;
 		}

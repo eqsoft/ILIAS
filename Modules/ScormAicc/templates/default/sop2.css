@@ -1,4 +1,9 @@
-#appCacheDownloadFrame {
+#sopAppCacheDownloadFrame {
+	display: none;
+	position: absolute;
+}
+
+#lmAppCacheDownloadFrame {
 	display: none;
 	position: absolute;
 }
