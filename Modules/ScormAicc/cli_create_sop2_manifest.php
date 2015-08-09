@@ -4,7 +4,7 @@ $appcache = fopen('./sop2/sop2.appcache','w');
 $objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator('./sop2/'));
 foreach($objects as $name => $object) {
 	
-	if (preg_match('/\/\.+$/',$name)) {
+	if (preg_match('/\/\.+/',$name)) {
 		continue;
 	}
 	

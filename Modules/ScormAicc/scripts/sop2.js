@@ -1,5 +1,9 @@
 var sop2;
-
+window.onerror = function(e,u,l) {
+	console.log(e);
+	console.log(u);
+	console.log(l);
+}
 $( document ).ready( function() {
 	sop2 = (function() {
 		//var offline = true;
@@ -67,6 +71,7 @@ $( document ).ready( function() {
 		};
 		
 		var sopAppCacheError = function(evt) {
+			console.dir(evt);
 			log("sop appcache on error: " + evt);
 		};
 		

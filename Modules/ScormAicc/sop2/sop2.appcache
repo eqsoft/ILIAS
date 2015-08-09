@@ -1,7 +1,6 @@
 CACHE MANIFEST
 
 CACHE:
-./Modules/ScormAicc/sop2/favicon.ico
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/buildrte/rte.js
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/jquery-1.4.4.min.js
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/rteconfig.js
@@ -13,9 +12,11 @@ CACHE:
 ./Modules/ScormAicc/sop2/Modules/ScormAicc/scripts/SOP12API.js
 ./Modules/ScormAicc/sop2/Modules/ScormAicc/templates/default/debug.html
 ./Modules/ScormAicc/sop2/Modules/ScormAicc/templates/default/dummy.html
-./Modules/ScormAicc/sop2/msg.html
-./Modules/ScormAicc/sop2/player12.html
-./Modules/ScormAicc/sop2/player2004.html
+./Modules/ScormAicc/sop2/player/favicon.ico
+./Modules/ScormAicc/sop2/player/msg.html
+./Modules/ScormAicc/sop2/player/player12.html
+./Modules/ScormAicc/sop2/player/player2004.html
+./Modules/ScormAicc/sop2/player/specialPage.html
 ./Modules/ScormAicc/sop2/Services/UIComponent/NestedList/js/ilNestedList.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/animation/animation-debug.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/animation/animation-min.js
@@ -406,7 +407,6 @@ CACHE:
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/yuitest/yuitest_core-debug.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/yuitest/yuitest_core-min.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/yuitest/yuitest_core.js
-./Modules/ScormAicc/sop2/specialPage.html
 ./Modules/ScormAicc/sop2/templates/default/delos.css
 ./Modules/ScormAicc/sop2/templates/default/images/scorm/asset.png
 ./Modules/ScormAicc/sop2/templates/default/images/scorm/asset_s.png
@@ -430,4 +430,4 @@ CACHE:
 NETWORK:
 *
 
-#2015-08-08 22:01:23
+#2015-08-09 20:02:28
