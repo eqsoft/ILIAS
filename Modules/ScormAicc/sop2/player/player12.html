@@ -6,6 +6,8 @@
 	<title>ILIAS SCORM Offline Player</title>
 	<link rel="shortcut icon" href="../favicon.ico" type="image/x-icon" />
 	<script type="text/javascript" src="../Modules/ScormAicc/scripts/SOP12API.js"></script>
+	<script type="text/javascript" src="../Modules/ScormAicc/scripts/jquery-min.js"></script>
+	<script type="text/javascript" src="../Modules/ScormAicc/scripts/sop2.js"></script>
 	<style type="text/css">
 body{
 	margin:0;
@@ -74,12 +76,14 @@ body{
 		var SOP=true;
 		var API;
 		var params;
-		var maxInitTries = 20;
-		var tries=0;
 		
 		function initPlayer() {
-			params = getObj(gui.getPlayerParams(window));
+			params = gui.getPlayerParams(window);
+			
+			
 			var d = JSON.parse(gui.getData("lmGetAllByClientAndObjIdAtInitOfPlayer",[params.client,params.obj_id],true));
+			
+			/*
 			if(d[0].init_data && d[0].init_data!="")
 			{
 				IliasScormVars=JSON.parse(d[0].init_data);
@@ -99,30 +103,15 @@ body{
 				IliasScormTree = JSON.parse(d[0].scorm_tree);
 				IliasScormData = JSON.parse(gui.getData("getScormTracking",[params.client,params.obj_id],false));
 				API=new iliasApi();
-			} else {
+				
+			}
+			
+			else {
 				document.getElementById("tdResource").innerHTML="error reading data";
 			}
-		}
-
-		function initSom() {
-			if (typeof gui != "object") {
-				if (tries < maxInitTries) {
-					tries++;
-					setTimeout("initSom()", 100);
-					return;
-				}
-				else {
-					alert("could not initialize global objects!");
-				}
-			}
-			else {
-				initPlayer();
-			}
+			*/
 		}
 		
-		function getObj(str) {
-			return JSON.parse(str);
-		}
 		function saveRequest(data){
 			var dbResult = gui.setData("setSCORM12data",[params.client, params.obj_id, data]);
 			return dbResult;
@@ -130,7 +119,6 @@ body{
 		function scormPlayerUnload(data) {
 			if(data.last!="") var dbResult = gui.setData("scormPlayerUnload",[params.client, params.obj_id, data.last]);
 		}
-		window.addEventListener("load",initSom,true);
 	</script>
 </body>
 </html>
