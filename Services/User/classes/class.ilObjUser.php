@@ -207,7 +207,7 @@ class ilObjUser extends ilObject
 			$this->skin = $this->ilias->ini->readVariable("layout","skin");
 
 			$this->prefs["skin"] = $this->skin;
-			$this->prefs["show_users_online"] = "y";
+//			$this->prefs["show_users_online"] = "y";
 
 			//style (css)
 		 	$this->prefs["style"] = $this->ilias->ini->readVariable("layout","style");
@@ -691,7 +691,7 @@ class ilObjUser extends ilObject
 	/**
 	* Private function for lookup methods
 	*/
-	private function _lookup($a_user_id, $a_field)
+	private static function _lookup($a_user_id, $a_field)
 	{
 		global $ilDB;
 		
@@ -805,7 +805,7 @@ class ilObjUser extends ilObject
 	/**
 	* lookup login
 	*/
-	function _lookupLogin($a_user_id)
+	public static function  _lookupLogin($a_user_id)
 	{
 		return ilObjUser::_lookup($a_user_id, "login");
 	}
@@ -819,16 +819,31 @@ class ilObjUser extends ilObject
 	}
 
 	/**
-	* lookup id by login
-	*/
+	 * Lookup id by login
+	 */
 	public static function _lookupId($a_user_str)
 	{
 		global $ilDB;
 
-		$res = $ilDB->queryF("SELECT usr_id FROM usr_data WHERE login = %s",
-			array("text"), array($a_user_str));
-		$user_rec = $ilDB->fetchAssoc($res);
-		return $user_rec["usr_id"];
+		if (!is_array($a_user_str))
+		{
+			$res = $ilDB->queryF("SELECT usr_id FROM usr_data WHERE login = %s",
+				array("text"), array($a_user_str));
+			$user_rec = $ilDB->fetchAssoc($res);
+			return $user_rec["usr_id"];
+		}
+		else
+		{
+			$set = $ilDB->query("SELECT usr_id FROM usr_data ".
+				" WHERE ".$ilDB->in("login", $a_user_str, false, "text")
+			);
+			$ids = array();
+			while ($rec = $ilDB->fetchAssoc($set))
+			{
+				$ids[] = $rec["usr_id"];
+			}
+			return $ids;
+		}
 	}
 
 	/**
@@ -1050,9 +1065,6 @@ class ilObjUser extends ilObject
 				SET login = %s
 				WHERE usr_id = %s',
 				array('text', 'integer'), array($this->getLogin(), $this->getId()));
-
-			include_once 'Services/Contact/classes/class.ilAddressbook.php';
-			ilAddressbook::onLoginNameChange($former_login, $this->getLogin());
 		}
 
 		return true;
@@ -1406,9 +1418,6 @@ class ilObjUser extends ilObject
 		
 		// Reset owner
 		$this->resetOwner();
-
-		include_once 'Services/Contact/classes/class.ilAddressbook.php';
-		ilAddressbook::onUserDeletion($this);
 
 		// Trigger deleteUser Event
 		global $ilAppEventHandler;
@@ -3289,16 +3298,16 @@ class ilObjUser extends ilObject
 					if(!isset($all_parent_path[$parent_ref]))
 					{					
 						// #15746
-						if($is_nested_set)
-						{
-							$par_left = $tree->getLeftValue($parent_ref);
-							$all_parent_path[$parent_ref] = sprintf("%010d", $par_left);
-						}
-						else
-						{
+						//if($is_nested_set)
+						//{
+						//	$par_left = $tree->getLeftValue($parent_ref);
+						//	$all_parent_path[$parent_ref] = sprintf("%010d", $par_left);
+						//}
+						//else
+						//{
 							$node = $tree->getNodeData($parent_ref);						
-							$all_parent_path[$parent_ref] = $node["path"];
-						}
+							$all_parent_path[$parent_ref] = $node["title"];
+						//}
 					}
 					
 					$parent_path = $all_parent_path[$parent_ref];
@@ -3549,7 +3558,7 @@ class ilObjUser extends ilObject
 				$obj["title"] = ilObject::_lookupTitle($obj["item_id"]);
 			}
 			$objects[] = array ("id" => $obj["item_id"],
-				"type" => $obj["type"], "title" => $obj["title"]);
+				"type" => $obj["type"], "title" => $obj["title"], "insert_time" => $obj["insert_time"]);
 		}
 		return $objects;
 	}
@@ -3993,7 +4002,8 @@ class ilObjUser extends ilObject
 			}
 		}
 
-		return $file;
+		require_once('./Services/WebAccessChecker/classes/class.ilWACSignedPath.php');
+		return ilWACSignedPath::signFile($file);
 	}
 
 	/**
@@ -4337,6 +4347,29 @@ class ilObjUser extends ilObject
 					  ilFormat::formatUnixTime($this->getTimeLimitUntil(), true)."\n");
 			*/
 		}
+
+		include_once './Services/User/classes/class.ilUserDefinedFields.php';
+		/**
+		 * @var ilUserDefinedFields $user_defined_fields
+		 */
+		$user_defined_fields = ilUserDefinedFields::_getInstance();
+		$user_defined_data = $this->getUserDefinedData();
+
+		foreach($user_defined_fields->getDefinitions() as $field_id => $definition)
+		{
+			$data = $user_defined_data["f_".$field_id];
+			if(strlen($data))
+			{
+				if($definition['field_type'] ==  UDF_TYPE_WYSIWYG)
+				{
+					$data = preg_replace('/\<br(\s*)?\/?\>/i', "\n", $data);
+					$data = strip_tags($data);
+				}
+
+				$body .= $definition['field_name'].': '. $data . "\n";
+			}
+		}
+
 		return $body;
 	}
 
@@ -4700,6 +4733,32 @@ class ilObjUser extends ilObject
 		return $prefs;
 	}
 
+	/**
+	 * For a given set of user IDs return a subset that has
+	 * a given user preference set.
+	 *
+	 * @param array $a_user_ids array of user IDs
+	 * @param string $a_keyword preference keyword
+	 * @param string $a_val value
+	 * @return array array of user IDs
+	 */
+	public static function getUserSubsetByPreferenceValue($a_user_ids, $a_keyword, $a_val)
+	{
+		global $ilDB;
+
+		$users = array();
+		$set = $ilDB->query("SELECT usr_id FROM usr_pref ".
+			" WHERE keyword = ".$ilDB->quote($a_keyword, "text").
+			" AND ".$ilDB->in("usr_id", $a_user_ids, false, "integer").
+			" AND value = ".$ilDB->quote($a_val, "text")
+		);
+		while ($rec = $ilDB->fetchAssoc($set))
+		{
+			$users[] = $rec["usr_id"];
+		}
+		return $users;
+	}
+
 
 	public static function _resetLoginAttempts($a_usr_id)
 	{
@@ -4821,6 +4880,10 @@ class ilObjUser extends ilObject
 			{
 				$where[] = '(agree_date IS NOT NULL OR user_id = ' . $ilDB->quote(SYSTEM_USER_ID, 'integer') . ')';
 			}
+		}
+		else if (is_array($a_user_id))
+		{
+			$where[] = $ilDB->in("user_id", $a_user_id, false, "integer");
 		}
 		else
 		{
@@ -5438,6 +5501,37 @@ class ilObjUser extends ilObject
 	}
 
 	/**
+	 * Get users that have or have not agreed to the user agreement.
+	 *
+	 * @param bool $a_agreed true, if users that have agreed should be returned
+	 * $@param array $a_users array of user ids (subset used as base) or null for all users
+	 * @return array array of user IDs
+	 */
+	public static function getUsersAgreed($a_agreed = true, $a_users = null)
+	{
+		global $ilDB;
+
+		$date_is = ($a_agreed)
+			? "IS NOT NULL"
+			: "IS NULL";
+
+		$users = (is_array($a_users))
+			? " AND ".$ilDB->in("usr_id", $a_users, false, "integer")
+			: "";
+
+		$set = $ilDB->query("SELECT usr_id FROM usr_data ".
+			" WHERE agree_date ".$date_is.
+			$users);
+		$ret = array();
+		while ($rec = $ilDB->fetchAssoc($set))
+		{
+			$ret[] = $rec["usr_id"];
+		}
+		return $ret;
+	}
+
+
+	/**
 	 * @param bool|null $status
 	 * @return void|bool
 	 */
@@ -5460,7 +5554,16 @@ class ilObjUser extends ilObject
 	 */
 	public function isAnonymous()
 	{
-		return $this->getId() == ANONYMOUS_USER_ID;
+		return self::_isAnonymous($this->getId());
+	}
+
+	/**
+	 * @param int $usr_id
+	 * @return bool
+	 */
+	public static function _isAnonymous($usr_id)
+	{
+		return $usr_id == ANONYMOUS_USER_ID;
 	}
 	
 	public function activateDeletionFlag()
@@ -5682,9 +5785,12 @@ class ilObjUser extends ilObject
 					$value = trim($value);
 					if($value)
 					{
+						$uniq_id = $ilDB->nextId('usr_data_multi');
+
 						$ilDB->manipulate("INSERT usr_data_multi".
-							" (usr_id,field_id,value) VALUES".
-							" (".$ilDB->quote($this->getId(), "integer").
+							" (id,usr_id,field_id,value) VALUES".
+							" (".$ilDB->quote($uniq_id, "integer").
+							",".$ilDB->quote($this->getId(), "integer").
 							",".$ilDB->quote($id, "text").
 							",".$ilDB->quote($value, "text").
 							")");		

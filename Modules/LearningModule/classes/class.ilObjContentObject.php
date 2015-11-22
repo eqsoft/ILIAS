@@ -26,6 +26,7 @@ class ilObjContentObject extends ilObject
 	var $style_id;
 	var $pg_header;
 	var $online;
+	var $for_translation = 0;
 	protected $rating;
 	protected $rating_pages;
 	var $auto_glossaries = array();
@@ -412,6 +413,25 @@ class ilObjContentObject extends ilObject
 		ilLMObject::putInTree($page, $chap->getId(), IL_FIRST_NODE);
 	}
 	
+	/**
+	 * Set for translation
+	 *
+	 * @param bool $a_val lm has been imported for translation purposes	
+	 */
+	function setForTranslation($a_val)
+	{
+		$this->for_translation = $a_val;
+	}
+	
+	/**
+	 * Get for translation
+	 *
+	 * @return bool lm has been imported for translation purposes
+	 */
+	function getForTranslation()
+	{
+		return $this->for_translation;
+	}
 
 	/**
 	* get content object tree
@@ -680,7 +700,40 @@ class ilObjContentObject extends ilObject
 
 		$this->style_id = $a_style_id;
 	}
-	
+
+	/**
+	 * Write header page
+	 *
+	 * @param int $a_lm_id learning module id
+	 * @param int $a_page_id page
+	 */
+	static function writeHeaderPage($a_lm_id, $a_page_id)
+	{
+		global $ilDB;
+
+		$ilDB->manipulate("UPDATE content_object SET ".
+			" header_page = ".$ilDB->quote($a_page_id, "integer").
+			" WHERE id = ".$ilDB->quote($a_lm_id, "integer")
+			);
+	}
+
+	/**
+	 * Write footer page
+	 *
+	 * @param int $a_lm_id learning module id
+	 * @param int $a_page_id page
+	 */
+	static function writeFooterPage($a_lm_id, $a_page_id)
+	{
+		global $ilDB;
+
+		$ilDB->manipulate("UPDATE content_object SET ".
+			" footer_page = ".$ilDB->quote($a_page_id, "integer").
+			" WHERE id = ".$ilDB->quote($a_lm_id, "integer")
+		);
+	}
+
+
 	/**
 	* move learning modules from one style to another
 	*/
@@ -1120,6 +1173,8 @@ class ilObjContentObject extends ilObject
 		// #14661
 		include_once("./Services/Notes/classes/class.ilNote.php");
 		$this->setPublicNotes(ilNote::commentsActivated($this->getId(), 0, $this->getType()));		
+
+		$this->setForTranslation($lm_rec["for_translation"]);
 	}
 
 	/**
@@ -1163,7 +1218,8 @@ class ilObjContentObject extends ilObject
 			" disable_def_feedback = ".$ilDB->quote($this->getDisableDefaultFeedback(), "integer").", ".
 			" progr_icons = ".$ilDB->quote($this->getProgressIcons(), "integer").", ".
 			" store_tries = ".$ilDB->quote($this->getStoreTries(), "integer").", ".
-			" restrict_forw_nav = ".$ilDB->quote($this->getRestrictForwardNavigation(), "integer")." ".
+			" restrict_forw_nav = ".$ilDB->quote($this->getRestrictForwardNavigation(), "integer").", ".
+			" for_translation = ".$ilDB->quote($this->getForTranslation(), "integer")." ".
 			" WHERE id = ".$ilDB->quote($this->getId(), "integer");
 		$ilDB->manipulate($q);
 		
@@ -1874,6 +1930,31 @@ class ilObjContentObject extends ilObject
 			$a_xml_writer->xmlElement("Property", $attrs);
 		}
 
+		// layout per page
+		$attrs = array("Name" => "LayoutPerPage", "Value" =>
+			$this->getLayoutPerPage());
+		$a_xml_writer->xmlElement("Property", $attrs);
+
+		// progress icons
+		$attrs = array("Name" => "ProgressIcons", "Value" =>
+			$this->getProgressIcons());
+		$a_xml_writer->xmlElement("Property", $attrs);
+
+		// store tries
+		$attrs = array("Name" => "StoreTries", "Value" =>
+			$this->getStoreTries());
+		$a_xml_writer->xmlElement("Property", $attrs);
+
+		// restrict forward navigation
+		$attrs = array("Name" => "RestrictForwardNavigation", "Value" =>
+			$this->getRestrictForwardNavigation());
+		$a_xml_writer->xmlElement("Property", $attrs);
+
+		// disable default feedback
+		$attrs = array("Name" => "DisableDefaultFeedback", "Value" =>
+			$this->getDisableDefaultFeedback());
+		$a_xml_writer->xmlElement("Property", $attrs);
+
 		$a_xml_writer->xmlEndTag("Properties");
 	}
 
@@ -2041,12 +2122,6 @@ class ilObjContentObject extends ilObject
 		global $tpl, $ilBench, $ilLocator, $ilUser, $ilObjDataCache, $ilias;
 
 		$user_lang = $ilUser->getLanguage();
-		if ($a_lang != "")
-		{
-			$ilUser->setLanguage($a_lang);
-			$ilUser->setCurrentLanguage($a_lang);
-			$ilObjDataCache->deleteCachedEntry($this->getId());
-		}
 
 		// initialize temporary target directory
 		ilUtil::delDir($a_target_dir);
@@ -2076,10 +2151,14 @@ class ilObjContentObject extends ilObject
 		preg_match_all("/url\(([^\)]*)\)/",$css,$files);
 		foreach (array_unique($files[1]) as $fileref)
 		{
-			$fileref = dirname($location_stylesheet)."/".$fileref;
+			$css_fileref = str_replace(array("'", '"'), "", $fileref);
+			$fileref = dirname($location_stylesheet)."/".$css_fileref;
 			if (is_file($fileref))
 			{
-				copy($fileref, $style_img_dir."/".basename($fileref));
+//echo "<br>make dir: ".dirname($style_dir."/".$css_fileref);
+				ilUtil::makeDirParents(dirname($style_dir."/".$css_fileref));
+//echo "<br>copy: ".$fileref." TO ".$style_dir."/".$css_fileref;
+				copy($fileref, $style_dir."/".$css_fileref);
 			}
 		}
 		fclose($fh);
@@ -2118,27 +2197,61 @@ class ilObjContentObject extends ilObject
 		// get learning module presentation gui class
 		include_once("./Modules/LearningModule/classes/class.ilLMPresentationGUI.php");
 		$_GET["cmd"] = "nop";
+		$get_transl = $_GET["transl"];
+		$_GET["transl"] = "";
 		$lm_gui =& new ilLMPresentationGUI();
-		$lm_gui->setOfflineMode(true);
+		$lm_gui->setOfflineMode(true, ($a_lang == "all"));
 		$lm_gui->setOfflineDirectory($a_target_dir);
 		$lm_gui->setExportFormat($a_export_format);
+
 		$ot = ilObjectTranslation::getInstance($this->getId());
-		if ($a_lang != "")
+		$langs = array();
+		if ($a_lang != "all")
 		{
-			if ($a_lang == $ot->getMasterLanguage())
+			$langs = array($a_lang);
+		}
+		else
+		{
+			$ot_langs = $ot->getLanguages();
+			foreach ($ot_langs as $otl)
 			{
-				$lm_gui->lang = "";
-			}
-			else
-			{
-				$lm_gui->lang = $a_lang;
+				$langs[] = $otl["lang_code"];
 			}
 		}
 
-		// export pages
-		$ilBench->start("ExportHTML", "exportHTMLPages");
-		$this->exportHTMLPages($lm_gui, $a_target_dir, $lm_gui->lang);
-		$ilBench->stop("ExportHTML", "exportHTMLPages");
+		// iterate all languages
+		foreach ($langs as $lang)
+		{
+
+			if ($lang != "")
+			{
+				$ilUser->setLanguage($lang);
+				$ilUser->setCurrentLanguage($lang);
+			}
+			else
+			{
+				$ilUser->setLanguage($user_lang);
+				$ilUser->setCurrentLanguage($user_lang);
+			}
+
+			if ($lang != "")
+			{
+				if ($lang == $ot->getMasterLanguage())
+				{
+					$lm_gui->lang = "";
+				}
+				else
+				{
+					$lm_gui->lang = $lang;
+				}
+			}
+
+			// export pages
+			$ilBench->start("ExportHTML", "exportHTMLPages");
+			// now: forward ("all" info to export files and links)
+			$this->exportHTMLPages($lm_gui, $a_target_dir, $lm_gui->lang, ($a_lang == "all"));
+			$ilBench->stop("ExportHTML", "exportHTMLPages");
+		}
 
 		// export glossary terms
 		$ilBench->start("ExportHTML", "exportHTMLGlossaryTerms");
@@ -2175,6 +2288,17 @@ class ilObjContentObject extends ilObject
 			$this->exportHTMLFile($a_target_dir, $file);
 		}
 		$ilBench->stop("ExportHTML", "exportHTMLFileObjects");
+
+		// export questions (images)
+		if (count($this->q_ids) > 0)
+		{
+			foreach ($this->q_ids as $q_id)
+			{
+				ilUtil::makeDirParents($a_target_dir."/assessment/0/".$q_id."/images");
+				ilUtil::rCopy(ilUtil::getWebspaceDir()."/assessment/0/".$q_id."/images",
+					$a_target_dir."/assessment/0/".$q_id."/images");
+			}
+		}
 
 		// export table of contents
 		$ilBench->start("ExportHTML", "exportHTMLTOC");
@@ -2339,8 +2463,14 @@ class ilObjContentObject extends ilObject
 			array("source" => './Modules/Scorm2004/scripts/questions/question_handling.js',
 				"target" => $a_target_dir.'/js/question_handling.js',
 				"type" => "js"),
+			array("source" => './Modules/TestQuestionPool/js/ilMatchingQuestion.js',
+				"target" => $a_target_dir.'/js/ilMatchingQuestion.js',
+				"type" => "js"),
 			array("source" => './Modules/Scorm2004/templates/default/question_handling.css',
 				"target" => $a_target_dir.'/css/question_handling.css',
+				"type" => "css"),
+			array("source" => './Modules/TestQuestionPool/templates/default/test_javascript.css',
+				"target" => $a_target_dir.'/css/test_javascript.css',
 				"type" => "css"),
 			array("source" => ilPlayerUtil::getLocalMediaElementJsPath(),
 				"target" => $a_target_dir."/".ilPlayerUtil::getLocalMediaElementJsPath(),
@@ -2509,7 +2639,7 @@ class ilObjContentObject extends ilObject
 	/**
 	* export all pages of learning module to html file
 	*/
-	function exportHTMLPages(&$a_lm_gui, $a_target_dir, $a_lang = "")
+	function exportHTMLPages(&$a_lm_gui, $a_target_dir, $a_lang = "", $a_all_languages = false)
 	{
 		global $tpl, $ilBench, $ilLocator;
 				
@@ -2557,7 +2687,7 @@ class ilObjContentObject extends ilObject
 				$ilBench->start("ExportHTML", "exportHTMLPage");
 				$ilBench->start("ExportHTML", "exportPageHTML");
 				$this->exportPageHTML($a_lm_gui, $a_target_dir, $page["obj_id"],
-					"", $exp_id_map);
+					"", $exp_id_map, $a_lang, $a_all_languages);
 				$ilBench->stop("ExportHTML", "exportPageHTML");
 
 				// get all snippets of page
@@ -2589,14 +2719,20 @@ class ilObjContentObject extends ilObject
 				include_once("./Modules/File/classes/class.ilObjFile.php");
 				$pg_files = ilObjFile::_getFilesOfObject($this->getType().":pg", $page["obj_id"], 0, $a_lang);
 				$this->offline_files = array_merge($this->offline_files, $pg_files);
-				
+
+				// collect all questions
+				include_once("./Services/COPage/classes/class.ilPCQuestion.php");
+				$q_ids = ilPCQuestion::_getQuestionIdsForPage($this->getType(), $page["obj_id"], $a_lang);
+				foreach($q_ids as $q_id)
+				{
+					$this->q_ids[$q_id] = $q_id;
+				}
+
 				$ilBench->stop("ExportHTML", "exportHTMLPage");
 			}
 		}
 		$this->offline_mobs = $mobs;
 		$this->offline_int_links = $int_links;
-		
-		
 	}
 
 
@@ -2605,9 +2741,15 @@ class ilObjContentObject extends ilObject
 	* export page html
 	*/
 	function exportPageHTML(&$a_lm_gui, $a_target_dir, $a_lm_page_id, $a_frame = "",
-		$a_exp_id_map = array())
+		$a_exp_id_map = array(), $a_lang = "-", $a_all_languages = false)
 	{
 		global $tpl, $ilBench;
+
+		$lang_suffix = "";
+		if ($a_lang != "-" && $a_lang != "" && $a_all_languages)
+		{
+			$lang_suffix = "_".$a_lang;
+		}
 		
 //echo "<br>B: export Page HTML ($a_lm_page_id)"; flush();
 		// template workaround: reset of template 
@@ -2625,22 +2767,22 @@ class ilObjContentObject extends ilObject
 			//if ($nid = ilLMObject::_lookupNID($a_lm_gui->lm->getId(), $a_lm_page_id, "pg"))
 			if (is_array($a_exp_id_map) && isset($a_exp_id_map[$a_lm_page_id]))
 			{
-				$file = $a_target_dir."/lm_pg_".$a_exp_id_map[$a_lm_page_id].".html";
+				$file = $a_target_dir."/lm_pg_".$a_exp_id_map[$a_lm_page_id].$lang_suffix.".html";
 			}
 			else
 			{
-				$file = $a_target_dir."/lm_pg_".$a_lm_page_id.".html";
+				$file = $a_target_dir."/lm_pg_".$a_lm_page_id.$lang_suffix.".html";
 			}
 		}
 		else
 		{
 			if ($a_frame != "toc")
 			{
-				$file = $a_target_dir."/frame_".$a_lm_page_id."_".$a_frame.".html";
+				$file = $a_target_dir."/frame_".$a_lm_page_id."_".$a_frame.$lang_suffix.".html";
 			}
 			else
 			{
-				$file = $a_target_dir."/frame_".$a_frame.".html";
+				$file = $a_target_dir."/frame_".$a_frame.$lang_suffix.".html";
 			}
 		}
 		
@@ -2670,7 +2812,7 @@ class ilObjContentObject extends ilObject
 
 		if ($this->first_page_id == $a_lm_page_id && $a_frame == "")
 		{
-			copy($file, $a_target_dir."/index.html");
+			copy($file, $a_target_dir."/index".$lang_suffix.".html");
 		}
 
 		// write frames of frameset
@@ -3146,7 +3288,8 @@ class ilObjContentObject extends ilObject
 		}
 
 		include_once ("./Modules/LearningModule/classes/class.ilContObjParser.php");
-		$contParser = new ilContObjParser($this, $xml_file, $subdir, $qmapping);
+		$subdir = ".";
+		$contParser = new ilContObjParser($this, $xml_file, $subdir, $a_directory);
 		$contParser->setQuestionMapping($qtis);
 		$contParser->startParsing();
 		ilObject::_writeImportId($this->getId(), $this->getImportId());
@@ -3202,8 +3345,16 @@ class ilObjContentObject extends ilObject
 		$new_obj = parent::cloneObject($a_target_id,$a_copy_id);
 		$this->cloneMetaData($new_obj);
 		//$new_obj->createProperties();
+
+		//copy online status if object is not the root copy object
+		$cp_options = ilCopyWizardOptions::_getInstance($a_copy_id);
+
+		if(!$cp_options->isRootNode($this->getRefId()))
+		{
+			$new_obj->setOnline($this->getOnline());
+		}
 	 	
-		$new_obj->setTitle($this->getTitle());
+//		$new_obj->setTitle($this->getTitle());
 		$new_obj->setDescription($this->getDescription());
 		$new_obj->setLayoutPerPage($this->getLayoutPerPage());
 		$new_obj->setLayout($this->getLayout());
@@ -3224,6 +3375,8 @@ class ilObjContentObject extends ilObject
 		$new_obj->setRatingPages($this->hasRatingPages());
 		$new_obj->setDisableDefaultFeedback($this->getDisableDefaultFeedback());
 		$new_obj->setProgressIcons($this->getProgressIcons());
+		$new_obj->setStoreTries($this->getStoreTries());
+		$new_obj->setRestrictForwardNavigation($this->getRestrictForwardNavigation());
 		
 		$new_obj->update();
 		
@@ -3242,7 +3395,18 @@ class ilObjContentObject extends ilObject
 		}
 		
 		// copy content
-		$this->copyAllPagesAndChapters($new_obj, $a_copy_id);
+		$copied_nodes = $this->copyAllPagesAndChapters($new_obj, $a_copy_id);
+
+		// page header and footer
+		if ($this->getHeaderPage() > 0 && ($new_page_header = $copied_nodes[$this->getHeaderPage()]) > 0)
+		{
+			$new_obj->setHeaderPage($new_page_header);
+		}
+		if ($this->getFooterPage() > 0 && ($new_page_footer = $copied_nodes[$this->getFooterPage()]) > 0)
+		{
+			$new_obj->setFooterPage($new_page_footer);
+		}
+		$new_obj->update();
 
 		// Copy learning progress settings
 		include_once('Services/Tracking/classes/class.ilLPObjSettings.php');
@@ -3308,6 +3472,7 @@ class ilObjContentObject extends ilObject
 
 		$a_target_obj->checkTree();
 
+		return $copied_nodes;
 	}
 
 
@@ -3420,6 +3585,55 @@ class ilObjContentObject extends ilObject
 	public function hasRatingPages()
 	{
 		return $this->rating_pages;
+	}
+	
+	
+	public function MDUpdateListener($a_element)
+	{
+		parent::MDUpdateListener($a_element);
+		
+		include_once 'Services/MetaData/classes/class.ilMD.php';
+
+		switch($a_element)
+		{			
+			case 'Educational':
+				include_once("./Services/Object/classes/class.ilObjectLP.php");				
+				$obj_lp = ilObjectLP::getInstance($this->getId());
+				if(in_array($obj_lp->getCurrentMode(), 
+					array(ilLPObjSettings::LP_MODE_TLT, ilLPObjSettings::LP_MODE_COLLECTION_TLT)))
+				{								 
+					include_once("./Services/Tracking/classes/class.ilLPStatusWrapper.php");				
+					ilLPStatusWrapper::_refreshStatus($this->getId());
+				}
+				break;
+
+			case 'General':
+
+				// Update Title and description
+				$md = new ilMD($this->getId(),0, $this->getType());
+				if(!is_object($md_gen = $md->getGeneral()))
+				{
+					return false;
+				}
+
+				include_once("./Services/Object/classes/class.ilObjectTranslation.php");
+				$ot = ilObjectTranslation::getInstance($this->getId());
+				if ($ot->getContentActivated())
+				{
+					$ot->setDefaultTitle($md_gen->getTitle());
+
+					foreach($md_gen->getDescriptionIds() as $id)
+					{
+						$md_des = $md_gen->getDescription($id);
+						$ot->setDefaultDescription($md_des->getDescription());
+						break;
+					}
+					$ot->save();
+				}
+				break;
+
+		}
+		return true;
 	}
 	
 	

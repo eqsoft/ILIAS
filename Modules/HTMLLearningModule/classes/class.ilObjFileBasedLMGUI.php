@@ -10,7 +10,7 @@
 *
 * $Id$
 *
-* @ilCtrl_Calls ilObjFileBasedLMGUI: ilFileSystemGUI, ilMDEditorGUI, ilPermissionGUI, ilLearningProgressGUI, ilInfoScreenGUI
+* @ilCtrl_Calls ilObjFileBasedLMGUI: ilFileSystemGUI, ilObjectMetaDataGUI, ilPermissionGUI, ilLearningProgressGUI, ilInfoScreenGUI
 * @ilCtrl_Calls ilObjFileBasedLMGUI: ilShopPurchaseGUI, ilCommonActionDispatcherGUI
 * @ilCtrl_Calls ilObjFileBasedLMGUI: ilLicenseGUI, ilExportGUI
 * @ingroup ModulesHTMLLearningModule
@@ -91,14 +91,11 @@ class ilObjFileBasedLMGUI extends ilObjectGUI
 
 		switch($next_class)
 		{
-			case 'ilmdeditorgui':
+			case 'ilobjectmetadatagui':
 				$this->checkPermission("write");
 				$ilTabs->activateTab('id_meta_data');
-				include_once 'Services/MetaData/classes/class.ilMDEditorGUI.php';
-
-				$md_gui =& new ilMDEditorGUI($this->object->getId(), 0, $this->object->getType());
-				$md_gui->addObserver($this->object,'MDUpdateListener','General');
-
+				include_once "Services/Object/classes/class.ilObjectMetaDataGUI.php";
+				$md_gui = new ilObjectMetaDataGUI($this->object);	
 				$this->ctrl->forwardCommand($md_gui);
 				break;
 
@@ -729,7 +726,7 @@ class ilObjFileBasedLMGUI extends ilObjectGUI
 	function showLearningModule()
 	{
 		global $ilUser;
-		
+
 		// Note license usage
 		include_once "Services/License/classes/class.ilLicense.php";
 		ilLicense::_noteAccess($this->object->getId(), $this->object->getType(),
@@ -744,7 +741,10 @@ class ilObjFileBasedLMGUI extends ilObjectGUI
 		}
 
 		require_once("./Modules/HTMLLearningModule/classes/class.ilObjFileBasedLMAccess.php");
+		require_once('./Services/WebAccessChecker/classes/class.ilWACSignedPath.php');
+
 		$startfile = ilObjFileBasedLMAccess::_determineStartUrl($this->object->getId());
+		ilWACSignedPath::signFolderOfStartFile($startfile);
 		if ($startfile != "")
 		{
 			ilUtil::redirect($startfile);
@@ -848,11 +848,17 @@ class ilObjFileBasedLMGUI extends ilObjectGUI
 			$ilTabs->addTab("id_list_files",
 				$lng->txt("cont_list_files"),
 				$this->ctrl->getLinkTargetByClass("ilfilesystemgui", "listFiles"));
-			
+		}
+
+		if($ilAccess->checkAccess('visible', '', $this->ref_id))
+		{
 			$ilTabs->addTab("id_info",
 				$lng->txt("info_short"),
 				$this->ctrl->getLinkTargetByClass(array("ilobjfilebasedlmgui", "ilinfoscreengui"), "showSummary"));
-			
+		}
+
+		if($ilAccess->checkAccess('write', '', $this->ref_id))
+		{
 			$ilTabs->addTab("id_settings",
 				$lng->txt("settings"),
 				$this->ctrl->getLinkTarget($this, "properties"));
@@ -878,9 +884,15 @@ class ilObjFileBasedLMGUI extends ilObjectGUI
 		
 		if($ilAccess->checkAccess('write', '', $this->ref_id))
 		{
-			$ilTabs->addTab("id_meta_data",
-				$lng->txt("meta_data"),
-				$this->ctrl->getLinkTargetByClass('ilmdeditorgui',''));
+			include_once "Services/Object/classes/class.ilObjectMetaDataGUI.php";
+			$mdgui = new ilObjectMetaDataGUI($this->object);					
+			$mdtab = $mdgui->getTab();
+			if($mdtab)
+			{			
+				$ilTabs->addTab("id_meta_data",
+					$lng->txt("meta_data"),
+					$mdtab);
+			}
 			
 			if($this->object->getShowBibliographicalData())
 			{
@@ -929,7 +941,8 @@ class ilObjFileBasedLMGUI extends ilObjectGUI
 	{
 		global $rbacsystem, $ilErr, $lng, $ilAccess;
 
-		if ($ilAccess->checkAccess("visible", "", $a_target))
+		if ($ilAccess->checkAccess("read", "", $a_target) ||
+			$ilAccess->checkAccess("visible", "", $a_target))
 		{
 			ilObjectGUI::_gotoRepositoryNode($a_target, "infoScreen");
 		}

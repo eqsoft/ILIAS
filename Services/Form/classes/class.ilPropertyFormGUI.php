@@ -541,6 +541,16 @@ class ilPropertyFormGUI extends ilFormGUI
 		$this->buttons[] = array("cmd" => $a_cmd, "text" => $a_text);
 	}
 
+
+	/**
+	 * Return all Command buttons
+	 *
+	 * @return array
+	 */
+	public function getCommandButtons() {
+		return $this->buttons;
+	}
+
 	/**
 	* Remove all command buttons
 	*/
@@ -705,7 +715,7 @@ class ilPropertyFormGUI extends ilFormGUI
 	protected function hideRequired($a_type)
 	{
 		// #15818
-		return in_array($a_type, array("radio", "non_editable_value"));
+		return in_array($a_type, array("non_editable_value"));
 	}
 
 	function insertItem($item, $a_sub_item = false)

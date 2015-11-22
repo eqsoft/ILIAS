@@ -12,7 +12,7 @@ require_once 'Services/LinkChecker/interfaces/interface.ilLinkCheckerGUIRowHandl
 * @author Stefan Meyer <smeyer.ilias@gmx.de> 
 * @version $Id$
 * 
-* @ilCtrl_Calls ilObjLinkResourceGUI: ilMDEditorGUI, ilPermissionGUI, ilInfoScreenGUI, ilObjectCopyGUI
+* @ilCtrl_Calls ilObjLinkResourceGUI: ilObjectMetaDataGUI, ilPermissionGUI, ilInfoScreenGUI, ilObjectCopyGUI
 * @ilCtrl_Calls ilObjLinkResourceGUI: ilExportGUI, ilWorkspaceAccessGUI, ilCommonActionDispatcherGUI
 * @ilCtrl_Calls ilObjLinkResourceGUI: ilPropertyFormGUI, ilInternalLinkGUI
 * 
@@ -59,7 +59,7 @@ class ilObjLinkResourceGUI extends ilObject2GUI implements ilLinkCheckerGUIRowHa
 				$this->infoScreenForward();	// forwards command
 				break;
 
-			case 'ilmdeditorgui':
+			case 'ilobjectmetadatagui':
 				if(!$ilAccess->checkAccess('write','',$this->object->getRefId()))
 				{
 					$ilErr->raiseError($this->lng->txt('permission_denied'),$ilErr->WARNING);
@@ -67,9 +67,8 @@ class ilObjLinkResourceGUI extends ilObject2GUI implements ilLinkCheckerGUIRowHa
 				
 				$this->prepareOutput();	
 				$ilTabs->activateTab('id_meta_data');
-				include_once 'Services/MetaData/classes/class.ilMDEditorGUI.php';
-				$md_gui =& new ilMDEditorGUI($this->object->getId(), 0, $this->object->getType());
-				$md_gui->addObserver($this->object,'MDUpdateListener','General');
+				include_once 'Services/Object/classes/class.ilObjectMetaDataGUI.php';
+				$md_gui = new ilObjectMetaDataGUI($this->object);	
 				$this->ctrl->forwardCommand($md_gui);
 				break;
 				
@@ -1412,9 +1411,15 @@ class ilObjLinkResourceGUI extends ilObject2GUI implements ilLinkCheckerGUIRowHa
 
 		if ($this->checkPermissionBool('write'))
 		{
-			$ilTabs->addTab("id_meta_data",
-				$lng->txt("meta_data"),
-				$this->ctrl->getLinkTargetByClass('ilmdeditorgui','listSection'));
+			include_once "Services/Object/classes/class.ilObjectMetaDataGUI.php";
+			$mdgui = new ilObjectMetaDataGUI($this->object);					
+			$mdtab = $mdgui->getTab();
+			if($mdtab)
+			{
+				$ilTabs->addTab("id_meta_data",
+					$lng->txt("meta_data"),
+					$mdtab);
+			}
 		}
 
 		if($this->checkPermissionBool('write'))
@@ -1515,42 +1520,60 @@ class ilObjLinkResourceGUI extends ilObject2GUI implements ilLinkCheckerGUIRowHa
 		$this->tpl->parseCurrentBlock();
 	}
 	
+	protected function handleSubItemLinks($a_target)
+	{
+		// #15647 - handle internal links
+		include_once "Services/Form/classes/class.ilFormPropertyGUI.php";
+		include_once "Services/Form/classes/class.ilLinkInputGUI.php";								
+		if(ilLinkInputGUI::isInternalLink($a_target))			
+		{						
+			include_once("./Services/Link/classes/class.ilLink.php");
+			
+			// #10612
+			$parts = explode("|", $a_target);
+			
+			if ($parts[0] == "term")
+			{
+				// #16894
+				return ilLink::_getStaticLink(
+					0,
+					"git",
+					true,
+					"&target=git_".$parts[1]
+				);
+			}
+			
+			if ($parts[0] == "page")
+			{
+				$parts[0] = "pg";				
+			}	
+			
+			$a_target = ilLink::_getStaticLink($parts[1], $parts[0]);
+		}
+		
+		return $a_target;
+	}
+	
 	function callDirectLink()
 	{
 		$obj_id = $this->object->getId();
-		
-		
-		include_once("./Services/Link/classes/class.ilLink.php");
+
 		include_once './Modules/WebResource/classes/class.ilLinkResourceItems.php';
 		if(ilLinkResourceItems::_isSingular($obj_id))
 		{
 			$url = ilLinkResourceItems::_getFirstLink($obj_id);
-			
-			// #15647 - handle internal links
-			include_once "Services/Form/classes/class.ilFormPropertyGUI.php";
-			include_once "Services/Form/classes/class.ilLinkInputGUI.php";								
-			if(ilLinkInputGUI::isInternalLink($url["target"]))			
+			if($url["target"])
 			{
-				// #10612
-				$parts = explode("|", $url["target"]);
-				if ($parts[0] == "page")
+				$url["target"] = $this->handleSubItemLinks($url["target"]);
+
+				include_once './Modules/WebResource/classes/class.ilParameterAppender.php';
+				if(ilParameterAppender::_isEnabled())
 				{
-					$parts[0] = "pg";
-				}
-				if ($parts[0] == "term")
-				{
-					$parts[0] = "git";
-				}
-				$url["target"] = ilLink::_getStaticLink($parts[1], $parts[0]);
+				   $url = ilParameterAppender::_append($url);
+				}		
+
+				$this->redirectToLink($this->ref_id, $obj_id, $url["target"]);
 			}
-			
-			include_once './Modules/WebResource/classes/class.ilParameterAppender.php';
-			if(ilParameterAppender::_isEnabled())
-			{
-			   $url = ilParameterAppender::_append($url);
-			}		
-			
-			$this->redirectToLink($this->ref_id, $obj_id, $url["target"]);
 		}				
 	}
 	
@@ -1565,34 +1588,14 @@ class ilObjLinkResourceGUI extends ilObject2GUI implements ilLinkCheckerGUIRowHa
 			$item = $items->getItem($_REQUEST["link_id"]);
 			if($item["target"])
 			{
-				// #15647 - handle internal links
-				include_once "Services/Form/classes/class.ilFormPropertyGUI.php";
-				include_once "Services/Form/classes/class.ilLinkInputGUI.php";								
-				if(ilLinkInputGUI::isInternalLink($item["target"]))
-				{
-					$parts = explode("|", $item["target"]);
-					if ($parts[0] == "page")
-					{
-						$parts[0] = "pg";
-					}
-					include_once("./Services/Link/classes/class.ilLink.php");
-					$item["target"] = ilLink::_getStaticLink($parts[1], $parts[0]);
-					if ($parts[0] == "term")
-					{
-						$parts[0] = "git";
-						$item["target"] =
-							ilLink::_getStaticLink(0,
-								$parts[0],
-								true,
-								"&target=git_".$parts[1]);
-					}
-				}
+				$item["target"] = $this->handleSubItemLinks($item["target"]);
+				
 				include_once './Modules/WebResource/classes/class.ilParameterAppender.php';
 				if(ilParameterAppender::_isEnabled())
 				{
 				   $item = ilParameterAppender::_append($item);
 				}
-//var_dump($item); exit;
+				ilLoggerFactory::getLogger('webr')->debug('Redirecting to: '. $item['target']);
 				$this->redirectToLink($this->ref_id, $obj_id, $item["target"]);
 			}
 		}

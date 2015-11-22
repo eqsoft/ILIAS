@@ -77,6 +77,7 @@ class ilObjUserFolderGUI extends ilObjectGUI
 				include_once('./Services/Search/classes/class.ilRepositorySearchGUI.php');
 				$user_search =& new ilRepositorySearchGUI();
 				$user_search->enableSearchableCheck(false);
+				$user_search->setUserLimitations(false);
 				$user_search->setCallback(
 					$this,
 					'searchResultHandler',
@@ -191,16 +192,20 @@ class ilObjUserFolderGUI extends ilObjectGUI
 		global $rbacsystem, $ilUser, $ilToolbar, $tpl, $ilSetting, $lng;
 		
 		include_once "Services/UIComponent/Button/classes/class.ilLinkButton.php";
-		
-		$button = ilLinkButton::getInstance();
-		$button->setCaption("usr_add");
-		$button->setUrl($this->ctrl->getLinkTarget($this, "addUser"));	
-		$ilToolbar->addButtonInstance($button);
-		
-		$button = ilLinkButton::getInstance();
-		$button->setCaption("import_users");
-		$button->setUrl($this->ctrl->getLinkTarget($this, "importUserForm"));	
-		$ilToolbar->addButtonInstance($button);
+
+		if ($rbacsystem->checkAccess('create_usr', $this->object->getRefId()) ||
+			$rbacsystem->checkAccess('cat_administrate_users', $this->object->getRefId()))
+		{
+			$button = ilLinkButton::getInstance();
+			$button->setCaption("usr_add");
+			$button->setUrl($this->ctrl->getLinkTarget($this, "addUser"));
+			$ilToolbar->addButtonInstance($button);
+
+			$button = ilLinkButton::getInstance();
+			$button->setCaption("import_users");
+			$button->setUrl($this->ctrl->getLinkTarget($this, "importUserForm"));
+			$ilToolbar->addButtonInstance($button);
+		}
 
 		// alphabetical navigation
 		include_once './Services/User/classes/class.ilUserAccountSettings.php';
@@ -2220,7 +2225,7 @@ class ilObjUserFolderGUI extends ilObjectGUI
 			"language" => 0,
 			"skin_style" => 0,
 			"hits_per_page" => 0,
-			"show_users_online" => 0,
+			/*"show_users_online" => 0,*/
 			"hide_own_online_status" => 0
 		);
 		
@@ -2349,10 +2354,10 @@ class ilObjUserFolderGUI extends ilObjectGUI
 			$ilias->setSetting("hits_per_page",$_POST["select"]["default_hits_per_page"]);
 		}
 
-		if ($_POST["select"]["default_show_users_online"])
+		/*if ($_POST["select"]["default_show_users_online"])
 		{
 			$ilias->setSetting("show_users_online",$_POST["select"]["default_show_users_online"]);
-		}
+		}*/
 		
 		if ($_POST["chb"]["export_preferences"])
 		{
@@ -2431,7 +2436,7 @@ class ilObjUserFolderGUI extends ilObjectGUI
 		// BEGIN TABLE DATA		
 		foreach($_POST["file"] as $file)
 		{							
-			$cgui->addItem("file[]", $file, $file, ilUtil::getTypeIconPath("usrf"), $this->lng->txt("obj_usrf"));
+			$cgui->addItem("file[]", $file, $file, ilObject::_getIcon($this->object->getId()), $this->lng->txt("obj_usrf"));
 		}
 
 		$this->tpl->setContent($cgui->getHTML());
@@ -3110,7 +3115,7 @@ class ilObjUserFolderGUI extends ilObjectGUI
 		// after list has been saved...
 		foreach($user_ids as $user_id)
 		{		
-			$list->assignAddressbookEntry($user_id);
+			$list->assignUser($user_id);
 		}
 		
 		include_once "Services/Mail/classes/class.ilFormatMail.php";
@@ -3135,10 +3140,22 @@ class ilObjUserFolderGUI extends ilObjectGUI
 			$mail_data['m_email'],
 			$mail_data['m_subject'],
 			$mail_data['m_message'],
-			$mail_data['use_placeholders']
+			$mail_data['use_placeholders'],
+			$mail_data['tpl_ctx_id'],
+			$mail_data['tpl_ctx_params']
 		);		
 
-		ilUtil::redirect("ilias.php?baseClass=ilMailGUI&type=search_res");		
+		require_once 'Services/Mail/classes/class.ilMailFormCall.php';
+		ilUtil::redirect(
+			ilMailFormCall::getRedirectTarget(
+				$this,
+				'',
+				array(),
+				array(
+					'type' => 'search_res'
+				)
+			)
+		);
 	}
 	
 	public function addToExternalSettingsForm($a_form_id)

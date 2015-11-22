@@ -70,6 +70,10 @@ class ilDataCollectionTable {
 	/**
 	 * @var bool
 	 */
+	protected $delete_by_owner;
+	/**
+	 * @var bool
+	 */
 	protected $limited;
 	/**
 	 * @var string
@@ -152,6 +156,7 @@ class ilDataCollectionTable {
 		$this->setDefaultSortFieldOrder($rec['default_sort_field_order']);
 		$this->setPublicCommentsEnabled($rec['public_comments']);
 		$this->setViewOwnRecordsPerm($rec['view_own_records_perm']);
+		$this->setDeleteByOwner($rec['delete_by_owner']);
 	}
 
 
@@ -212,7 +217,7 @@ class ilDataCollectionTable {
 		$this->setId($id);
 		$query = "INSERT INTO il_dcl_table (" . "id" . ", obj_id" . ", title" . ", add_perm" . ", edit_perm" . ", delete_perm" . ", edit_by_owner"
 			. ", limited" . ", limit_start" . ", limit_end" . ", is_visible" . ", export_enabled" . ", default_sort_field_id"
-			. ", default_sort_field_order" . ", description" . ", public_comments" . ", view_own_records_perm" . " ) VALUES ("
+			. ", default_sort_field_order" . ", description" . ", public_comments" . ", view_own_records_perm" . ", delete_by_owner ) VALUES ("
 			. $ilDB->quote($this->getId(), "integer") . "," . $ilDB->quote($this->getObjId(), "integer") . ","
 			. $ilDB->quote($this->getTitle(), "text") . "," . $ilDB->quote($this->getAddPerm() ? 1 : 0, "integer") . ","
 			. $ilDB->quote($this->getEditPerm() ? 1 : 0, "integer") . "," . $ilDB->quote($this->getDeletePerm() ? 1 : 0, "integer") . ","
@@ -221,7 +226,7 @@ class ilDataCollectionTable {
 			. $ilDB->quote($this->getIsVisible() ? 1 : 0, "integer") . "," . $ilDB->quote($this->getExportEnabled() ? 1 : 0, "integer") . ","
 			. $ilDB->quote($this->getDefaultSortField(), "text") . "," . $ilDB->quote($this->getDefaultSortFieldOrder(), "text") . ","
 			. $ilDB->quote($this->getDescription(), "text") . "," . $ilDB->quote($this->getPublicCommentsEnabled(), "integer") . ","
-			. $ilDB->quote($this->getViewOwnRecordsPerm(), "integer") . ")";
+			. $ilDB->quote($this->getViewOwnRecordsPerm(), "integer") . "," . $ilDB->quote($this->getDeleteByOwner() ? 1 : 0, 'integer') . ")";
 
 		$ilDB->manipulate($query);
 
@@ -268,10 +273,10 @@ class ilDataCollectionTable {
 		$ilDB->update("il_dcl_table", array(
 			"obj_id" => array( "integer", $this->getObjId() ),
 			"title" => array( "text", $this->getTitle() ),
-			"add_perm" => array( "integer", $this->getAddPerm() ),
-			"edit_perm" => array( "integer", $this->getEditPerm() ),
-			"delete_perm" => array( "integer", $this->getDeletePerm() ),
-			"edit_by_owner" => array( "integer", $this->getEditByOwner() ),
+			"add_perm" => array( "integer", (int) $this->getAddPerm() ),
+			"edit_perm" => array( "integer", (int) $this->getEditPerm() ),
+			"delete_perm" => array( "integer", (int) $this->getDeletePerm() ),
+			"edit_by_owner" => array( "integer", (int) $this->getEditByOwner() ),
 			"limited" => array( "integer", $this->getLimited() ),
 			"limit_start" => array( "timestamp", $this->getLimitStart() ),
 			"limit_end" => array( "timestamp", $this->getLimitEnd() ),
@@ -282,6 +287,7 @@ class ilDataCollectionTable {
 			"default_sort_field_order" => array( "text", $this->getDefaultSortFieldOrder() ),
 			"public_comments" => array( "integer", $this->getPublicCommentsEnabled() ? 1 : 0 ),
 			"view_own_records_perm" => array( "integer", $this->getViewOwnRecordsPerm() ),
+			'delete_by_owner' => array('integer', $this->getDeleteByOwner() ? 1 : 0),
 		), array(
 			"id" => array( "integer", $this->getId() )
 		));
@@ -475,7 +481,7 @@ class ilDataCollectionTable {
 
 
 	protected function loadFields() {
-		if ($this->fields == NULL) {
+		if ($this->fields === NULL) {
 			global $ilDB;
 
 			$query = "SELECT DISTINCT field.* FROM il_dcl_field AS field
@@ -699,8 +705,14 @@ class ilDataCollectionTable {
 	 * @return bool
 	 */
 	public function hasPermissionToAddRecord($ref_id) {
-		return ($this->getAddPerm() AND ilObjDataCollectionAccess::hasAddRecordAccess($ref_id) AND $this->checkLimit())
-		OR ilObjDataCollectionAccess::hasWriteAccess($ref_id);
+		if (ilObjDataCollectionAccess::hasWriteAccess($ref_id)) {
+			return true;
+		}
+		if (!ilObjDataCollectionAccess::hasAddRecordAccess($ref_id)) {
+			return false;
+		}
+
+		return ($this->getAddPerm() AND $this->checkLimit());
 	}
 
 
@@ -711,8 +723,23 @@ class ilDataCollectionTable {
 	 * @return bool
 	 */
 	public function hasPermissionToEditRecord($ref_id, ilDataCollectionRecord $record) {
-		return ($this->getEditPerm() AND ilObjDataCollectionAccess::hasWriteAccess($ref_id) AND $this->checkLimit())
-		OR $this->checkEditByOwner($record);
+		if (ilObjDataCollectionAccess::hasWriteAccess($ref_id)) {
+			return true;
+		}
+		if (!ilObjDataCollectionAccess::hasAddRecordAccess($ref_id)) {
+			return false;
+		}
+		if (!$this->checkLimit()) {
+			return false;
+		}
+		if ($this->getEditPerm() && !$this->getEditByOwner()) {
+			return true;
+		}
+		if ($this->getEditByOwner()) {
+			return $this->doesRecordBelongToUser($record);
+		}
+
+		return false;
 	}
 
 
@@ -723,8 +750,23 @@ class ilDataCollectionTable {
 	 * @return bool
 	 */
 	public function hasPermissionToDeleteRecord($ref_id, ilDataCollectionRecord $record) {
-		return ($this->getDeletePerm() AND ilObjDataCollectionAccess::hasWriteAccess($ref_id) AND $this->checkLimit())
-		OR $this->checkEditByOwner($record);
+		if (ilObjDataCollectionAccess::hasWriteAccess($ref_id)) {
+			return true;
+		}
+		if (!ilObjDataCollectionAccess::hasAddRecordAccess($ref_id)) {
+			return false;
+		}
+		if (!$this->checkLimit()) {
+			return false;
+		}
+		if ($this->getDeletePerm() && !$this->getDeleteByOwner()) {
+			return true;
+		}
+		if ($this->getDeleteByOwner()) {
+			return $this->doesRecordBelongToUser($record);
+		}
+
+		return false;
 	}
 
 
@@ -747,8 +789,7 @@ class ilDataCollectionTable {
 	public function hasPermissionToViewRecord($ref_id, $record) {
 		global $ilUser, $rbacreview;
 		/** @var ilRbacReview $rbacreview */
-		// Owner of the DataCollection object and ILIAS Administrators can view each record by default
-		if ($this->getCollectionObject()->getOwner() == $ilUser->getId() || $rbacreview->isAssigned($ilUser->getId(), 2)) {
+		if (ilObjDataCollectionAccess::hasWriteAccess($ref_id)) {
 			return true;
 		}
 		if (ilObjDataCollectionAccess::hasReadAccess($ref_id)) {
@@ -769,14 +810,10 @@ class ilDataCollectionTable {
 	 *
 	 * @return bool
 	 */
-	protected function checkEditByOwner(ilDataCollectionRecord $record) {
+	protected function doesRecordBelongToUser(ilDataCollectionRecord $record) {
 		global $ilUser;
 
-		if ($this->getEditByOwner() AND $ilUser->getId() != $record->getOwner()) {
-			return false;
-		}
-
-		return true;
+		return ($ilUser->getId() == $record->getOwner());
 	}
 
 
@@ -885,7 +922,7 @@ class ilDataCollectionTable {
 	 * @return boolean
 	 */
 	public function getAddPerm() {
-		return $this->add_perm;
+		return (bool) $this->add_perm;
 	}
 
 
@@ -894,6 +931,9 @@ class ilDataCollectionTable {
 	 */
 	public function setDeletePerm($delete_perm) {
 		$this->delete_perm = $delete_perm;
+		if (!$delete_perm) {
+			$this->setDeleteByOwner(false);
+		}
 	}
 
 
@@ -902,7 +942,7 @@ class ilDataCollectionTable {
 	 */
 	public function getDeletePerm() {
 
-		return $this->delete_perm;
+		return (bool) $this->delete_perm;
 	}
 
 
@@ -911,6 +951,9 @@ class ilDataCollectionTable {
 	 */
 	public function setEditByOwner($edit_by_owner) {
 		$this->edit_by_owner = $edit_by_owner;
+		if ($edit_by_owner) {
+			$this->setEditPerm(true);
+		}
 	}
 
 
@@ -918,7 +961,28 @@ class ilDataCollectionTable {
 	 * @return boolean
 	 */
 	public function getEditByOwner() {
-		return $this->edit_by_owner;
+		return (bool) $this->edit_by_owner;
+	}
+
+
+	/**
+	 * @return boolean
+	 */
+	public function getDeleteByOwner()
+	{
+		return (bool) $this->delete_by_owner;
+	}
+
+
+	/**
+	 * @param boolean $delete_by_owner
+	 */
+	public function setDeleteByOwner($delete_by_owner)
+	{
+		$this->delete_by_owner = $delete_by_owner;
+		if ($delete_by_owner) {
+			$this->setDeletePerm(true);
+		}
 	}
 
 
@@ -927,6 +991,9 @@ class ilDataCollectionTable {
 	 */
 	public function setEditPerm($edit_perm) {
 		$this->edit_perm = $edit_perm;
+		if (!$edit_perm) {
+			$this->setEditByOwner(false);
+		}
 	}
 
 
@@ -934,7 +1001,7 @@ class ilDataCollectionTable {
 	 * @return boolean
 	 */
 	public function getEditPerm() {
-		return $this->edit_perm;
+		return (bool) $this->edit_perm;
 	}
 
 
@@ -1504,26 +1571,48 @@ class ilDataCollectionTable {
 		}
 
 		// Build the query string
-		$sql = "SELECT DISTINCT record.id, record.owner, ";
-		$sql .= rtrim($select_str, ',') . " FROM il_dcl_record AS record ";
+		$sql = "SELECT DISTINCT record.id, record.owner";
+		if($select_str) {
+			$sql .= ', ';
+		}		$sql .= rtrim($select_str, ',') . " FROM il_dcl_record AS record ";
 		$sql .= $join_str;
 		$sql .= " WHERE record.table_id = " . $ilDB->quote($this->getId(), 'integer') . $where_additions;
 		if ($has_nref) {
 			$sql .= " GROUP BY record.id";
 		}
-		$sql .= " ORDER BY field_{$id} {$direction}";
-		$set = $ilDB->query($sql);
+		if($id != 'comments' && $sort_field->getDatatypeId() != ilDataCollectionDatatype::INPUTFORMAT_FORMULA) {
+			$sql .= " ORDER BY field_{$id} {$direction}";
+		}		$set = $ilDB->query($sql);
 		$total_record_ids = array();
 		// Save record-ids in session to enable prev/next links in detail view
 		$_SESSION['dcl_record_ids'] = array();
-		$is_allowed_to_view = ($this->getCollectionObject()->getOwner() == $ilUser->getId() || ($rbacreview->isAssigned($ilUser->getId(), 2)));
+		$is_allowed_to_view = ilObjDataCollectionAccess::hasWriteAccess(array_pop(ilObject::_getAllReferences($this->getObjId())));
 		while ($rec = $ilDB->fetchAssoc($set)) {
 			// Quick check if the current user is allowed to view the record
-			if (! $is_allowed_to_view && ($this->getViewOwnRecordsPerm() && $ilUser->getId() != $rec['owner'])) {
+			if (!$is_allowed_to_view && ($this->getViewOwnRecordsPerm() && $ilUser->getId() != $rec['owner'])) {
 				continue;
 			}
 			$total_record_ids[] = $rec['id'];
 			$_SESSION['dcl_record_ids'][] = $rec['id'];
+		}
+		// Sort by formula
+		if ($sort_field->getDatatypeId() == ilDataCollectionDatatype::INPUTFORMAT_FORMULA) {
+			$sort_array = array();
+			foreach ($total_record_ids as $id) {
+				$formula_field = ilDataCollectionCache::getRecordFieldCache(new ilDataCollectionRecord($id), $sort_field);
+				$sort_array[$id] = $formula_field->getValue();
+			}
+			switch ($direction) {
+				case 'asc':
+				case 'ASC':
+					asort($sort_array);
+					break;
+				case 'desc':
+				case 'DESC':
+					arsort($sort_array);
+					break;
+			}
+			$total_record_ids = array_keys($sort_array);
 		}
 		// Now slice the array to load only the needed records in memory
 		$record_ids = array_slice($total_record_ids, $offset, $limit);
@@ -1535,5 +1624,3 @@ class ilDataCollectionTable {
 		return array( 'records' => $records, 'total' => count($total_record_ids) );
 	}
 }
-
-?>

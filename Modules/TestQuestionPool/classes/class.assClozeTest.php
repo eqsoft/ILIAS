@@ -338,7 +338,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 								$this->getTextgapRating(),
 								$this->getIdenticalScoring(),
 								$this->getFixedTextLength() ? $this->getFixedTextLength() : NULL,
-								$this->getClozeText()
+								ilRTE::_replaceMediaObjectImageSrc($this->getClozeText(), 0)
 							)
 		);
 	}
@@ -352,7 +352,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 	protected function saveClozeGapItemsToDb($gap, $key)
 	{
 		global $ilDB;
-		foreach ($gap->getItems() as $item)
+		foreach ($gap->getItems($this->getShuffler()) as $item)
 		{
 			$query   = "";
 			$next_id = $ilDB->nextId( 'qpl_a_cloze' );
@@ -851,7 +851,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 				if ($gap->getType() == CLOZE_TEXT)
 				{
 					$gap_max_points = 0;
-					foreach ($gap->getItems() as $item)
+					foreach ($gap->getItems($this->getShuffler()) as $item)
 					{
 						if ($item->getPoints() > $gap_max_points)
 						{
@@ -863,7 +863,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 				else if ($gap->getType() == CLOZE_SELECT)
 				{
 					$srpoints = 0;
-					foreach ($gap->getItems() as $item)
+					foreach ($gap->getItems($this->getShuffler()) as $item)
 					{
 						if ($item->getPoints() > $srpoints)
 						{
@@ -875,7 +875,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 				else if ($gap->getType() == CLOZE_NUMERIC)
 				{
 					$numpoints = 0;
-					foreach ($gap->getItems() as $item)
+					foreach ($gap->getItems($this->getShuffler()) as $item)
 					{
 						if ($item->getPoints() > $numpoints)
 						{
@@ -1228,7 +1228,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 	 * @param boolean $returndetails (deprecated !!)
 	 * @return integer/array $points/$details (array $details is deprecated !!)
 	 */
-	public function calculateReachedPoints($active_id, $pass = NULL, $returndetails = FALSE)
+	public function calculateReachedPoints($active_id, $pass = NULL, $authorized = true, $returndetails = FALSE)
 	{
 		global $ilDB;
 		
@@ -1237,7 +1237,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 			$pass = $this->getSolutionMaxPass($active_id);
 		}
 
-		$result = $this->getCurrentSolutionResultSet($active_id, $pass);
+		$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorized);
 		$user_result = array();
 		while ($data = $ilDB->fetchAssoc($result)) 
 		{
@@ -1249,6 +1249,8 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 				);
 			}
 		}
+		
+		ksort($user_result); // this is required when identical scoring for same solutions is disabled
 
 		if ($returndetails)
 		{
@@ -1298,7 +1300,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 	 * @param integer $pass Test pass
 	 * @return boolean $status
 	 */
-	public function saveWorkingData($active_id, $pass = NULL) 
+	public function saveWorkingData($active_id, $pass = NULL, $authorized = true) 
 	{
 		global $ilDB;
 		global $ilUser;
@@ -1310,13 +1312,13 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 		
 		$this->getProcessLocker()->requestUserSolutionUpdateLock();
 
-		$affectedRows = $this->removeCurrentSolution($active_id, $pass);
+		$affectedRows = $this->removeCurrentSolution($active_id, $pass, $authorized);
 
 		$entered_values = 0;
 		
 		foreach($this->getSolutionSubmit() as $val1 => $val2)
 		{
-			$value = ilUtil::stripSlashes($val2, FALSE);
+			$value = trim(ilUtil::stripSlashes($val2, FALSE));
 			if (strlen($value))
 			{
 				$gap = $this->getGap(trim(ilUtil::stripSlashes($val1)));
@@ -1324,7 +1326,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 				{
 					if (!(($gap->getType() == CLOZE_SELECT) && ($value == -1)))
 					{
-						$affectedRows = $this->saveCurrentSolution($active_id,$pass, $val1, $value);
+						$affectedRows = $this->saveCurrentSolution($active_id,$pass, $val1, $value, $authorized);
 						$entered_values++;
 					}
 				}
@@ -1498,7 +1500,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 		if (array_key_exists($gap_index, $this->gaps))
 		{
 			$gap =& $this->gaps[$gap_index];
-			foreach ($gap->getItems() as $answer) 
+			foreach ($gap->getItems($this->getShuffler()) as $answer) 
 			{
 				if ($answer->getPoints() > $gap_max_points)
 				{
@@ -1596,19 +1598,19 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 		$result['nr_of_tries'] = (int) $this->getNrOfTries();
 		$result['shuffle'] = (bool) $this->getShuffle();
 		$result['feedback'] = array(
-			"onenotcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false),
-			"allcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true)
+			'onenotcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false)),
+			'allcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true))
 		);
 		
 		$gaps = array();
 		foreach ($this->getGaps() as $key => $gap)
 		{
 			$items = array();
-			foreach ($gap->getItems() as $item)
+			foreach ($gap->getItems($this->getShuffler()) as $item)
 			{				
 				$jitem = array();
 				$jitem['points'] = $item->getPoints();
-				$jitem['value'] = $item->getAnswertext();
+				$jitem['value'] = $this->formatSAQuestion($item->getAnswertext());
 				$jitem['order'] = $item->getOrder();
 				if ($gap->getType() == CLOZE_NUMERIC)
 				{
@@ -1622,7 +1624,7 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 				array_push($items, $jitem);
 			}
 
-			if( $gap->getType() == CLOZE_TEXT || $gap->getType() == CLOZE_NUMERIC )
+			if( $gap->getGapSize() && ($gap->getType() == CLOZE_TEXT || $gap->getType() == CLOZE_NUMERIC) )
 			{
 				$jgap['size'] = $gap->getGapSize();
 			}
@@ -1687,7 +1689,13 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 		if( $maxStep !== null )
 		{
 			$data = $ilDB->queryF(
-				"SELECT sol.value1+1 as val, sol.value2, cloze.cloze_type FROM tst_solutions sol INNER JOIN qpl_a_cloze cloze ON cloze.gap_id = value1 AND cloze.question_fi = sol.question_fi WHERE sol.active_fi = %s AND sol.pass = %s AND sol.question_fi = %s AND sol.step = %s GROUP BY sol.solution_id",
+				"
+				SELECT sol.value1+1 as val, sol.value2, cloze.cloze_type
+				FROM tst_solutions sol
+				INNER JOIN qpl_a_cloze cloze ON cloze.gap_id = value1 AND cloze.question_fi = sol.question_fi
+				WHERE sol.active_fi = %s AND sol.pass = %s AND sol.question_fi = %s AND sol.step = %s
+				GROUP BY sol.solution_id, sol.value1+1, sol.value2, cloze.cloze_type
+				",
 				array("integer", "integer", "integer","integer"),
 				array($active_id, $pass, $this->getId(), $maxStep)
 			);
@@ -1695,7 +1703,13 @@ class assClozeTest extends assQuestion implements ilObjQuestionScoringAdjustable
 		else
 		{
 			$data = $ilDB->queryF(
-				"SELECT sol.value1+1 as val, sol.value2, cloze.cloze_type FROM tst_solutions sol INNER JOIN qpl_a_cloze cloze ON cloze.gap_id = value1 AND cloze.question_fi = sol.question_fi WHERE sol.active_fi = %s AND sol.pass = %s AND sol.question_fi = %s GROUP BY sol.solution_id",
+				"
+				SELECT sol.value1+1 as val, sol.value2, cloze.cloze_type
+				FROM tst_solutions sol
+				INNER JOIN qpl_a_cloze cloze ON cloze.gap_id = value1 AND cloze.question_fi = sol.question_fi
+				WHERE sol.active_fi = %s AND sol.pass = %s AND sol.question_fi = %s
+				GROUP BY sol.solution_id, sol.value1+1, sol.value2, cloze.cloze_type
+				",
 				array("integer", "integer", "integer"),
 				array($active_id, $pass, $this->getId())
 			);

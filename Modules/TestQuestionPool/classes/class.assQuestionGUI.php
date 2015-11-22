@@ -59,6 +59,27 @@ abstract class assQuestionGUI
 	 * @var ilQuestionHeaderBlockBuilder
 	 */
 	private $questionHeaderBlockBuilder;
+
+	/**
+	 * @var ilTestQuestionNavigationGUI
+	 */
+	private $navigationGUI;
+
+	const PRESENTATION_CONTEXT_TEST = 'pContextTest';
+	const PRESENTATION_CONTEXT_RESULTS = 'pContextResults';
+
+	/**
+	 * @var string
+	 */
+	private $presentationContext = null;
+
+	const OUTPUT_MODE_SCREEN = 'outModeScreen';
+	const OUTPUT_MODE_PDF = 'outModePdf';
+	
+	/**
+	 * @var string
+	 */
+	private $outputMode = self::OUTPUT_MODE_SCREEN;
 	
 	/**
 	* assQuestionGUI constructor
@@ -66,7 +87,6 @@ abstract class assQuestionGUI
 	function __construct()
 	{
 		global $lng, $tpl, $ilCtrl;
-
 
 		$this->lng =& $lng;
 		$this->tpl =& $tpl;
@@ -89,6 +109,8 @@ abstract class assQuestionGUI
 		$this->selfassessmenteditingmode = false;
 		$this->new_id_listeners = array();
 		$this->new_id_listener_cnt = 0;
+		
+		$this->navigationGUI = null;
 	}
 
 	/**
@@ -121,6 +143,64 @@ abstract class assQuestionGUI
 	function getType()
 	{
 		return $this->getQuestionType();
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getPresentationContext()
+	{
+		return $this->presentationContext;
+	}
+
+	/**
+	 * @param string $presentationContext
+	 */
+	public function setPresentationContext($presentationContext)
+	{
+		$this->presentationContext = $presentationContext;
+	}
+	
+	public function isTestPresentationContext()
+	{
+		return $this->getPresentationContext() == self::PRESENTATION_CONTEXT_TEST;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getOutputMode()
+	{
+		return $this->outputMode;
+	}
+
+	/**
+	 * @param string $outputMode
+	 */
+	public function setOutputMode($outputMode)
+	{
+		$this->outputMode = $outputMode;
+	}
+
+	public function isPdfOutputMode()
+	{
+		return $this->getOutputMode() == self::OUTPUT_MODE_PDF;
+	}
+	
+	/**
+	 * @return ilTestQuestionNavigationGUI
+	 */
+	public function getNavigationGUI()
+	{
+		return $this->navigationGUI;
+	}
+
+	/**
+	 * @param ilTestQuestionNavigationGUI $navigationGUI
+	 */
+	public function setNavigationGUI($navigationGUI)
+	{
+		$this->navigationGUI = $navigationGUI;
 	}
 	
 	public function setTaxonomyIds($taxonomyIds)
@@ -311,6 +391,13 @@ abstract class assQuestionGUI
 	*/
 	function outQuestionPage($a_temp_var, $a_postponed = false, $active_id = "", $html = "")
 	{
+		$this->lng->loadLanguageModule("content");
+
+		if( $this->getNavigationGUI() )
+		{
+			$html = $this->getNavigationGUI()->getHTML().$html;
+		}
+		
 		$postponed = "";
 		if ($a_postponed)
 		{
@@ -318,68 +405,18 @@ abstract class assQuestionGUI
 		}
 
 		include_once("./Modules/TestQuestionPool/classes/class.ilAssQuestionPageGUI.php");
-		$this->lng->loadLanguageModule("content");
 		$page_gui = new ilAssQuestionPageGUI($this->object->getId());
+		$page_gui->setOutputMode("presentation");
 		$page_gui->setTemplateTargetVar($a_temp_var);
-		if (strlen($html))
+
+		if( strlen($html) )
 		{
 			$page_gui->setQuestionHTML(array($this->object->getId() => $html));
 		}
-		$page_gui->setOutputMode("presentation");
 
-		include_once "./Modules/Test/classes/class.ilObjTest.php";
-		$title_output = ilObjTest::_getTitleOutput($active_id);
-		
-		if( $this->object->areObligationsToBeConsidered() && ilObjTest::isQuestionObligatory($this->object->getId()) )
-		{
-			$obligatoryString = '([-_-])';
-		}
-		else
-		{
-			$obligatoryString = '';
-		}
+		$page_gui->setPresentationTitle($this->questionHeaderBlockBuilder->getHTML());
 
-		switch ($title_output)
-		{
-			case 1:
-				$page_gui->setPresentationTitle(sprintf($this->lng->txt("tst_position"), $this->getSequenceNumber(), $this->getQuestionCount())." - ".$this->object->getTitle().$postponed . $obligatoryString);
-				break;
-			case 2:
-				$page_gui->setPresentationTitle(sprintf($this->lng->txt("tst_position"), $this->getSequenceNumber(), $this->getQuestionCount()).$postponed . $obligatoryString);
-				break;
-			case 0:
-			default:
-				if( !is_null($this->questionHeaderBlockBuilder) )
-				{
-					$questionBlockHeader = $this->questionHeaderBlockBuilder->getHTML();
-				}
-				else
-				{
-					$maxpoints = $this->object->getMaximumPoints();
-					if ($maxpoints == 1)
-					{
-						$maxpoints = " (".$maxpoints." ".$this->lng->txt("point").")";
-					}
-					else
-					{
-						$maxpoints = " (".$maxpoints." ".$this->lng->txt("points").")";
-					}
-					$questionBlockHeader = sprintf($this->lng->txt("tst_position"), $this->getSequenceNumber(), $this->getQuestionCount())." - ".$this->object->getTitle().$postponed.$maxpoints  . $obligatoryString;
-				}
-
-				$page_gui->setPresentationTitle($questionBlockHeader);
-				break;
-		}
-		$presentation = $page_gui->presentation();
-		if (strlen($maxpoints)) $presentation = str_replace($maxpoints, "<em>$maxpoints</em>", $presentation);
-		if (strlen($obligatoryString))
-		{
-			$replacement	='<br><span class="obligatory" style="font-size:small">'.
-				$this->lng->txt("tst_you_have_to_answer_this_question").'</span>';
-			$presentation 	= str_replace($obligatoryString, $replacement, $presentation);
-		}
-		$presentation = preg_replace("/src=\"\\.\\//ims", "src=\"" . ILIAS_HTTP_PATH . "/", $presentation);
-		return $presentation;
+		return $page_gui->presentation();
 	}
 	
 	/**
@@ -919,6 +956,7 @@ abstract class assQuestionGUI
 	{
 	    // title
 		$title = new ilTextInputGUI($this->lng->txt("title"), "title");
+		$title->setMaxLength(100);
 		$title->setValue($this->object->getTitle());
 		$title->setRequired(TRUE);
 		$form->addItem($title);
@@ -957,6 +995,7 @@ abstract class assQuestionGUI
 		$question->setRequired(TRUE);
 		$question->setRows(10);
 		$question->setCols(80);
+		
 		if (!$this->object->getSelfAssessmentEditingMode())
 		{
 			if( $this->object->getAdditionalContentEditingMode() != assQuestion::ADDITIONAL_CONTENT_EDITING_MODE_PAGE_OBJECT )
@@ -1093,6 +1132,11 @@ abstract class assQuestionGUI
 	*/
 	function getAnswerFeedbackOutput($active_id, $pass)
 	{
+		if( $this->isTestPresentationContext() )
+		{
+			return '';
+		}
+		
 		return $this->getGenericFeedbackOutput($active_id, $pass);
 	}
 
@@ -1174,6 +1218,11 @@ abstract class assQuestionGUI
 		
 		return assQuestion::_getQuestionTypeName($this->object->getQuestionType());
 	}
+	
+	public function showSuggestedSolution()
+	{
+		$this->suggestedsolution();
+	}
 
 	/**
 	* Allows to add suggested solutions for questions
@@ -1184,15 +1233,16 @@ abstract class assQuestionGUI
 	{
 		global $ilUser;
 		global $ilAccess;
-		
-		if ($_POST["deleteSuggestedSolution"] == 1)
+
+		$save = (is_array($_POST["cmd"]) && array_key_exists("suggestedsolution", $_POST["cmd"])) ? TRUE : FALSE;
+
+		if ($save && $_POST["deleteSuggestedSolution"] == 1)
 		{
 			$this->object->deleteSuggestedSolutions();
 			ilUtil::sendSuccess($this->lng->txt("msg_obj_modified"), true);
 			$this->ctrl->redirect($this, "suggestedsolution");
 		}
 
-		$save = (is_array($_POST["cmd"]) && array_key_exists("suggestedsolution", $_POST["cmd"])) ? TRUE : FALSE;
 		$output = "";
 		$solution_array = $this->object->getSuggestedSolution(0);
 		$options = array(
@@ -1329,7 +1379,11 @@ abstract class assQuestionGUI
 				$form->addItem($hidden);
 				$form->addItem($question);
 			}
-			if ($ilAccess->checkAccess("write", "", $_GET['ref_id']))	$form->addCommandButton("suggestedsolution", $this->lng->txt("save"));
+			if ($ilAccess->checkAccess("write", "", $_GET['ref_id']))
+			{
+				$form->addCommandButton('showSuggestedSolution', $this->lng->txt('cancel'));
+				$form->addCommandButton('suggestedsolution', $this->lng->txt('save'));
+			}
 			
 			if ($save)
 			{
@@ -1361,6 +1415,7 @@ abstract class assQuestionGUI
 					}
 				}
 			}
+			
 			$output = $form->getHTML();
 		}
 		
@@ -1905,7 +1960,7 @@ abstract class assQuestionGUI
 		{
 			$this->object->setNrOfTries( $_POST['nr_of_tries'] );
 		}
-		$this->object->setQuestion( $_POST['question'] ); // ?
+		$this->object->setQuestion( ilUtil::stripOnlySlashes($_POST['question']) ); // ?
 		$this->object->setEstimatedWorkingTime(
 			$_POST["Estimated"]["hh"],
 			$_POST["Estimated"]["mm"],
@@ -1923,7 +1978,7 @@ abstract class assQuestionGUI
 	 * @param bool 			$user_post_solutions
 	 * @param bool 			$show_specific_inline_feedback
 	 */
-	public function outQuestionForTest(
+	final public function outQuestionForTest(
 		$formaction,
 		$active_id,
 		$pass = NULL,
@@ -1932,6 +1987,8 @@ abstract class assQuestionGUI
 		$show_specific_inline_feedback = FALSE
 	)
 	{
+		$formaction = $this->completeTestOutputFormAction($formaction, $active_id, $pass);
+		
 		$test_output = $this->getTestOutput(
 			$active_id,
 			$pass,
@@ -1939,13 +1996,34 @@ abstract class assQuestionGUI
 			$user_post_solutions,
 			$show_specific_inline_feedback
 		);
+		
+		$this->magicAfterTestOutput();
 
 		$this->tpl->setVariable("QUESTION_OUTPUT", $test_output);
 		$this->tpl->setVariable("FORMACTION", $formaction);
 		$this->tpl->setVariable("ENCTYPE", 'enctype="'.$this->getFormEncodingType().'"');
+		$this->tpl->setVariable("FORM_TIMESTAMP", time());
 	}
+	
+	protected function completeTestOutputFormAction($formAction, $active_id, $pass = NULL)
+	{
+		return $formAction;
+	}
+	
+	protected function magicAfterTestOutput()
+	{
+		return;
+	}
+	
+	abstract public function getTestOutput(
+		$active_id,
+		$pass,
+		$is_question_postponed,
+		$user_post_solutions,
+		$show_specific_inline_feedback
+	);
 
-	protected function getFormEncodingType()
+	public function getFormEncodingType()
 	{
 		return self::FORM_ENCODING_URLENCODE;
 	}

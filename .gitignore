@@ -1,6 +1,10 @@
 ilias.sh
 sop2.ini.php
 sop2.sh
+
+## Directory-based project format:
+.idea/
+
 # /
 /.buildpath
 /.htaccess
@@ -21,7 +25,7 @@ db_template_writer.php
 
 
 # /Customizing/
-/Customizing/global
+/Customizing/global/plugins
 
 # /Modules/BookingManager/js/
 
@@ -379,3 +383,5 @@ db_template_writer.php
 # /dicto
 /dicto/results/*
 !/dicto/results/README.md
+override.php
+virtual-data

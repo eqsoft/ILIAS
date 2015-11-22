@@ -171,11 +171,12 @@ class ilLPProgressTableGUI extends ilLPTableBaseGUI
 					break;
 				
 				case ilLPObjSettings::LP_MODE_OBJECTIVES:
-					$data = ilTrQuery::getObjectivesStatusForUser($this->tracked_user->getId(), $obj_ids);
+					$data = ilTrQuery::getObjectivesStatusForUser($this->tracked_user->getId(), $this->parent_obj_id, $obj_ids);
 					break;
 				
 				case ilLPObjSettings::LP_MODE_COLLECTION_MANUAL:
 				case ilLPObjSettings::LP_MODE_COLLECTION_TLT:				
+				case ilLPObjSettings::LP_MODE_COLLECTION_MOBS:
 					$data = ilTrQuery::getSubItemsStatusForUser($this->tracked_user->getId(), $this->parent_obj_id, $obj_ids);					
 					break;
 				
@@ -194,6 +195,17 @@ class ilLPProgressTableGUI extends ilLPTableBaseGUI
 					}
 					break;
 			}
+			
+			// #15334 
+			foreach($data as $idx => $row)
+			{
+				if(!$this->isPercentageAvailable($row["obj_id"]))
+				{
+					// #17000 - enable proper (numeric) sorting
+					$data[$idx]["percentage"] = -1;			
+				}				
+			}
+			
 			$this->setData($data);
 		}
 	}
@@ -242,7 +254,7 @@ class ilLPProgressTableGUI extends ilLPTableBaseGUI
 			$this->tpl->setVariable("MARK_VALUE", $a_set["mark"]);
 			$this->tpl->setVariable("COMMENT_TEXT", $a_set["comment"]);
 						
-			if(!$this->isPercentageAvailable($a_set["obj_id"]) /* || (int)$a_set["percentage"] === 0 */) // #15334
+			if($a_set["percentage"] < 0)
 			{
 				$this->tpl->setVariable("PERCENTAGE_VALUE", "");
 			}

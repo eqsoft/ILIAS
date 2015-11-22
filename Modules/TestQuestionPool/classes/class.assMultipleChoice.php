@@ -565,7 +565,7 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 	 * @throws ilTestException
 	 * @return integer|array $points/$details (array $details is deprecated !!)
 	 */
-	public function calculateReachedPoints($active_id, $pass = NULL, $returndetails = FALSE)
+	public function calculateReachedPoints($active_id, $pass = NULL, $authorizedSolution = true, $returndetails = FALSE)
 	{
 		if( $returndetails )
 		{
@@ -579,7 +579,7 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 		{
 			$pass = $this->getSolutionMaxPass($active_id);
 		}
-		$result = $this->getCurrentSolutionResultSet($active_id, $pass);
+		$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorizedSolution);
 		while ($data = $ilDB->fetchAssoc($result))
 		{
 			if (strcmp($data["value1"], "") != 0)
@@ -601,7 +601,7 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 	 *                      
 	 * @return boolean $status
 	 */
-	public function saveWorkingData($active_id, $pass = NULL)
+	public function saveWorkingData($active_id, $pass = NULL, $authorized = true)
 	{
 		/** @var $ilDB ilDB */
 		global $ilDB;
@@ -616,7 +616,7 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 		
 		$this->getProcessLocker()->requestUserSolutionUpdateLock();
 
-		$this->removeCurrentSolution($active_id, $pass);
+		$this->removeCurrentSolution($active_id, $pass, $authorized);
 
 		$solutionSubmit = $this->getSolutionSubmit();
 		
@@ -624,7 +624,7 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 		{
 			if (strlen($value))
 			{
-				$this->saveCurrentSolution($active_id, $pass, $value, null);
+				$this->saveCurrentSolution($active_id, $pass, $value, null, $authorized);
 				$entered_values++;
 			}
 		}
@@ -907,9 +907,13 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 	protected function syncImages()
 	{
 		global $ilLog;
-		$question_id = $this->getOriginalId();
-		$imagepath = $this->getImagePath();
-		$imagepath_original = str_replace("/$this->id/images", "/$question_id/images", $imagepath);
+		
+		$imagepath = $this->getImagePath();  
+
+		$question_id = $this->getOriginalId(); 
+		$originalObjId = parent::lookupParentObjId($this->getOriginalId());
+		$imagepath_original = $this->getImagePath($question_id, $originalObjId);
+
 		ilUtil::delDir($imagepath_original);
 		foreach ($this->answers as $answer)
 		{
@@ -1034,8 +1038,8 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 		$result['nr_of_tries'] = (int) $this->getNrOfTries();
 		$result['shuffle'] = (bool) $this->getShuffle();
 		$result['feedback'] = array(
-			"onenotcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false),
-			"allcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true)
+			'onenotcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false)),
+			'allcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true))
 		);
 
 		$answers = array();
@@ -1145,7 +1149,7 @@ class assMultipleChoice extends assQuestion implements ilObjQuestionScoringAdjus
 	 * 
 	 * @return boolean $answered
 	 */
-	public function isAnswered($active_id, $pass)
+	public function isAnswered($active_id, $pass = NULL)
 	{
 		$numExistingSolutionRecords = assQuestion::getNumExistingSolutionRecords($active_id, $pass, $this->getId());
 

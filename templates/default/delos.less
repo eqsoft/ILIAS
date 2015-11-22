@@ -27,6 +27,7 @@ All parts that aren't checked yet are actually marked with "rtl-review"
 @import "@{bsbase}variables.less";    // original
 @import "@{bsbase}mixins.less"; 
 
+
 // Reset and dependencies
 @import "@{bsbase}normalize.less";
 @import "@{bsbase}print.less";
@@ -374,7 +375,7 @@ ul, ol, p {
 }
 
 ol, ul { 
-	padding-left: 40px; 
+	padding-left: 40px;
 }
 [dir="rtl"] ol, [dir="rtl"] ul {
 	padding-right: 40px;
@@ -405,6 +406,11 @@ sub {
 
 sup {
 	vertical-align: super;
+}
+
+/* see bug #15971 */
+sub, sup {
+	position: static;
 }
 
 strong, b {
@@ -1538,6 +1544,24 @@ div.ilSideBarContent{
 	background-color: #FF9;
 }
 
+/* Icon Default */
+img.ilIcon {
+	width: 32px;
+	height: 32px;
+}
+
+/* PreventBreakOut, see https://css-tricks.com/snippets/css/prevent-long-urls-from-breaking-out-of-container/ */
+.ilPreventBreakOut {
+	overflow-wrap: break-word;
+	word-wrap: break-word;
+	-ms-word-break: break-all;
+	word-break: break-word;
+	-ms-hyphens: auto;
+	-moz-hyphens: auto;
+	-webkit-hyphens: auto;
+	hyphens: auto;
+}
+
 
 /* Component Imports */
 
@@ -1597,6 +1621,9 @@ div.ilSideBarContent{
 @import "less/Services/UIComponent/Checklist/delos.less";
 @import "less/Modules/WorkspaceFolder/delos.less";
 @import "less/Services/FileUpload/delos.less";
+@import "less/Modules/Portfolio/delos.less";
+@import "less/Services/Awareness/delos.less";
+@import "less/Services/UIComponent/Modal/delos.less";
 
 .noMargin {
 	margin: 0;
@@ -1797,6 +1824,10 @@ table.mceToolbar {
 		max-width: 100%;
 		overflow: auto;
 	}
+    
+    .table-responsive .dropdown-menu {
+        position: relative;
+    }
 
 	// main header
 	a#il_mhead_t_focus {

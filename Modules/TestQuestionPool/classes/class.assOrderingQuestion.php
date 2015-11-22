@@ -577,7 +577,7 @@ class assOrderingQuestion extends assQuestion implements ilObjQuestionScoringAdj
 	 * @param boolean $returndetails (deprecated !!)
 	 * @return integer/array $points/$details (array $details is deprecated !!)
 	 */
-	public function calculateReachedPoints($active_id, $pass = NULL, $returndetails = FALSE)
+	public function calculateReachedPoints($active_id, $pass = NULL, $authorizedSolution = true, $returndetails = FALSE)
 	{
 		if( $returndetails )
 		{
@@ -592,7 +592,7 @@ class assOrderingQuestion extends assQuestion implements ilObjQuestionScoringAdj
 		{
 			$pass = $this->getSolutionMaxPass($active_id);
 		}
-		$result = $this->getCurrentSolutionResultSet($active_id, $pass);
+		$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorizedSolution);
 		$user_order = array();
 		$nested_solution = false;
 		while ($data = $ilDB->fetchAssoc($result))
@@ -823,7 +823,7 @@ class assOrderingQuestion extends assQuestion implements ilObjQuestionScoringAdj
 	 * @param integer $pass Test pass
 	 * @return boolean $status
 	 */
-	public function saveWorkingData($active_id, $pass = NULL)
+	public function saveWorkingData($active_id, $pass = NULL, $authorized = true)
 	{
 		$saveWorkingDataResult = $this->checkSaveData();
 		if ($saveWorkingDataResult)
@@ -836,12 +836,12 @@ class assOrderingQuestion extends assQuestion implements ilObjQuestionScoringAdj
 
 			$this->getProcessLocker()->requestUserSolutionUpdateLock();
 
-			$affectedRows = $this->removeCurrentSolution($active_id, $pass);
+			$affectedRows = $this->removeCurrentSolution($active_id, $pass, $authorized);
 
 			$entered_values = 0;
 			foreach($this->getSolutionSubmit() as $val1 => $val2)
 			{
-				$this->saveCurrentSolution($active_id, $pass, $val1, trim($val2));
+				$this->saveCurrentSolution($active_id, $pass, $val1, trim($val2), $authorized);
 				$entered_values++;
 			}
 
@@ -1003,6 +1003,22 @@ class assOrderingQuestion extends assQuestion implements ilObjQuestionScoringAdj
 	}
 
 	/**
+	* Returns true if the question type supports JavaScript output
+	*
+	* @return boolean TRUE if the question type supports JavaScript output, FALSE otherwise
+	* @access public
+	*/
+	public function supportsJavascriptOutput()
+	{
+		return TRUE;
+	}
+	
+	public function supportsNonJsOutput()
+	{
+		return false;
+	}
+
+	/**
 	 * Creates an Excel worksheet for the detailed cumulated results of this question
 	 *
 	 * @param object $worksheet    Reference to the parent excel worksheet
@@ -1144,8 +1160,8 @@ class assOrderingQuestion extends assQuestion implements ilObjQuestionScoringAdj
 		$result['shuffle'] = (bool) true;
 		$result['points'] =  $this->getPoints();
 		$result['feedback'] = array(
-			"onenotcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false),
-			"allcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true)
+			'onenotcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false)),
+			'allcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true))
 		);
 		if ($this->getOrderingType() == OQ_PICTURES)
 		{
@@ -1159,7 +1175,7 @@ class assOrderingQuestion extends assQuestion implements ilObjQuestionScoringAdj
 			$answers[$counter] = $answer_obj->getAnswertext();
 			$counter++;
 		}
-		$answers = $this->pcArrayShuffle($answers);
+		$answers = $this->getShuffler()->shuffle($answers);
 		$arr = array();
 		foreach ($answers as $order => $answer)
 		{

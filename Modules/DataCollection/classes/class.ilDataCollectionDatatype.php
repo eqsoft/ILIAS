@@ -15,6 +15,8 @@ require_once("./Services/Preview/classes/class.ilPreview.php");
 require_once('./Services/Preview/classes/class.ilPreviewGUI.php');
 require_once('class.ilDataCollectionRecordViewViewdefinition.php');
 require_once("./Services/MediaObjects/classes/class.ilMediaPlayerGUI.php");
+require_once('class.ilDclCheckboxInputGUI.php');
+require_once('class.ilDclTextInputGUI.php');
 
 /**
  * Class ilDataCollectionDatatype
@@ -235,7 +237,7 @@ class ilDataCollectionDatatype {
 		$input = NULL;
 		switch ($type_id) {
 			case ilDataCollectionDatatype::INPUTFORMAT_TEXT:
-				$input = new ilTextInputGUI($title, 'field_' . $field->getId());
+				$input = new ilDclTextInputGUI($title, 'field_' . $field->getId());
 				if ($field->getTextArea()) {
 					$input = new ilTextAreaInputGUI($title, 'field_' . $field->getId());
 				}
@@ -248,13 +250,16 @@ class ilDataCollectionDatatype {
                 $properties = $field->getProperties();
                 if ($properties[ilDataCollectionField::PROPERTYID_URL]) {
                     $input->setInfo($lng->txt('dcl_text_email_detail_desc'));
+					$title_field = new ilTextInputGUI($lng->txt('dcl_text_email_title'), 'field_'.$field->getId().'_title');
+					$title_field->setInfo($lng->txt('dcl_text_email_title_info'));
+					$input->addSubItem($title_field);
                 }
 				break;
 			case ilDataCollectionDatatype::INPUTFORMAT_NUMBER:
 				$input = new ilTextInputGUI($title, 'field_' . $field->getId());
 				break;
 			case ilDataCollectionDatatype::INPUTFORMAT_BOOLEAN:
-				$input = new ilCheckboxInputGUI($title, 'field_' . $field->getId());
+				$input = new ilDclCheckboxInputGUI($title, 'field_' . $field->getId());
 				break;
 			case ilDataCollectionDatatype::INPUTFORMAT_DATETIME:
 				$input = new ilDateTimeInputGUI($title, 'field_' . $field->getId());
@@ -568,7 +573,11 @@ class ilDataCollectionDatatype {
 					$med = $mob->getMediaItem("Standard");
 					$mob_file = ilObjMediaObject::_getDirectory($mob->getId()) . "/" . $med->getLocation();
 					$a_target_dir = ilObjMediaObject::_getDirectory($mob->getId());
-					$new_file = ilFFmpeg::extractImage($mob_file, "mob_vpreview.png", $a_target_dir, 1);
+					try {
+						$new_file = ilFFmpeg::extractImage($mob_file, "mob_vpreview.png", $a_target_dir, 1);
+					} catch (Exception $e) {
+						ilUtil::sendFailure($e->getMessage(), true);
+					}
 				}
 
 				$mob->update();
@@ -637,11 +646,48 @@ class ilDataCollectionDatatype {
 			$return = substr($value, 0, 10);
 		} elseif ($this->id == ilDataCollectionDatatype::INPUTFORMAT_BOOLEAN) {
 			$return = $value ? 1 : 0;
+		} elseif ($this->id == ilDataCollectionDatatype::INPUTFORMAT_TEXT && $json = json_decode($value)) {
+			$return = $json;
 		} else {
 			$return = $value;
 		}
 
 		return $return;
+	}
+
+	/**
+	 * @param $value
+	 * @param ilDataCollectionRecordField $record_field
+	 * @param bool|true $link
+	 * @return int|string
+	 */
+	public function parseSortingValue($value, ilDataCollectionRecordField $record_field, $link = true) {
+		switch ($this->id) {
+			case self::INPUTFORMAT_DATETIME:
+				return strtotime($value);
+			case self::INPUTFORMAT_FILE:
+				if (!ilObject2::_exists($value) || ilObject2::_lookupType($value, false) != "file") {
+					return '';
+				}
+				$file_obj = new ilObjFile($value, false);
+				return $file_obj->getTitle();
+			case self::INPUTFORMAT_MOB:
+				$mob = new ilObjMediaObject($value, false);
+				return $mob->getTitle();
+			case ilDataCollectionDatatype::INPUTFORMAT_TEXT:
+				$arr_properties = $record_field->getField()->getProperties();
+				if ($arr_properties[ilDataCollectionField::PROPERTYID_URL]) {
+					if ($json = json_decode($value)) {
+						return $json->title ? $json->title : $json->link;
+					} else {
+						return $value;
+					}
+				} else {
+					return $value;
+				}
+			default:
+				return $value;
+		}
 	}
 
 
@@ -752,7 +798,14 @@ class ilDataCollectionDatatype {
 				//Property URL
 				$arr_properties = $record_field->getField()->getProperties();
 				if ($arr_properties[ilDataCollectionField::PROPERTYID_URL]) {
-					$link = $value;
+					if ($json = json_decode($value)) {
+						$link = $json->link;
+						$link_value = $json->title ? $json->title : $this->shortenLink($link);
+					} else {
+						$link = $value;
+						$link_value = $this->shortenLink($value);
+					}
+
                     if (substr($link, 0, 3) === 'www') {
                         $link = 'http://' . $link;
                     }
@@ -762,8 +815,8 @@ class ilDataCollectionDatatype {
 						return $link;
 					}
 
-					$link_value = $this->shortenLink($value);
 					$html = "<a target='_blank' href='" . $link . "'>" . $link_value . "</a>";
+
 				} elseif ($arr_properties[ilDataCollectionField::PROPERTYID_LINK_DETAIL_PAGE_TEXT] AND
 					$link AND ilDataCollectionRecordViewViewdefinition::getIdByTableId($record_field->getRecord()->getTableId())
 				) {
@@ -853,15 +906,6 @@ class ilDataCollectionDatatype {
 				$media_obj = new ilObjMediaObject($value, false);
 				//$input = ilObjFile::_lookupAbsolutePath($value);
 				$input = $value;
-				break;
-			case self::INPUTFORMAT_TEXT:
-				$arr_properties = $record_field->getField()->getProperties();
-				if ($arr_properties[ilDataCollectionField::PROPERTYID_TEXTAREA]) {
-					$breaks = array( "<br />" );
-					$input = str_ireplace($breaks, "", $value);
-				} else {
-					$input = $value;
-				}
 				break;
 			default:
 				$input = $value;

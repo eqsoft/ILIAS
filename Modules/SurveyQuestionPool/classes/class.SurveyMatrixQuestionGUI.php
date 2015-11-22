@@ -507,8 +507,26 @@ class SurveyMatrixQuestionGUI extends SurveyQuestionGUI
 					: "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;");
 				$tplrow->parseCurrentBlock();
 			}
+			
+			switch ($question_title)
+			{
+				case 1:
+					$row_title = ilUtil::prepareFormOutput($rowobj->title);
+					break;
 
-			$tplrow->setVariable("TEXT_ROW", ilUtil::prepareFormOutput($rowobj->title));
+				case 2:
+					$row_title = ilUtil::prepareFormOutput($rowobj->label);
+					break;
+
+				case 3:
+					$row_title = ilUtil::prepareFormOutput($rowobj->title);
+					if(trim($rowobj->label))
+					{
+						$row_title .= ' <span class="questionLabel">('.ilUtil::prepareFormOutput($rowobj->label).')</span>';
+					}
+					break;
+			}
+			$tplrow->setVariable("TEXT_ROW", $row_title);
 			$tplrow->setVariable("ROWCLASS", $rowclass[$i % 2]);
 			if ($this->object->getRowSeparators() == 1)
 			{
@@ -524,7 +542,7 @@ class SurveyMatrixQuestionGUI extends SurveyQuestionGUI
 		
 		if ($question_title)
 		{
-			$template->setVariable("QUESTION_TITLE", ilUtil::prepareFormOutput($this->object->getTitle()));
+			$template->setVariable("QUESTION_TITLE", $this->getPrintViewQuestionTitle($question_title));
 		}
 		$template->setCurrentBlock();
 		if ($show_questiontext)
@@ -1010,14 +1028,27 @@ class SurveyMatrixQuestionGUI extends SurveyQuestionGUI
 		
 		$template->setCurrentBlock("detail_row");
 		$template->setVariable("TEXT_OPTION", $this->lng->txt("categories"));
-		$columns = "";
+		$table = array();
+		$idx = $selsum = 0;
 		foreach ($this->cumulated["TOTAL"]["variables"] as $key => $value)
 		{
-			$columns .= "<li>" . $value["title"] . ": n=" . $value["selected"] . 
-				" (" . sprintf("%.2f", 100*$value["percentage"]) . "%)</li>";
+			$table[] = array(
+				(++$idx).".",
+				$value["title"], 
+				$value["selected"], 
+				sprintf("%.2f", 100*$value["percentage"])."%"
+			);
+			$selsum += (int)$value["selected"];
 		}
-		$columns = "<ol>$columns</ol>";
-		$template->setVariable("TEXT_OPTION_VALUE", $columns);
+		$head = array(
+			"", 
+			$this->lng->txt("title"), 
+			$this->lng->txt("category_nr_selected"), 
+			$this->lng->txt("percentage_of_selections")
+		);
+		$foot = array(null, null, $selsum, null);
+		$template->setVariable("TEXT_OPTION_VALUE", 
+			$this->renderStatisticsDetailsTable($head, $table, $foot));
 		$template->parseCurrentBlock();
 				
 		// total chart 
@@ -1061,14 +1092,27 @@ class SurveyMatrixQuestionGUI extends SurveyQuestionGUI
 				
 				$template->setCurrentBlock("detail_row");
 				$template->setVariable("TEXT_OPTION", $this->lng->txt("categories"));
-				$columns = "";
+				$table = array();
+				$idx = $selsum = 0;
 				foreach ($value["variables"] as $cvalue)
-				{
-					$columns .= "<li>" . $cvalue["title"] . ": n=". $cvalue["selected"] . 
-						" (".sprintf("%.2f", 100*$cvalue["percentage"]) . "%)</li>";
+				{					
+					$table[] = array(
+						(++$idx).".",
+						$cvalue["title"], 
+						$cvalue["selected"], 
+						sprintf("%.2f", 100*$cvalue["percentage"])."%"
+					);
+					$selsum += (int)$cvalue["selected"];
 				}
-				$columns = "<ol>".$columns."</ol>";
-				$template->setVariable("TEXT_OPTION_VALUE", $columns);
+				$head = array(
+					"", 
+					$this->lng->txt("title"), 
+					$this->lng->txt("category_nr_selected"), 
+					$this->lng->txt("percentage_of_selections")
+				);
+				$foot = array(null, null, $selsum, null);
+				$template->setVariable("TEXT_OPTION_VALUE", 
+					$this->renderStatisticsDetailsTable($head, $table, $foot));
 				$template->parseCurrentBlock();
 				
 				// add text answers to detailed results

@@ -565,7 +565,7 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 	 * @param boolean $returndetails (deprecated !!)
 	 * @return integer/array $points/$details (array $details is deprecated !!)
 	 */
-	public function calculateReachedPoints($active_id, $pass = NULL, $returndetails = FALSE)
+	public function calculateReachedPoints($active_id, $pass = NULL, $authorizedSolution = true, $returndetails = FALSE)
 	{
 		if( $returndetails )
 		{
@@ -579,7 +579,7 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 		{
 			$pass = $this->getSolutionMaxPass($active_id);
 		}
-		$result = $this->getCurrentSolutionResultSet($active_id, $pass);
+		$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorizedSolution);
 		while ($data = $ilDB->fetchAssoc($result))
 		{
 			if (strcmp($data["value1"], "") != 0)
@@ -623,7 +623,7 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 	 * @param integer $pass Test pass
 	 * @return boolean $status
 	 */
-	public function saveWorkingData($active_id, $pass = NULL)
+	public function saveWorkingData($active_id, $pass = NULL, $authorized = true)
 	{
 		global $ilDB;
 		global $ilUser;
@@ -637,7 +637,7 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 
 		$this->getProcessLocker()->requestUserSolutionUpdateLock();
 
-		$result = $this->getCurrentSolutionResultSet($active_id, $pass);
+		$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorized);
 		$row = $ilDB->fetchAssoc($result);
 		$update = $row["solution_id"];
 		
@@ -645,27 +645,19 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 		{
 			if (strlen($_POST["multiple_choice_result"]))
 			{
-				$affectedRows = $ilDB->update("tst_solutions", array(
-					"value1" => array("clob", $_POST["multiple_choice_result"]),
-					"tstamp" => array("integer", time())
-				), array(
-				"solution_id" => array("integer", $update)
-				));
+				$this->updateCurrentSolution($update, $_POST["multiple_choice_result"], null, $authorized);
 				$entered_values++;
 			}
 			else
 			{
-				$affectedRows = $ilDB->manipulateF("DELETE FROM tst_solutions WHERE solution_id = %s",
-					array('integer'),
-					array($update)
-				);
+				$this->removeSolutionRecordById($update);
 			}
 		}
 		else
 		{
 			if (strlen($_POST["multiple_choice_result"]))
 			{
-				$affectedRows = $this->saveCurrentSolution($active_id, $pass, $_POST['multiple_choice_result'], null);
+				$this->saveCurrentSolution($active_id, $pass, $_POST['multiple_choice_result'], null, $authorized);
 				$entered_values++;
 			}
 		}
@@ -1072,8 +1064,8 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 		$result['shuffle'] = (bool) $this->getShuffle();
 		
 		$result['feedback'] = array(
-			"onenotcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false),
-			"allcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true)
+			'onenotcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false)),
+			'allcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true))
 		);
 
 		$answers = array();
@@ -1122,6 +1114,7 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 		$value = rand(0, count($this->answers)-1);
 		$_POST["multiple_choice_result"] = (strlen($value)) ? (string)$value : '0';
 		$this->saveWorkingData($active_id, $pass);
+		$this->calculateResultsFromSolution($active_id, $pass);
 	}
 
 	function getMultilineAnswerSetting()
@@ -1187,7 +1180,7 @@ class assSingleChoice extends assQuestion implements  ilObjQuestionScoringAdjust
 	 * @param integer $pass
 	 * @return boolean $answered
 	 */
-	public function isAnswered($active_id, $pass)
+	public function isAnswered($active_id, $pass  = NULL)
 	{
 		$numExistingSolutionRecords = assQuestion::getNumExistingSolutionRecords($active_id, $pass, $this->getId());
 

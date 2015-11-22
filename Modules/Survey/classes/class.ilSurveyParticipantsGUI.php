@@ -104,6 +104,8 @@ class ilSurveyParticipantsGUI
 	*/
 	public function maintenanceObject()
 	{
+		global $ilToolbar;
+		
 		if($this->object->get360Mode())
 		{
 			return $this->listAppraiseesObject();
@@ -112,10 +114,16 @@ class ilSurveyParticipantsGUI
 		$this->parent_gui->handleWriteAccess();		
 		$this->setCodesSubtabs();
 
+		$ilToolbar->addButton($this->lng->txt('svy_delete_all_user_data'),
+			$this->ctrl->getLinkTarget($this, 'deleteAllUserData'));
+
+		/* don't want
 		if (DEVMODE && $_GET["fill"] > 0) 
 		{
 			for ($i = 0; $i < $_GET["fill"]; $i++) $this->object->fillSurveyForUser();
 		}
+		*/
+		
 		include_once "./Modules/Survey/classes/tables/class.ilSurveyMaintenanceTableGUI.php";
 		$table_gui = new ilSurveyMaintenanceTableGUI($this, 'maintenance');
 		$total =& $this->object->getSurveyParticipants();
@@ -1013,12 +1021,15 @@ class ilSurveyParticipantsGUI
 				}
 			}
 			$reader->close();
-			$this->object->createSurveyCodesForExternalData($founddata);
-			ilUtil::sendSuccess($this->lng->txt('external_recipients_imported'), true);
-			$this->ctrl->redirect($this, 'codes');
+			
+			if(sizeof($founddata))
+			{
+				$this->object->createSurveyCodesForExternalData($founddata);
+				ilUtil::sendSuccess($this->lng->txt('external_recipients_imported'), true);			
+			}
 		}
 		
-		$this->ctrl->redirect($this, 'importExternalMailRecipientsFromTextForm');
+		$this->ctrl->redirect($this, 'codes');
 	}
 	
 	function importExternalMailRecipientsFromFileFormObject()
@@ -1134,6 +1145,9 @@ class ilSurveyParticipantsGUI
 				$ilCtrl->getLinkTargetByClass("ilsurveyskilldeterminationgui"), "");
 		}
 		
+		$ilToolbar->addSeparator();
+		$ilToolbar->addButton($this->lng->txt('svy_delete_all_user_data'),
+			$this->ctrl->getLinkTarget($this, 'deleteAllUserData'));		
 		
 		$this->ctrl->setParameter($this, "appr360", "");
 		

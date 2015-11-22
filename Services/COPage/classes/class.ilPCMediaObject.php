@@ -292,19 +292,22 @@ class ilPCMediaObject extends ilPageContent
 	 */
 	static function afterPageUpdate($a_page, DOMDocument $a_domdoc, $a_xml, $a_creation)
 	{
-		include_once("./Services/MediaObjects/classes/class.ilObjMediaObject.php");
-		$mob_ids = ilObjMediaObject::_getMobsOfObject(
-			$a_page->getParentType().":pg", $a_page->getId(), 0, $a_page->getLanguage());
-		self::saveMobUsage($a_page, $a_domdoc);
-		foreach($mob_ids as $mob)	// check, whether media object can be deleted
+		if (!$a_page->getImportMode())
 		{
-			if (ilObject::_exists($mob) && ilObject::_lookupType($mob) == "mob")
+			include_once("./Services/MediaObjects/classes/class.ilObjMediaObject.php");
+			$mob_ids = ilObjMediaObject::_getMobsOfObject(
+				$a_page->getParentType().":pg", $a_page->getId(), 0, $a_page->getLanguage());
+			self::saveMobUsage($a_page, $a_domdoc);
+			foreach($mob_ids as $mob)	// check, whether media object can be deleted
 			{
-				$mob_obj = new ilObjMediaObject($mob);
-				$usages = $mob_obj->getUsages(false);
-				if (count($usages) == 0)	// delete, if no usage exists
+				if (ilObject::_exists($mob) && ilObject::_lookupType($mob) == "mob")
 				{
-					$mob_obj->delete();
+					$mob_obj = new ilObjMediaObject($mob);
+					$usages = $mob_obj->getUsages(false);
+					if (count($usages) == 0)	// delete, if no usage exists
+					{
+						$mob_obj->delete();
+					}
 				}
 			}
 		}
@@ -419,6 +422,41 @@ class ilPCMediaObject extends ilPageContent
 		
 		return $usages;
 	}
+
+	/**
+	 * Modify page content after xsl
+	 *
+	 * @param string $a_output
+	 * @return string
+	 */
+	function modifyPageContentPostXsl($a_html, $a_mode)
+	{
+		global $ilUser;
+
+		if ($a_mode == "offline")
+		{
+			$page = $this->getPage();
+
+			$mob_ids = ilObjMediaObject::_getMobsOfObject(
+				$page->getParentType().":pg", $page->getId(), 0, $page->getLanguage());
+			foreach ($mob_ids as $mob_id)
+			{
+				$mob = new ilObjMediaObject($mob_id);
+				$srts = $mob->getSrtFiles();
+				foreach ($srts as $srt)
+				{
+					if ($ilUser->getLanguage() == $srt["language"])
+					{
+						$srt_content = file_get_contents(ilObjMediaObject::_getDirectory($mob->getId())."/".$srt["full_path"]);
+						$a_html = str_replace("[[[[[mobsubtitle;il__mob_".$mob->getId()."_Standard]]]]]", $srt_content, $a_html);
+					}
+				}
+			}
+		}
+
+		return $a_html;
+	}
+
 
 }
 ?>

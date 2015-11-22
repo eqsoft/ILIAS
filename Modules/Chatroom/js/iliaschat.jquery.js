@@ -136,7 +136,7 @@ il.Util.addOnLoad(function () {
 					return {success: false};
 				}
 			}
-		}
+		};
 
 		$.fn.chat = function (lang, baseurl, session_id, instance, scope, posturl, initial) {
 			var smileys = initial.smileys;
@@ -155,12 +155,17 @@ il.Util.addOnLoad(function () {
 				}
 
 				return replacedMessage;
-			}
+			};
 
-			if (typeof smileys == "object") {
+			(function() {
+				if (typeof smileys != "object") {
+					return;
+				}
+
 				if (smileys.length == 0) {
 					return;
 				}
+
 				// Emoticons
 				var $emoticons_flyout_trigger = $('<a></a>');
 				var $emoticons_flyout = $('<div id="iosChatEmoticonsPanelFlyout"></div>');
@@ -177,17 +182,18 @@ il.Util.addOnLoad(function () {
 				var $emoticons_table = $("<table></table>");
 				var $emoticons_row = null;
 				var cnt = 0;
-				var emoticonMap = new Object();
+				var emoticonMap = {};
 				for (var i in smileys) {
+					var $emoticon;
 					if (emoticonMap[smileys[i]]) {
-						var $emoticon = emoticonMap[smileys[i]];
+						$emoticon = emoticonMap[smileys[i]];
 					} else {
 						if (cnt % 6 == 0) {
 							$emoticons_row = $("<tr></tr>");
 							$emoticons_table.append($emoticons_row);
 						}
 
-						var $emoticon = $('<img src="' + smileys[i] + '" alt="" title="" />');
+						$emoticon = $('<img src="' + smileys[i] + '" alt="" title="" />');
 						$emoticon.data("emoticon", i);
 						$emoticons_row.append($('<td></td>').append($('<a></a>').append($emoticon)));
 
@@ -216,11 +222,11 @@ il.Util.addOnLoad(function () {
 					}
 				});
 
-				$("#iosChatEmoticonsPanelFlyout a").click(function () {
+				$("#iosChatEmoticonsPanelFlyout").find('a').click(function () {
 					$emoticons_flyout_trigger.click();
 					$("#submit_message_text").insertAtCaret($(this).find('img').data("emoticon"));
 				});
-			}
+			})();
 
 			$('#show_options').click(function () {
 				if ($(this).next().is(':visible')) {
@@ -239,6 +245,7 @@ il.Util.addOnLoad(function () {
 			if (!initial.private_rooms_enabled) {
 				$('#chat_head_line').hide()
 			}
+
 			// keep session open
 			window.setInterval(function () {
 				$.get(posturl.replace(/postMessage/, 'poll'));
@@ -257,16 +264,7 @@ il.Util.addOnLoad(function () {
 					return lng;
 				}
 				return '#' + key + '#';
-			}
-
-			var prevSize = {width: 0, height: 0};
-			window.setInterval(function () {
-				var currentSize = {width: $('body').width(), height: $('body').height()};
-				if (currentSize.width != prevSize.width || currentSize.height != prevSize.height) {
-					$('#chat_sidebar_wrapper').height($('#chat_sidebar').parent().height() - $('#chat_sidebar_tabs').height());
-					prevSize = {width: $('body').width(), height: $('body').height()};
-				}
-			}, 500);
+			};
 
 			$('#chat_users').ilChatList([
 				{
@@ -415,22 +413,6 @@ il.Util.addOnLoad(function () {
 					submitMessage();
 				}
 			});
-			$('#tab_users').click(function (e) {
-				e.stopPropagation();
-				e.preventDefault();
-				closeMenus();
-				$([$('#tab_users'), $('#tab_users').parent()]).each(function () {
-					this.removeClass('tabinactive').addClass('tabactive');
-				});
-				$([$('#tab_rooms'), $('#tab_rooms').parent()]).each(function () {
-					this.removeClass('tabactive').addClass('tabinactive');
-				});
-
-				$('#chat_users').css('display', 'block');
-				$('#private_rooms_wrapper').css('display', 'none');
-			});
-
-			$('#tab_users').click();
 
 			$(initial.users).each(function () {
 				var tmp = {
@@ -493,8 +475,6 @@ il.Util.addOnLoad(function () {
 			});
 
 
-			smileys = initial.smileys;
-
 			function setRecipientOptions(recipient, isPublic) {
 				messageOptions['recipient'] = recipient;
 				messageOptions['public'] = isPublic;
@@ -550,7 +530,7 @@ il.Util.addOnLoad(function () {
 				var message = {
 					'content': $('#submit_message_text').val(),
 					'format':  format
-				}
+				};
 				if (!message.content.replace(/^\s+/, '').replace(/\s+$/, ''))
 					return;
 
@@ -880,7 +860,7 @@ il.Util.addOnLoad(function () {
 										}
 
 										if (!response.success) {
-											alert(response.reason);
+											console.log(response.reason);
 										}
 
 										$('#chat_messages').ilChatMessageArea('show', 0);
@@ -953,15 +933,11 @@ il.Util.addOnLoad(function () {
 							label:    translate('invite_users'),
 							callback: function () {
 
-								var invitationChangeTimeout;
 								$('#invite_users_container')
 									.ilChatDialog({
 										title:            translate('invite_users'),
 										close:            function () {
-											if (invitationChangeTimeout) {
-												window.clearInterval(invitationChangeTimeout);
-												invitationChangeTimeout = undefined;
-											}
+											$("#invite_user_text").val("");
 										},
 										positiveAction:   function () {
 
@@ -990,7 +966,7 @@ il.Util.addOnLoad(function () {
 											}
 										}
 									);
-								}
+								};
 
 								$('#invite_users_global').click(function () {
 									$('#invite_user_text_wrapper').show();
@@ -1033,22 +1009,37 @@ il.Util.addOnLoad(function () {
 										$('#invite_users_in_room').show();
 										$('#radioText').show();
 									}
-
 								});
 
 								$('#invite_users_in_room').click();
 
-								var cb;
-								if (invitationChangeTimeout) {
-									window.clearTimeout(invitationChangeTimeout);
-								}
+								var invitationChangeTimeout = (function(){
+									var timer = 0;
 
-								var oldValue = $('#invite_user_text').val();
-								invitationChangeTimeout = window.setTimeout(cb = function () {
-									if ($('#invite_user_text').val() != oldValue && $('#invite_user_text').val().length > 2) {
-										oldValue = $('#invite_user_text').val();
+									return function(callback, ms){
+										clearTimeout(timer);
+										timer = setTimeout(callback, ms);
+									};
+								})();
+
+								var $invinput = $('#invite_user_text');
+								var oldValue = $invinput.val();
+								$invinput.keyup(function() {
+									var val = $(this).val();
+
+									invitationChangeTimeout(function() {
+
+										if (val.length < 2 || val == oldValue) {
+											if (!val.length) {
+												$('#invite_users_available').html('');
+											}
+											return;
+										}
+
+										oldValue = val;
+
 										$.get(
-											posturl.replace(/postMessage/, 'inviteUsersToPrivateRoom-getUserList') + '&q=' + $('#invite_user_text').val(),
+											posturl.replace(/postMessage/, 'inviteUsersToPrivateRoom-getUserList') + '&q=' + oldValue,
 											function (response) {
 												response = $.getAsObject(response);
 												$('#invite_users_available').html('');
@@ -1068,18 +1059,12 @@ il.Util.addOnLoad(function () {
 														).appendTo($('#invite_users_available'));
 													});
 												}
-												invitationChangeTimeout = window.setTimeout(cb, 500);
 											},
-											'json');
-									}
-									else {
-										if (!$('#invite_user_text').val().length) {
-											$('#invite_users_available').html('');
-										}
-										invitationChangeTimeout = window.setTimeout(cb, 300);
-									}
-								}, 500);
-
+											'json'
+										);
+										
+									}, 500);
+								});
 							}
 						}
 					);

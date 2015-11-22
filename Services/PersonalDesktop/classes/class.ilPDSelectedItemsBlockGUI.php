@@ -18,6 +18,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 {
 	const VIEW_SELECTED_ITEMS      = 0;
 	const VIEW_MY_MEMBERSHIPS      = 1;
+	const VIEW_MY_STUDYPROGRAMME   = 2;
 
 	static $block_type = "pditems";
 
@@ -125,7 +126,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		 */
 		global $ilSetting, $ilCtrl;
 
-		$this->allowed_views = array();
+		$this->allowed_views = array(self::VIEW_MY_STUDYPROGRAMME);
 
 		// determine view
 		if($ilSetting->get('disable_my_offers') == 1 &&
@@ -218,6 +219,15 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		
 		switch((int)$this->view)
 		{
+			case self::VIEW_MY_STUDYPROGRAMME:
+				// TODO: This seems to be very hacky, but i did not find a way to get the standard PD blocks
+				// and only exchange the middle blog for the study programme list. Sry Alex.
+				require_once("Modules/StudyProgramme/classes/class.ilPDStudyProgrammeExpandableListGUI.php");
+				$list = new ilPDStudyProgrammeExpandableListGUI();
+				$this->setTitle($lng->txt("objs_prg"));
+				$this->setContent($list->getDataSectionContent());
+				$this->setAvailableDetailLevels(0);
+				break;
 			case self::VIEW_MY_MEMBERSHIPS:
 				$ilHelp->setDefaultScreenId(ilHelpGUI::ID_PART_SCREEN, "crs_grp");
 				if ($ilSetting->get('disable_my_offers') == 0)
@@ -254,6 +264,17 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		$ilDB->useSlave(false);
 		
 		return parent::getHTML();
+	}
+	
+	// Overwritten from ilBlockGUI as there seems to be no other possibility to
+	// not show Commands in the HEADER(!!!!) of a block in the VIEW_MY_STUDYPROGRAMME
+	// case... Sigh.
+	function getFooterLinks()
+	{
+		if((int)$this->view == self::VIEW_MY_STUDYPROGRAMME) {
+			return array();
+		}
+		return parent::getFooterLinks();
 	}
 	
 	/**
@@ -1110,7 +1131,6 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 				$ilBench->stop("ilPersonalDesktopGUI", "getListHTML");
 				if ($html != "")
 				{
-					// BEGIN WebDAV: Use $item_list_gui to determine icon image type
 					$item_html[] = array(
 						"html" => $html, 
 						"item_ref_id" => $item["ref_id"],
@@ -1119,7 +1139,6 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 						"type" => $item["type"],
 						'item_icon_image_type' => $item_list_gui->getIconImageType()
 						);
-					// END WebDAV: Use $item_list_gui to determine icon image type
 				}
 			}
 			
@@ -1146,11 +1165,9 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 						$cur_parent_ref = $item["parent_ref"];
 					}
 					
-					// BEGIN WebDAV: Use $item_list_gui to determine icon image type.
-					$this->addStandardRow($tpl, $item["html"], $item["item_ref_id"], $item["item_obj_id"], 
+					$this->addStandardRow($tpl, $item["html"], $item["item_ref_id"], $item["item_obj_id"],
 						$item['item_icon_image_type'], 
 						"th_".$cur_parent_ref);
-					// END WebDAV: Use $item_list_gui to determine icon image type.
 					$output = true;
 				}
 			}
@@ -1497,30 +1514,30 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		$top_tb = new ilToolbarGUI();
 		$top_tb->setFormAction($ilCtrl->getFormAction($this));
 		$top_tb->setLeadingImage(ilUtil::getImagePath("arrow_upright.svg"), $lng->txt("actions"));
+
+		$button = ilSubmitButton::getInstance();
 		if($this->view == self::VIEW_SELECTED_ITEMS)
 		{
-			$top_tb->addFormButton($lng->txt("remove"), "confirmRemove");
+			$button->setCaption("remove");
 		}
 		else
 		{
-			$top_tb->addFormButton($lng->txt("pd_unsubscribe_memberships"), "confirmRemove");
+			$button->setCaption("pd_unsubscribe_memberships");
 		}
-		$top_tb->addSeparator();
-		$top_tb->addFormButton($lng->txt("cancel"), "getHTML");
+		$button->setCommand("confirmRemove");
+		$top_tb->addStickyItem($button);
+
+		$button2 = ilSubmitButton::getInstance();
+		$button2->setCaption("cancel");
+		$button2->setCommand("getHTML");
+		$top_tb->addStickyItem($button2);
+
 		$top_tb->setCloseFormTag(false);
 
 		$bot_tb = new ilToolbarGUI();
 		$bot_tb->setLeadingImage(ilUtil::getImagePath("arrow_downright.svg"), $lng->txt("actions"));
-		if($this->view == self::VIEW_SELECTED_ITEMS)
-		{
-			$bot_tb->addFormButton($lng->txt("remove"), "confirmRemove");
-		}
-		else
-		{
-			$bot_tb->addFormButton($lng->txt("pd_unsubscribe_memberships"), "confirmRemove");
-		}
-		$bot_tb->addSeparator();
-		$bot_tb->addFormButton($lng->txt("cancel"), "getHTML");
+		$bot_tb->addStickyItem($button);
+		$bot_tb->addStickyItem($button2);
 		$bot_tb->setOpenFormTag(false);
 		
 		return $top_tb->getHTML().$this->getHTML().$bot_tb->getHTML();

@@ -194,11 +194,10 @@ class ilRbacReview
 						"FROM object_data odat ".
 						"JOIN object_reference oref ON oref.obj_id = odat.obj_id ".
 						"JOIN tree otree ON otree.child = oref.ref_id ".
-						"JOIN tree rtree ON rtree.parent = otree.child ".
-						"JOIN rbac_fa rfa ON rfa.parent = rtree.child ".
+						"JOIN rbac_fa rfa ON rfa.parent = otree.child ".
 						"JOIN object_data rdat ON rdat.obj_id = rfa.rol_id ".
 						"WHERE odat.title = ".$this->ilDB->quote($domain,'text')." ".
-						"AND otree.tree = 1 AND rtree.tree = 1 ".
+						"AND otree.tree = 1 ".
 						"AND rfa.assign = 'y' ".
 						"AND rdat.title LIKE ".
 							$this->ilDB->quote('%'.preg_replace('/([_%])/','\\\\$1',$local_part).'%','text');
@@ -347,7 +346,7 @@ class ilRbacReview
 				"FROM object_data rdat ".
 				"JOIN rbac_fa fa ON fa.rol_id = rdat.obj_id ".
 				"JOIN tree rtree ON rtree.child = fa.parent ".
-				"JOIN object_reference oref ON oref.ref_id = rtree.parent ".
+				"JOIN object_reference oref ON oref.ref_id = rtree.child ".
 				"JOIN object_data odat ON odat.obj_id = oref.obj_id ".
 				"WHERE rdat.obj_id = ".$this->ilDB->quote($a_role_id,'integer')." ".
 				"AND fa.assign = 'y' ";
@@ -443,7 +442,7 @@ class ilRbacReview
 					 "JOIN rbac_fa fa ON rd.obj_id = fa.rol_id ".
 					 "JOIN tree t ON t.child = fa.parent ". 
 					 "WHERE fa.assign = 'y' ".
-					 "AND t.parent = ".$this->ilDB->quote($object_ref,'integer')." ".
+					 "AND t.child = ".$this->ilDB->quote($object_ref,'integer')." ".
 					 "AND rd.title LIKE ".$this->ilDB->quote(
 						'%'.preg_replace('/([_%])/','\\\\$1', $local_part).'%','text')." ";
 			}
@@ -1908,10 +1907,10 @@ class ilRbacReview
 	public function isProtected($a_ref_id,$a_role_id)
 	{
 		global $ilDB;
-		
+
+		// ref_id not used yet. protected permission acts 'global' for each role,
 		$query = "SELECT protected FROM rbac_fa ".
-			 "WHERE rol_id = ".$ilDB->quote($a_role_id,'integer')." ".
-			 "AND parent = ".$ilDB->quote($a_ref_id,'integer')." ";
+			 "WHERE rol_id = ".$ilDB->quote($a_role_id,'integer')." ";
 		$res = $ilDB->query($query);
 		$row = $ilDB->fetchAssoc($res);
 		
@@ -2108,21 +2107,14 @@ class ilRbacReview
 	{
 		global $ilDB;
 		
-		$query = 'SELECT parent ref FROM rbac_fa '.
+		$query = 'SELECT parent p_ref FROM rbac_fa '.
 				'WHERE rol_id = '.$ilDB->quote($a_role_id,'integer').' '.
 				'AND assign = '.$ilDB->quote('y','text');
 		
-		
-		#$query = "SELECT tree.parent ref FROM rbac_fa fa ".
-		#	"JOIN tree ON fa.parent = tree.child ".
-		#	"WHERE tree.tree = 1 ".
-		#	"AND assign = ".$ilDB->quote('y','text').' '.
-		#	"AND rol_id = ".$ilDB->quote($a_role_id,'integer');
-
 		$res = $ilDB->query($query);
 		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
 		{
-			return $row->ref;
+			return $row->p_ref;
 		}
 		return 0;
 	}

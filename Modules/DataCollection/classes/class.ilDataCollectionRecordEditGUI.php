@@ -91,10 +91,14 @@ class ilDataCollectionRecordEditGUI {
 	 * @return bool
 	 */
 	public function executeCommand() {
+		if($_GET['mode']) {
+			$this->ctrl->saveParameter($this, 'mode');
+			$this->ctrl->setParameterByClass("ildatacollectionrecordlistgui", "mode", $_GET['mode']);
+		}
 		$this->ctrl->saveParameter($this, 'redirect');
 		if ($this->record_id) {
 			$this->record = ilDataCollectionCache::getRecordCache($this->record_id);
-			if (! $this->record->hasPermissionToEdit($this->parent_obj->ref_id) OR ! $this->record->hasPermissionToView($this->parent_obj->ref_id)) {
+			if (!$this->record->hasPermissionToEdit($this->parent_obj->ref_id) OR !$this->record->hasPermissionToView($this->parent_obj->ref_id)) {
 				$this->accessDenied();
 			}
 			$this->table = $this->record->getTable();
@@ -222,6 +226,7 @@ class ilDataCollectionRecordEditGUI {
 		$this->form->setFormAction($this->ctrl->getFormAction($this));
 		$allFields = $this->table->getRecordFields();
 
+		$inline_css = '';
 		foreach ($allFields as $field) {
 			$item = ilDataCollectionDatatype::getInputField($field);
 			if ($item === NULL) {
@@ -249,6 +254,13 @@ class ilDataCollectionRecordEditGUI {
 						case ilDataCollectionDatatype::INPUTFORMAT_DATETIME:
 							$options[$record->getId()] = $record->getRecordFieldSingleHTML($fieldref);
 							break;
+						case ilDataCollectionDatatype::INPUTFORMAT_TEXT:
+							$value = $record->getRecordFieldValue($fieldref);
+							if ($json = json_decode($value)) {
+								$value = $json->title? $json->title : $json->link;
+							}
+							$options[$record->getId()] = $value;
+							break;
 						default:
 							$options[$record->getId()] = $record->getRecordFieldValue($fieldref);
 							break;
@@ -265,6 +277,13 @@ class ilDataCollectionRecordEditGUI {
 					}
 					//					}
 				}
+
+				if($item instanceof ilMultiSelectInputGUI){
+					$item->setWidth(400);
+					$item->setHeight(100);
+					$inline_css .= 'div#'.$item->getFieldId().'{resize:both;} ';
+				}
+
 			}
 
 			if ($this->record_id) {
@@ -293,6 +312,8 @@ class ilDataCollectionRecordEditGUI {
 			}
 			$this->form->addItem($item);
 		}
+
+		$this->tpl->addInlineCss($inline_css);
 
 		// Add possibility to change the owner in edit mode
 		if ($this->record_id) {
@@ -328,15 +349,15 @@ class ilDataCollectionRecordEditGUI {
 	public function setFormValues() {
 		//Get Record-Values
 		$record_obj = ilDataCollectionCache::getRecordCache($this->record_id);
-		//Get Table Field Definitions
-		$allFields = $this->table->getFields();
-		$values = array();
-		foreach ($allFields as $field) {
-			$value = $record_obj->getRecordFieldFormInput($field->getId());
-			$values['field_' . $field->getId()] = $value;
+		if ($record_obj->getId()) {
+			//Get Table Field Definitions
+			$allFields = $this->table->getFields();
+			foreach ($allFields as $field) {
+				$record_obj->fillRecordFieldFormInput($field->getId(), $this->form);
+			}
+		} else {
+			$this->form->setValuesByPost();
 		}
-		$values['record_id'] = $record_obj->getId();
-		$this->form->setValuesByArray($values);
 
 		return true;
 	}
@@ -372,7 +393,7 @@ class ilDataCollectionRecordEditGUI {
 
 			$create_mode = false;
 
-			if (ilObjDataCollection::_hasWriteAccess($this->parent_obj->ref_id)) {
+			if (ilObjDataCollectionAccess::hasWriteAccess($this->parent_obj->ref_id)) {
 				$all_fields = $this->table->getRecordFields();
 			} else {
 				$all_fields = $this->table->getEditableFields();
@@ -414,16 +435,10 @@ class ilDataCollectionRecordEditGUI {
 					return;
 				}
 			}
+
 			//edit values, they are valid we already checked them above
 			foreach ($all_fields as $field) {
-				$value = $this->form->getInput("field_" . $field->getId());
-				//deletion flag on MOB inputs.
-				if ($field->getDatatypeId() == ilDataCollectionDatatype::INPUTFORMAT_MOB
-					&& $this->form->getItemByPostVar("field_" . $field->getId())->getDeletionFlag()
-				) {
-					$value = - 1;
-				}
-				$record_obj->setRecordFieldValue($field->getId(), $value);
+				$record_obj->setRecordFieldValueFromForm($field->getId(), $this->form);
 			}
 
 			// Do we need to set a new owner for this record?
@@ -462,6 +477,7 @@ class ilDataCollectionRecordEditGUI {
 			}
 		} else {
 			// Form not valid...
+			//TODO: URL title flushes on invalid form
 			$this->form->setValuesByPost();
 			if ($this->ctrl->isAsynch()) {
 				echo $this->form->getHTML();

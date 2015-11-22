@@ -92,6 +92,14 @@ class ilObjectLP
 				case "exc":
 					include_once "Modules/Exercise/classes/class.ilExerciseLP.php";
 					return "ilExerciseLP";
+					
+				case 'file':
+					require_once 'Modules/File/classes/class.ilFileLP.php';
+					return 'ilFileLP';
+					
+				case "mcst":
+					require_once "Modules/MediaCast/classes/class.ilMediaCastLP.php";
+					return "ilMediaCastLP";
 			
 				case "sess":
 					include_once "Modules/Session/classes/class.ilSessionLP.php";
@@ -100,6 +108,10 @@ class ilObjectLP
 				case "svy":
 					include_once "Modules/Survey/classes/class.ilSurveyLP.php";
 					return  "ilSurveyLP";		
+
+				case "prg":
+					include_once "Modules/StudyProgramme/classes/class.ilStudyProgrammeLP.php";
+					return "ilStudyProgrammeLP";
 
 				// plugin
 				case $objDefinition->isPluginTypeName($a_type):
@@ -113,7 +125,8 @@ class ilObjectLP
 	{
 		global $objDefinition;
 		
-		$valid = array("crs", "grp", "fold", "lm", "htlm", "sahs", "tst", "exc", "sess", "svy");		
+		$valid = array("crs", "grp", "fold", "lm", "htlm", "sahs", "tst", "exc", "sess", "svy", "file", "mcst", "prg");
+		
 		if(in_array($a_type, $valid))
 		{
 			return true;			
@@ -185,6 +198,11 @@ class ilObjectLP
 	public function getModeInfoText($a_mode)
 	{
 		return ilLPObjSettings::_mode2InfoText($a_mode);		
+	}
+	
+	public function getSettingsInfo()
+	{
+		// type-specific		
 	}
 	
 	
@@ -614,6 +632,31 @@ class ilObjectLP
 		
 		return $res;
 	}
+	
+	public function getMailTemplateId()
+	{
+		// type-specific
+	}
+	
+	
+	//
+	// type-specific support of features (should be enhanced)
+	// 
+	
+	public static function supportsSpentSeconds($a_obj_type)
+	{
+		return !in_array($a_obj_type, array("exc", "file", "mcst", "mob", "htlm"));
+	}
+	
+	public static function supportsMark($a_obj_type)
+	{
+		return !in_array($a_obj_type, array("lm", "dbk"));
+	}
+	
+	public static function supportsMatrixView($a_obj_type)
+	{
+		return !in_array($a_obj_type, array('svy', 'tst', 'htlm', 'exc', 'sess', 'file', 'prg'));
+	}		
 }
 
 ?>

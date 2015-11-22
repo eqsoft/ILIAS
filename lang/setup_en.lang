@@ -1,4 +1,4 @@
-/* Copyright (c) 1998-2014 ILIAS open source e-Learning e.V., Extended GPL, see docs/LICENSE */
+/* Copyright (c) 1998-2015 ILIAS open source e-Learning e.V., Extended GPL, see docs/LICENSE */
 /**
 * ILIAS language file
 *
@@ -253,7 +253,7 @@ lang_fr#:#French
 lang_hu#:#Hungarian
 lang_id#:#Indonesian
 lang_it#:#Italian
-lang_ja#:#Japanisch
+lang_ja#:#Japanese
 lang_ka#:#Georgian
 lang_lt#:#Lithuanian
 lang_min_one_language#:#You must install at least one language!
@@ -611,3 +611,25 @@ https_settings#:#HTTPS Settings
 alert#:#Warning
 pre_opcache_comments#:#Set opcache.load_comments to 1
 pre_load_comments#:#PHP-OPCache load_comments
+memcache_servers#:#Memcached-Nodes
+memcache_status#:#Active
+memcache_host#:#Host
+memcache_port#:#Port
+memcache_weight#:#Weight
+memcache_actions#:#Actions
+memcache_edit#:#Edit node
+memcache_add#:#Add Memcached node
+memcache_delete#:#Delete node
+memcache_cancel#:#Cancel
+memcache_update#:#Save node
+memcache_status_server#:#Reachable
+cache_activate_clng#:#Language
+cache_activate_obj_def#:#Object Definition
+cache_activate_ilctrl#:#Control Flow
+cache_activate_comp#:#Components
+cache_activate_tpl#:#Template (HTML)
+cache_activate_events#:#Events
+cache_activated_components#:#Activated Components
+cache_flush#:#Flush all caches
+cache_activate_tpl_blocks#:#Template (Blocks)
+cache_activate_tpl_variables#:#Template (Variablen)

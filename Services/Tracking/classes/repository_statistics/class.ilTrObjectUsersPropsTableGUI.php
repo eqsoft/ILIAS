@@ -28,13 +28,14 @@ class ilTrObjectUsersPropsTableGUI extends ilLPTableBaseGUI
 	protected $in_group; // int
 	protected $has_edit; // bool
 	protected $has_collection; // bool
+	protected $has_multi; // bool
 	
 	/**
 	* Constructor
 	*/
 	function __construct($a_parent_obj, $a_parent_cmd, $a_obj_id, $a_ref_id, $a_print_view = false)
 	{
-		global $ilCtrl, $lng, $tree, $rbacsystem;
+		global $ilCtrl, $ilUser, $tree, $rbacsystem;
 		
 		$this->setId("troup");
 		$this->obj_id = $a_obj_id;
@@ -62,6 +63,19 @@ class ilTrObjectUsersPropsTableGUI extends ilLPTableBaseGUI
 		if($a_print_view)
 		{
 			$this->setPrintMode(true);
+		}
+		
+		if(!$this->getPrintMode())
+		{
+			// see ilObjCourseGUI::addMailToMemberButton()
+			include_once "Services/Mail/classes/class.ilMail.php";
+			$mail = new ilMail($ilUser->getId());
+			if($rbacsystem->checkAccess("internal_mail", $mail->getMailObjectReferenceId()))
+			{							
+				$this->addMultiCommand("mailselectedusers", $this->lng->txt("send_mail"));
+				$this->addColumn("", "", 1);
+				$this->has_multi = true;
+			}			
 		}
 
 		$labels = $this->getSelectableColumns();
@@ -226,8 +240,12 @@ class ilTrObjectUsersPropsTableGUI extends ilLPTableBaseGUI
 				case "email":
 				case "matriculation":
 				case "login":
-					$item = $this->addFilterItemByMetaType($column, ilTable2GUI::FILTER_TEXT, true, $meta["txt"]);
-					$this->filter[$column] = $item->getValue();
+					if($column != "mark" ||
+						ilObjectLP::supportsMark($this->type))
+					{
+						$item = $this->addFilterItemByMetaType($column, ilTable2GUI::FILTER_TEXT, true, $meta["txt"]);
+						$this->filter[$column] = $item->getValue();
+					}
 					break;
 
 				case "first_access":
@@ -291,9 +309,12 @@ class ilTrObjectUsersPropsTableGUI extends ilLPTableBaseGUI
 					break;
 
 				case "spent_seconds":
-					$item = $this->addFilterItemByMetaType("spent_seconds", ilTable2GUI::FILTER_DURATION_RANGE, true, $meta["txt"]);
-					$this->filter["spent_seconds"]["from"] = $item->getCombinationItem("from")->getValueInSeconds();
-					$this->filter["spent_seconds"]["to"] = $item->getCombinationItem("to")->getValueInSeconds();
+					if(ilObjectLP::supportsSpentSeconds($this->type))
+					{
+						$item = $this->addFilterItemByMetaType("spent_seconds", ilTable2GUI::FILTER_DURATION_RANGE, true, $meta["txt"]);
+						$this->filter["spent_seconds"]["from"] = $item->getCombinationItem("from")->getValueInSeconds();
+						$this->filter["spent_seconds"]["to"] = $item->getCombinationItem("to")->getValueInSeconds();
+					}
 					break;
 			}
 		}
@@ -304,7 +325,12 @@ class ilTrObjectUsersPropsTableGUI extends ilLPTableBaseGUI
 	*/
 	protected function fillRow($data)
 	{
-		global $ilCtrl, $lng;
+		global $ilCtrl, $lng, $objDefinition;
+		
+		if($this->has_multi)
+		{
+			$this->tpl->setVariable("USER_ID", $data["usr_id"]);
+		}
 		
 		foreach ($this->getSelectedColumns() as $c)
 		{
@@ -363,7 +389,7 @@ class ilTrObjectUsersPropsTableGUI extends ilLPTableBaseGUI
 		{
 			// details for containers and collections
 			if($this->has_collection ||
-				in_array($this->type, array("crs", "grp", "cat", "fold")))
+				$objDefinition->isContainer($this->type))
 			{
 				$this->tpl->setCurrentBlock("item_command");
 				$this->tpl->setVariable("HREF_COMMAND", $ilCtrl->getLinkTargetByClass("illplistofobjectsgui", "userdetails"));

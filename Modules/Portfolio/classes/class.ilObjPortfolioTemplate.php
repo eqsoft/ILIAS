@@ -74,6 +74,14 @@ class ilObjPortfolioTemplate extends ilObjPortfolioBase
 	
 	protected function doCloneObject($new_obj, $a_target_id, $a_copy_id = null)
 	{
+		//copy online status if object is not the root copy object
+		$cp_options = ilCopyWizardOptions::_getInstance($a_copy_id);
+
+		if(!$cp_options->isRootNode($this->getRefId()))
+		{
+			$new_obj->setOnline($this->isOnline());
+		}
+
 		self::cloneBasics($this, $new_obj);
 		
 		// copy pages
@@ -180,7 +188,7 @@ class ilObjPortfolioTemplate extends ilObjPortfolioBase
 		{
 			$has_permission = false;
 			
-			if($obj["owner"] == $ilUser->getId() && false)
+			if($obj["owner"] == $ilUser->getId())
 			{
 				$has_permission = true;
 			}

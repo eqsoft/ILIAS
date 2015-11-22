@@ -15,6 +15,7 @@ var ilCOPage =
 	pasting: false,
 	response_class: "",
 	tds: {},
+	user: "",
 
 	////
 	//// Debug/Error Functions
@@ -95,6 +96,11 @@ var ilCOPage =
 	setContentCss: function (content_css)
 	{
 		this.content_css = content_css;
+	},
+
+	setUser: function (u)
+	{
+		this.user = u;
 	},
 
 	setEditStatus: function(status)
@@ -346,6 +352,22 @@ var ilCOPage =
 		this.autoResize(ed);
 	},
 
+	cmdSup: function()
+	{
+		var ed = tinyMCE.get('tinytarget');
+
+		ed.execCommand('mceToggleFormat', false, 'Sup');
+		this.autoResize(ed);
+	},
+
+	cmdSub: function()
+	{
+		var ed = tinyMCE.get('tinytarget');
+
+		ed.execCommand('mceToggleFormat', false, 'Sub');
+		this.autoResize(ed);
+	},
+
 	cmdRemoveFormat: function()
 	{
 		var ed = tinyMCE.get('tinytarget');
@@ -443,6 +465,11 @@ var ilCOPage =
 		this.addBBCode('[xln url="http://"]', '[/xln]');
 	},
 
+	cmdUserLink: function()
+	{
+		this.addBBCode('[iln user="' + this.user + '"/]', '');
+	},
+
 	cmdAnc: function()
 	{
 		this.addBBCode('[anc name=""]', '[/anc]');
@@ -468,9 +495,24 @@ var ilCOPage =
 
 	cmdListIndent: function()
 	{
-		var ed = tinyMCE.get('tinytarget');
+		var blockq = false, range, ed = tinyMCE.get('tinytarget');
+
 		ed.focus();
 		ed.execCommand('Indent', false);
+		range = ed.selection.getRng(true);
+
+		// if path contains blockquote, top level list has been indented -> undo, see bug #0016243
+		cnode = range.startContainer;
+		while (cnode = cnode.parentNode) {
+			if (cnode.nodeName == "BLOCKQUOTE") {
+				blockq = true;
+			}
+		}
+		if (blockq) {
+			ed.execCommand('Undo', false);
+		}
+
+		//tinyMCE.execCommand('mceCleanup', false, 'tinytarget');
 		this.fixListClasses(false);
 		this.autoResize(ed);
 	},
@@ -1982,7 +2024,6 @@ function editParagraph(div_id, mode, switched)
 		oldOpenedMenu = openedMenu;
 		openedMenu = "";
 	}
-
 	ed_para = div_id;
 	ilCOPage.pc_id_str = "";
 
@@ -2083,6 +2124,7 @@ function editParagraph(div_id, mode, switched)
 		}
 		else
 		{
+
 			var ins_div = pdiv;
 		}
 
@@ -2090,7 +2132,6 @@ function editParagraph(div_id, mode, switched)
 		ta_div.id = 'tinytarget_div';
 		ta_div.style.position = 'absolute';
 		ta_div.style.left = '-200px';
-
 	}
 
 	// init tiny
@@ -2106,7 +2147,8 @@ function editParagraph(div_id, mode, switched)
 	}
 
 	var tinytarget = document.getElementById("tinytarget");
-	tinytarget.style.display = '';
+//	tinytarget.style.display = '';
+
 	if (!moved)
 	{
 		tinyMCE.init({
@@ -2122,7 +2164,7 @@ function editParagraph(div_id, mode, switched)
 			elements: "tinytarget",
 			content_css: ilCOPage.content_css,
 			fix_list_elements : true,
-			valid_elements : "p,br[_moz_dirty],span[class],code,ul[class],ol[class],li[class]",
+			valid_elements : "p,br[_moz_dirty],span[class],code,sub[class],sup[class],ul[class],ol[class],li[class]",
 			forced_root_block : 'p',
 			entity_encoding : "raw",
 			paste_remove_styles: true,
@@ -2132,7 +2174,9 @@ function editParagraph(div_id, mode, switched)
 				Important: {inline : 'span', classes : 'ilc_text_inline_Important'},
 				Comment: {inline : 'span', classes : 'ilc_text_inline_Comment'},
 				Quotation: {inline : 'span', classes : 'ilc_text_inline_Quotation'},
-				Accent: {inline : 'span', classes : 'ilc_text_inline_Accent'}
+				Accent: {inline : 'span', classes : 'ilc_text_inline_Accent'},
+				Sup: {inline : 'sup', classes : 'ilc_sup_Sup'},
+				Sub: {inline : 'sub', classes : 'ilc_sub_Sub'}
 			},
 			/* not found in 4 code or docu (the configs for p/br are defaults for 3, so this should be ok) */
 			removeformat_selector : 'span,code',
@@ -2240,7 +2284,6 @@ function editParagraph(div_id, mode, switched)
 
 					if(ev.keyCode == 9 && !ev.shiftKey)
 					{
-//						console.log("tab");
 						YAHOO.util.Event.preventDefault(ev);
 						YAHOO.util.Event.stopPropagation(ev);
 						if (ilCOPage.current_td != "")
@@ -2384,6 +2427,9 @@ function editParagraph(div_id, mode, switched)
 						ilCOPage.focusTiny(true);
 						cmd_called = false;
 					}
+
+					$('#tinytarget_ifr').contents().find("html").attr('lang', $('html').attr('lang'));
+					$('#tinytarget_ifr').contents().find("html").attr('dir', $('html').attr('dir'));
 				});
 			}
 
@@ -2392,12 +2438,12 @@ function editParagraph(div_id, mode, switched)
 	else	// moved (table editing)
 	{
 		//prepareTinyForEditing;
-		tinyMCE.execCommand('mceToggleEditor', false, 'tinytarget');
+		// this code line has been commented out
+		// with 5.0, not really sure why it has been needed before
+//		tinyMCE.execCommand('mceToggleEditor', false, 'tinytarget');
 		var ed = tinyMCE.get('tinytarget');
 		ed.setContent(pdiv.innerHTML);
 		ilCOPage.splitBR();
-//console.log("Setting content to: " + pdiv.innerHTML);
-//		ilCOPage.prepareTinyForEditing(true, false);
 		ilCOPage.synchInputRegion();
 		ilCOPage.focusTiny(false);
 		cmd_called = false;
@@ -2662,6 +2708,10 @@ function ilEditMultiAction(cmd)
 function showToolbar(ed_id)
 {
 // todo tinynew
+
+    //#0017152
+    $('#tinytarget_ifr').contents().find("html").attr('lang', $('html').attr('lang'));
+    $('#tinytarget_ifr').contents().find("html").attr('dir', $('html').attr('dir'));
 
 	$("#tinytarget_ifr").parent().css("border-width", "0px");
 	$("#tinytarget_ifr").parent().parent().parent().css("border-width", "0px");

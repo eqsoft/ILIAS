@@ -1699,9 +1699,17 @@ class ilUtil
 	* @static
 	* 
 	*/
-	public static function ilTempnam()
+	public static function ilTempnam($a_temp_path = null)
 	{
-		$temp_path = ilUtil::getDataDir() . "/temp";
+		if($a_temp_path === null )
+		{
+			$temp_path = ilUtil::getDataDir() . "/temp";
+		}
+		else
+		{
+			$temp_path = $a_temp_path;
+		}
+		
 		if (!is_dir($temp_path))
 		{
 			ilUtil::createDirectory($temp_path);
@@ -2056,7 +2064,7 @@ class ilUtil
 	* @static
 	* 
 	*/
-	public static function img($a_src, $a_alt = "", $a_width = "", $a_height = "", $a_border = 0, $a_id = "")
+	public static function img($a_src, $a_alt = "", $a_width = "", $a_height = "", $a_border = 0, $a_id = "", $a_class = "")
 	{
 		$img = '<img src="'.$a_src.'"';
 		if ($a_alt != "")
@@ -2070,6 +2078,10 @@ class ilUtil
 		if ($a_height != "")
 		{
 			$img.= ' height="'.$a_height.'"';
+		}
+		if ($a_class != "")
+		{
+			$img.= ' class="'.$a_class.'"';
 		}
 		if ($a_id != "")
 		{
@@ -2318,7 +2330,15 @@ class ilUtil
 
 		/// $ascii_filename = mb_convert_encoding($a_filename,'US-ASCII','UTF-8');
 		/// $ascii_filename = preg_replace('/\&(.)[^;]*;/','\\1', $ascii_filename);
-
+				
+		// #15914 - try to fix german umlauts
+		$umlauts = array("Ä"=>"Ae", "Ö"=>"Oe", "Ü"=>"Ue", 
+			"ä"=>"ae", "ö"=>"oe", "ü"=>"ue", "ß"=>"ss");
+		foreach($umlauts as $src => $tgt)
+		{
+			$a_filename = str_replace($src, $tgt, $a_filename);
+		}		
+		
 		$ascii_filename = htmlentities($a_filename, ENT_NOQUOTES, 'UTF-8');
 		$ascii_filename = preg_replace('/\&(.)[^;]*;/', '\\1', $ascii_filename);
 		$ascii_filename = preg_replace('/[\x7f-\xff]/', '_', $ascii_filename);
@@ -3506,6 +3526,7 @@ class ilUtil
 		switch($a_desired_type)
 		{
 			case "jpg":
+			case "jpeg":
 			if ($im_types & IMG_JPG) return "jpg";
 			if ($im_types & IMG_GIF) return "gif";
 			if ($im_types & IMG_PNG) return "png";
@@ -3518,6 +3539,12 @@ class ilUtil
 			break;
 
 			case "png":
+			if ($im_types & IMG_PNG) return "png";
+			if ($im_types & IMG_JPG) return "jpg";
+			if ($im_types & IMG_GIF) return "gif";
+			break;
+
+			case "svg":
 			if ($im_types & IMG_PNG) return "png";
 			if ($im_types & IMG_JPG) return "jpg";
 			if ($im_types & IMG_GIF) return "gif";
@@ -3746,6 +3773,7 @@ class ilUtil
 		{
 			$cmd .= " ".$args;
 		}
+//ilUtil::printBacktrace(5);
 //echo "<br>".$cmd; exit;
 		exec($cmd, $arr);
 //		$ilLog->write("ilUtil::execQuoted: ".$cmd.".");
@@ -4888,7 +4916,11 @@ class ilUtil
 	public static function sendFailure($a_info = "",$a_keep = false)
 	{
 		global $tpl;
-		$tpl->setMessage("failure", $a_info, $a_keep);
+
+		if(is_object($tpl))
+		{
+			$tpl->setMessage("failure", $a_info, $a_keep);
+		}
 	}
 
 	/**
@@ -5134,6 +5166,8 @@ class ilUtil
 	 * - https://gist.github.com/codler/3906826
 	 * - ...
 	 * @param string $file filename
+	 *
+	 * @deprecated use ilFileDelivery Class
 	 */
 	function rangeDownload($file) {
 

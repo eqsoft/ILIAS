@@ -5,6 +5,7 @@
 require_once "./Services/Object/classes/class.ilObject2GUI.php";
 require_once "./Modules/Bibliographic/classes/class.ilBibliographicDetailsGUI.php";
 require_once("./Services/Export/classes/class.ilExportGUI.php");
+require_once('./Services/News/classes/class.ilNewsItem.php');
 
 
 /**
@@ -190,8 +191,10 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 	}
 
 
-	/*
-	 * initCreationForms
+	/**
+	 * @param string $a_new_type
+	 *
+	 * @return array
 	 */
 	protected function initCreationForms($a_new_type) {
 		global $lng;
@@ -208,9 +211,6 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 	}
 
 
-	/*
-	 * Override save method to check (checkInput()) upload file extension
-	 */
 	public function save() {
 		global $tpl;
 		$form = $this->initCreationForms($this->getType());
@@ -225,10 +225,11 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 
 
 	/**
-	 * @param ilObject $a_new_object
+	 * @param ilObjBibliographic $a_new_object
 	 */
-	protected function afterSave(ilObject $a_new_object) {
+	protected function afterSave(ilObjBibliographic $a_new_object) {
 		$a_new_object->doUpdate();
+		$this->addNews($a_new_object->getId(), 'created');
 		$this->ctrl->redirect($this, "edit");
 	}
 
@@ -260,13 +261,13 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 		if ($ilAccess->checkAccess('write', "", $this->object->getRefId())) {
 			$ilTabs->addTab("settings", $lng->txt("settings"), $this->ctrl->getLinkTarget($this, "editObject"));
 		}
-		// edit permissions
-		if ($ilAccess->checkAccess('edit_permission', "", $this->object->getRefId())) {
-			$ilTabs->addTab("id_permissions", $lng->txt("perm_settings"), $this->ctrl->getLinkTargetByClass("ilpermissiongui", "perm"));
-		}
 		// export
 		if ($ilAccess->checkAccess("write", "", $this->object->getRefId())) {
 			$ilTabs->addTab("export", $lng->txt("export"), $this->ctrl->getLinkTargetByClass("ilexportgui", ""));
+		}
+		// edit permissions
+		if ($ilAccess->checkAccess('edit_permission', "", $this->object->getRefId())) {
+			$ilTabs->addTab("id_permissions", $lng->txt("perm_settings"), $this->ctrl->getLinkTargetByClass("ilpermissiongui", "perm"));
 		}
 	}
 
@@ -311,16 +312,6 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 	}
 
 
-	/**
-	 * @return ilObjBibliographic
-	 *
-	 * @deprecated
-	 */
-	public function getBibliographicObject() {
-		$obj = new ilObjBibliographic($this->ref_id, true);
-
-		return $obj;
-	}
 
 
 	public function render() {
@@ -368,7 +359,9 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 				if (is_file($file_path)) {
 					$path_array = explode(DIRECTORY_SEPARATOR, $file_path);
 					$filename = $path_array[sizeof($path_array) - 1];
-					ilUtil::deliverFile($file_path, $filename);
+					require_once('./Services/FileDelivery/classes/class.ilFileDelivery.php');
+					ilFileDelivery::deliverFileAttached($file_path, null, 'application/octet-stream');
+//					ilUtil::deliverFile($file_path, $filename);
 				} else {
 					ilUtil::sendFailure($lng->txt("file_not_found"));
 					$this->showContent($this->bibl_obj);
@@ -402,21 +395,22 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 	 * updateSettings
 	 */
 	public function updateCustom(ilPropertyFormGUI $a_form) {
-		global $ilUser, $ilAccess, $tpl, $lng;
+		global $ilAccess;
 		if ($ilAccess->checkAccess('write', "", $this->object->getRefId())) {
 			if ($this->object->getOnline() != $a_form->getInput("is_online")) {
 				$this->object->setOnline($a_form->getInput("is_online"));
 			}
+
+			if (! empty($_FILES['bibliographic_file']['name'])) {
+				$this->addNews($this->bibl_obj->getId(), 'updated');
+			}
+
 		} else {
 			ilUtil::sendFailure($this->lng->txt("no_permission"), true);
 			ilObjectGUI::_gotoRepositoryRoot();
 		}
 	}
 
-
-	/*
-	 * toggleNotification
-	 */
 	public function toggleNotification() {
 		global $ilCtrl, $ilUser;
 		include_once "./Services/Notification/classes/class.ilNotification.php";
@@ -432,8 +426,10 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 	}
 
 
-	/*
-	 * addHeaderAction
+	/**
+	 * @param bool|false $a_redraw
+	 *
+	 * @return string
 	 */
 	public function addHeaderAction($a_redraw = false) {
 		global $ilUser, $ilAccess, $tpl, $lng, $ilCtrl;
@@ -467,6 +463,22 @@ class ilObjBibliographicGUI extends ilObject2GUI {
 			return $lg->getHeaderAction();
 		}
 		$tpl->setHeaderActionMenu($lg->getHeaderAction());
+	}
+
+	/**
+	 * @param string $change
+	 */
+	public function addNews($obj_id, $change = 'created') {
+		global $lng, $ilUser;
+
+		$ilNewsItem = new ilNewsItem();
+		$ilNewsItem->setTitle($lng->txt('news_title_' . $change));
+		$ilNewsItem->setPriority(NEWS_NOTICE);
+		$ilNewsItem->setContext($obj_id, $this->getType());
+		$ilNewsItem->setUserId($ilUser->getId());
+		$ilNewsItem->setVisibility(NEWS_USERS);
+		$ilNewsItem->setContentTextIsLangVar(false);
+		$ilNewsItem->create();
 	}
 }
 

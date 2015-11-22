@@ -16,6 +16,8 @@ require_once 'Modules/Test/classes/class.ilTestOutputGUI.php';
  * @ilCtrl_Calls ilTestPlayerFixedQuestionSetGUI: ilAssQuestionPageGUI
  * @ilCtrl_Calls ilTestPlayerFixedQuestionSetGUI: ilTestSubmissionReviewGUI
  * @ilCtrl_Calls ilTestPlayerFixedQuestionSetGUI: ilTestPasswordProtectionGUI
+ * @ilCtrl_Calls ilTestPlayerFixedQuestionSetGUI: ilTestAnswerOptionalQuestionsConfirmationGUI
+ * @ilCtrl_Calls ilTestPlayerFixedQuestionSetGUI: ilConfirmationGUI
  */
 class ilTestPlayerFixedQuestionSetGUI extends ilTestOutputGUI
 {
@@ -31,5 +33,12 @@ class ilTestPlayerFixedQuestionSetGUI extends ilTestOutputGUI
 		$questionList->setQuestionInstanceTypeFilter(ilAssQuestionList::QUESTION_INSTANCE_TYPE_DUPLICATES);
 
 		return $questionList;
+	}
+
+	protected function populateQuestionOptionalMessage()
+	{
+		$info = $this->lng->txt('tst_wf_info_optional_question');
+		$info .= ' '.$this->lng->txt('tst_wf_info_answer_adopted_from_prev_pass');
+		ilUtil::sendInfo($info);
 	}
 }

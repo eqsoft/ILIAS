@@ -274,7 +274,7 @@ class assOrderingHorizontal extends assQuestion implements ilObjQuestionScoringA
 	 * @param boolean $returndetails (deprecated !!)
 	 * @return integer/array $points/$details (array $details is deprecated !!)
 	 */
-	public function calculateReachedPoints($active_id, $pass = NULL, $returndetails = FALSE)
+	public function calculateReachedPoints($active_id, $pass = NULL, $authorizedSolution = true, $returndetails = FALSE)
 	{
 		if( $returndetails )
 		{
@@ -288,7 +288,7 @@ class assOrderingHorizontal extends assQuestion implements ilObjQuestionScoringA
 		{
 			$pass = $this->getSolutionMaxPass($active_id);
 		}
-		$result = $this->getCurrentSolutionResultSet($active_id, $pass);
+		$result = $this->getCurrentSolutionResultSet($active_id, $pass, $authorizedSolution);
 		$points = 0;
 		$data = $ilDB->fetchAssoc($result);
 
@@ -341,7 +341,7 @@ class assOrderingHorizontal extends assQuestion implements ilObjQuestionScoringA
 	 * @param integer $pass Test pass
 	 * @return boolean $status
 	 */
-	public function saveWorkingData($active_id, $pass = NULL)
+	public function saveWorkingData($active_id, $pass = NULL, $authorized = true)
 	{
 		global $ilDB;
 		global $ilUser;
@@ -354,14 +354,14 @@ class assOrderingHorizontal extends assQuestion implements ilObjQuestionScoringA
 
 		$this->getProcessLocker()->requestUserSolutionUpdateLock();
 
-		$affectedRows = $this->removeCurrentSolution($active_id, $pass);
+		$affectedRows = $this->removeCurrentSolution($active_id, $pass, $authorized);
 		
 		$solutionSubmit = $this->getSolutionSubmit();
 		
 		$entered_values = false;
 		if (strlen($solutionSubmit))
 		{
-			$affectedRows = $this->saveCurrentSolution($active_id, $pass, $_POST['orderresult'], null);
+			$affectedRows = $this->saveCurrentSolution($active_id, $pass, $_POST['orderresult'], null, $authorized);
 			$entered_values = true;
 		}
 
@@ -558,7 +558,7 @@ class assOrderingHorizontal extends assQuestion implements ilObjQuestionScoringA
 	public function getRandomOrderingElements()
 	{
 		$elements = $this->getOrderingElements();
-		shuffle($elements);
+		$elements = $this->getShuffler()->shuffle($elements);
 		return $elements;
 	}
 	
@@ -668,6 +668,16 @@ class assOrderingHorizontal extends assQuestion implements ilObjQuestionScoringA
 				break;
 		}
 	}
+	
+	public function supportsJavascriptOutput()
+	{
+		return true;
+	}
+
+	public function supportsNonJsOutput()
+	{
+		return false;
+	}
 
 	/**
 	 * Returns a JSON representation of the question
@@ -687,8 +697,8 @@ class assOrderingHorizontal extends assQuestion implements ilObjQuestionScoringA
 			? (int)$this->getTextSize()
 			: 100;
 		$result['feedback'] = array(
-			"onenotcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false),
-			"allcorrect" => $this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true)
+			'onenotcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), false)),
+			'allcorrect' => $this->formatSAQuestion($this->feedbackOBJ->getGenericFeedbackTestPresentation($this->getId(), true))
 		);
 		
 		$arr = array();

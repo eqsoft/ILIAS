@@ -102,12 +102,10 @@ function toggleTree() {
 	
 	if (treeState==false) {
 		elm.innerHTML="Collapse All";
-		//treeYUI.expandAll();
 		il.NestedList.expandAll('rte_tree');
 		treeState=true;
 	} else {
 		elm.innerHTML="Expand All";
-		//treeYUI.collapseAll();
 		il.NestedList.collapseAll('rte_tree');
 		treeState=false;
 	}
@@ -1709,7 +1707,7 @@ function onDocumentClick (e)
 		{
 			//throw away API from previous sco and sync CMI and ADLTree
 			//onItemUndeliver();
-			mlaunch = msequencer.navigateStr( target.id.substr(3).replace(/_____/g,'.'));
+			mlaunch = msequencer.navigateStr( target.id.substr(3));
 
  			if (mlaunch.mSeqNonContent == null) {
 				//alert(activities[mlaunch.mActivityID]);
@@ -1936,8 +1934,8 @@ function buildNavTree(rootAct,name,tree){
 	{
 		var id=rootAct.id;
 		if (rootAct.isvisible==true && typeof(mlaunch.mNavState.mChoice[id])=="object") {
-			var it_id=(ITEM_PREFIX + rootAct.id).replace(/\./g,"_____");
-			il.NestedList.addNode('rte_tree', (""+par_id).replace(/\./g,"_____"), it_id,
+			var it_id=(ITEM_PREFIX + rootAct.id);
+			il.NestedList.addNode('rte_tree', (""+par_id), it_id,
 				"<a href='#this' id='" + it_id + "' target='_self'>" + rootAct.title + "</a>",
 				true);
 			par_id = ITEM_PREFIX + rootAct.id;
@@ -1951,8 +1949,8 @@ function buildNavTree(rootAct,name,tree){
 				var id=rootAct.item[i].id;
 				if (mlaunch.mNavState.mChoice!=null) {
 					if (rootAct.item[i].isvisible==true && typeof(mlaunch.mNavState.mChoice[id])=="object") {
-						var it_id=(ITEM_PREFIX + rootAct.item[i].id).replace(/\./g,"_____");
-						il.NestedList.addNode('rte_tree', (""+par_id).replace(/\./g,"_____"), it_id,
+						var it_id=(ITEM_PREFIX + rootAct.item[i].id);
+						il.NestedList.addNode('rte_tree', (""+par_id), it_id,
 							"<a href='#this' id='" + it_id + "' target='_self'>" + rootAct.item[i].title + "</a>",
 							true);
 						var next_par_id = ITEM_PREFIX + rootAct.item[i].id;
@@ -3080,6 +3078,8 @@ function onWindowUnload ()
 	result["p"]=config.status.p;
 	result["last"]="";
 	if (config.auto_last_visited==true) result["last"]=activities[mlaunch.mActivityID].id;
+	result["total_time_sec"]="";
+	if (config.mode!="browse") result["total_time_sec"]=((currentTime() - wbtStartTime)/1000) + config.status.total_time_sec;
 	if (typeof SOP!="undefined" && SOP==true) result=scormPlayerUnload(result);
 	else result=this.config.scorm_player_unload_url ? sendJSONRequest(this.config.scorm_player_unload_url, result): {};
 	removeResource();
@@ -3176,6 +3176,7 @@ function onItemDeliverDo(item, wasSuspendAll) // onDeliver called from sequencin
 					if (v.satisfiedByMeasure && v.minNormalizedMeasure!==undefined) 
 					{
 						v = v.minNormalizedMeasure;
+						if (typeof this.config.lesson_mastery_score != "undefined" && this.config.lesson_mastery_score!=null) v = this.config.lesson_mastery_score/100;
 					}
 					else if (v.satisfiedByMeasure) 
 					{
@@ -3192,6 +3193,22 @@ function onItemDeliverDo(item, wasSuspendAll) // onDeliver called from sequencin
 		}
 		window.document.getElementById("noCredit").style.display='none';
 		//support for auto-review
+		saved_score_scaled=0;
+		if (globalAct.auto_review == 's') {
+			if (data.cmi.score.scaled != "" && typeof parseFloat(data.cmi.score.scaled) == "number") {
+				var b_in_ar=false;
+				for (var i=0;i<ar_saved_score_scaled.length;i++) {
+					if (ar_saved_score_scaled[i][0]==item.id) {
+						saved_score_scaled=ar_saved_score_scaled[i][1];
+						b_in_ar=true;
+					}
+				}
+				if (b_in_ar==false) {
+					saved_score_scaled=parseFloat(data.cmi.score.scaled);
+					ar_saved_score_scaled[ar_saved_score_scaled.length]=new Array(item.id,parseFloat(data.cmi.score.scaled));
+				}
+			}
+		}
 		if (globalAct.auto_review != 'n') {
 			if (
 				(globalAct.auto_review == 'r' && ((item.completion_status == 'completed' && item.success_status != 'failed') || item.success_status == 'passed') ) ||
@@ -3250,7 +3267,7 @@ function onItemDeliverDo(item, wasSuspendAll) // onDeliver called from sequencin
 		item.parameters = "?"+ item.parameters;
 	} 
 	openedResource=[item.id, item.href+randNumber+item.parameters, this.config.package_url];
-	guiItemId = (ITEM_PREFIX + item.id).replace(/\./g,"_____");
+	guiItemId = (ITEM_PREFIX + item.id);
 	updateNav();
 	updateControls();
 	setResource();
@@ -3793,7 +3810,7 @@ function updateNav(ignore) {
 				// continue;
 			// }
 		// }
-		var elm = all(ITEM_PREFIX + tree[i].mActivityID.replace(/\./g,"_____"));
+		var elm = all(ITEM_PREFIX + tree[i].mActivityID);
 		// if (guiItem && ignore==true) {
 			// signActNode();
 			// continue;
@@ -4047,7 +4064,6 @@ var sharedData = new Array();
 var msequencer=new ADLSequencer();
 var mlaunch=null;
 var adlnavreq=null;
-var treeYUI=null;
 var logState=false;
 var treeState=true;
 
@@ -4089,9 +4105,12 @@ var saved={
 	"interaction":{"data":[],"checkplus":2},
 	"objective":{"data":[],"checkplus":1}
 	};
+var saved_score_scaled=0;
+var ar_saved_score_scaled=[];
 // SCO related Variables
 var currentAPI; // reference to API during runtime of a SCO
 var scoStartTime = null;
+var wbtStartTime = currentTime();
 
 var openedResource = new Array();
 

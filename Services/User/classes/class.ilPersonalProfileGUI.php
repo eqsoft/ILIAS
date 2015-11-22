@@ -448,10 +448,10 @@ class ilPersonalProfileGUI
 			}
 
 			// set show users online
-			if ($this->workWithUserSetting("show_users_online"))
+			/*if ($this->workWithUserSetting("show_users_online"))
 			{
 				$ilUser->setPref("show_users_online", $_POST["show_users_online"]);
-			}
+			}*/
 
 			// set hide own online_status
 			if ($this->workWithUserSetting("hide_own_online_status"))
@@ -1382,9 +1382,12 @@ class ilPersonalProfileGUI
 		$ilTabs->activateTab("export");
 		$this->setHeader();
 		
-		$ilToolbar->addButton($this->lng->txt("pd_export_profile"),
-			$ilCtrl->getLinkTarget($this, "exportPersonalData"));
-		
+		include_once "Services/UIComponent/Button/classes/class.ilLinkButton.php";
+		$button = ilLinkButton::getInstance();
+		$button->setCaption("pd_export_profile");
+		$button->setUrl($ilCtrl->getLinkTarget($this, "exportPersonalData"));			
+		$ilToolbar->addStickyItem($button);
+				
 		$exp_file = $ilUser->getPersonalDataExportFile();
 		if ($exp_file != "")
 		{
