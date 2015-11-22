@@ -1,9 +1,5 @@
 var sop2;
-window.onerror = function(e,u,l) {
-	console.log(e);
-	console.log(u);
-	console.log(l);
-}
+
 $( document ).ready( function() {
 	sop2 = (function() {
 		//var offline = true;
@@ -17,7 +13,6 @@ $( document ).ready( function() {
 			webroot = iliasPhp.replace(/ilias.php/,"");
 			lmCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&ref_id='+sop2Globals.refId+'&client_id='+sop2Globals.ilClient+'&cmd=';
 			sopCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sop2Globals.ilClient+'&cmd=offlineMode2_sop2';
-			
 			//load sop resources into appcache if not exists
 			$('#iliasOfflineManager').after('<iframe id="sopAppCacheDownloadFrame" src="' + sopCmdUrl + '" onload="sop2.createSopAppCacheEventHandler(this);"></iframe>');
 			resetAppCacheGUI();
