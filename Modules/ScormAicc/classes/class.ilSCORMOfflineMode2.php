@@ -155,7 +155,7 @@ class ilSCORMOfflineMode2
 			$log->write("sop2_index.html already exists.");
 			return true;
 		}
-		$index_string = '<html manifest="' . $appcache_url . '"><head><title>sop2_index.html</title></head><body></body></html>'; 
+		$index_string = '<html manifest="' . $appcache_url . '"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"><title>sop2_index.html</title></head><body></body></html>'; 
 		$index_file = fopen($this->lm_sop2_index, "w");
 		if (!$index_file) {
 			$log->write("Unable to open file!");
