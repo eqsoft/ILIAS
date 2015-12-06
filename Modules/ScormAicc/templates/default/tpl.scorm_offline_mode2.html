@@ -2,25 +2,44 @@
 <script>
 	//globals
 	var sop2Globals = {
-		"ilClient" 	: '{CLIENT_ID}',
-		"refId"		: {REF_ID},
-		"lmId" 		: {LM_ID},
-		"client"	: '{CLIENT_ID_SOP}',
-		"mode"		: '{OFFLINE_MODE}'
+		"ilClient" 			: '{CLIENT_ID}',
+		"refId"				: {REF_ID},
+		"lmId" 				: {LM_ID},
+		"client"			: '{CLIENT_ID_SOP}',
+		"mode"				: '{OFFLINE_MODE}',
+		"sop_wait_download"		: 'Please wait for downloading sop2 ',
+		"sop_download_successed"	: 'sop2 downloaded successfully. <br /> You can now export the SCORM Learning Module.',
+		"sop_download_failed"		: 'sop2 download failed.',
+		"sop_check_system_requirements"	: '{CHECK_SYSTEM_REQUIREMENTS}', 
+		"sop_system_check_error"	: 'Your Browser does not support the required HTML5 features.',
+		"sop_purge_cookie_0"		: 'purgeCache=0',
+		"sop_purge_cookie_1"		: 'purgeCache=1',
+		"sop_progress_timeout"		: 'progress timeout, maybe the process will succeed anyway.',
+		"sop_lm_download_failed"	: 'slm download failed.'
 	};
 		
 </script>
 <div id="iliasOfflineManager">
-	<div id="sop2Message">
-		Manager for Offline Mode2: Command {Command}
-	</div>
 	<div id="onlineForm">
-		<div><input id="btnImport" class="submit" type="button" value="{EXPORT}" onclick="sop2.importLm()"/>&nbsp;&nbsp;{TEXT_EXPORT}</div>
+		<div><input id="btnExport" class="submit" type="button" value="{EXPORT}" onclick="sop2.exportLm()"/>&nbsp;&nbsp;{TEXT_EXPORT}</div>
 		<div class="ilHeaderDesc">{DESC_EXPORT}</div>
-		<div id="ilAppCacheEvents">
-			<span id="ilAppCacheEvent"></span>
-			<span id="ilAppCacheEventProgress"></span>
+	</div>
+	<div id="offlineForm">
+		<div><input id="btnPushTracking" class="submit" type="button" value="{PUSH_TRACKING}" onclick="sop2.pushTracking()"/>&nbsp;&nbsp;{TEXT_PUSH_TRACKING}</div>
+		<div>
+			<label for="chkPurgeCache">
+				<input type="checkbox" name="chkPurgeCache" value="chkPurgeCache" id="chkPurgeCache">
+				purgeApplicationCache
+			</label> 
 		</div>
 	</div>
+	<div id="sop2Message"></div>
+	<div id="sop2Progress"></div>
+	<!--
+	<div id="ilAppCacheEvents">
+		<span id="ilAppCacheEvent"></span>
+		<span id="ilAppCacheEventProgress"></span>
+	</div>
+	-->
 </div>
 <!-- END offline_content -->

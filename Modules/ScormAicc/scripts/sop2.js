@@ -1,3 +1,7 @@
+/**
+ * script for managing the export and import from within ILIAS
+ */ 
+
 var sop2;
 
 $( document ).ready( function() {
@@ -9,84 +13,163 @@ $( document ).ready( function() {
 		var webroot = "";
 		var sopAppCache;
 		var lmAppCache;
+		var sopFrame = "";
+		var lmFrame = "";
+		var msgs;
+		var progress;
+		var progressTime;
+		var progressInterval = 1000;
+		var progressMaxtime = 10000;
+		var isPurgeCookieRegEx;
+		/**
+		 * init sop2
+		 */ 
 		var init = function () {
 			log("sop2: init");
+			msgs = [];
+			progress = false;
 			iliasPhp = document.URL.substring(0,document.URL.indexOf('?'));
 			webroot = iliasPhp.replace(/ilias.php/,"");
 			lmCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&ref_id='+sop2Globals.refId+'&client_id='+sop2Globals.ilClient+'&cmd=';
 			sopCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sop2Globals.ilClient+'&cmd=offlineMode2_sop2';
-			// disable import button 
-			$("#btnImport").prop('disabled', true);
-			// reset messages
-			//load sop resources into appcache if not exists
-			
-			$('#iliasOfflineManager').after('<iframe id="sopAppCacheDownloadFrame" src="' + sopCmdUrl + '" onload="sop2.createSopAppCacheEventHandler(this);"></iframe>');
-			
-			//log("sop2: cmdUrl = " + sopCmdUrl);
-			//offline = !navigator.onLine;
-			//log("offline: " + offline);
+			sopFrame = '<iframe id="sopAppCacheDownloadFrame" src="' + sopCmdUrl + '" onload="sop2.createSopAppCacheEventHandler(this);"></iframe>';
+			lmFrame = '<iframe id="lmAppCacheDownloadFrame" src="' + lmCmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createLmAppCacheEventHandler(this);"></iframe>';
+			$('#onlineForm').hide();
+			$('#offlineForm').hide();
+			isPurgeCookieRegEx = new RegExp(sop2Globals.sop_purge_cookie_1,"g");
+			document.cookie = sop2Globals.sop_purge_cookie_0;
+			checkSystem();
 		};
 		
-		var log = function(txt) {
-			console.log(txt);
-		};
-		
+		/**
+		 * checks HTML5 features and sop2 is already in appcache
+		 */ 
 		var checkSystem = function() {
 			log("sop2: checkSystem");
-			// ToDo
+			msg(sop2Globals.sop_check_system_requirements,true,true);
+			if (typeof window.applicationCache !== 'object') {
+				msg(sop2Globals.sop_system_check_error,true);
+			}
+			inProgress();
+			$('#iliasOfflineManager').after(sopFrame); // catch the appcache events
 		};
 		
-		var importLm = function () {
-			log("sop2: importLm");
-			resetAppCacheGUI();
-			$('#iliasOfflineManager').after('<iframe id="lmAppCacheDownloadFrame" src="' + lmCmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createLmAppCacheEventHandler(this);"></iframe>');
+		var showForm = function() {
+			log("show form: " + sop2Globals.mode);
+			switch (sop2Globals.mode) {
+				case "online" :
+					showOnlineForm();
+				break;
+				case "offline" :
+					showOfflineForm();
+				break;
+			}
 		};
 		
-		// AppCache Event Handler for Sop
+		var showOnlineForm = function() {
+			$('#offlineForm').hide();
+			$('#onlineForm').show();
+		};
+		
+		var showOfflineForm = function() {
+			// first hide all and load and check the offline lm without purge cookie
+			$('#offlineForm').hide();
+			$('#onlineForm').hide();
+			msg("check offline slm");
+			inProgress();
+			$('#iliasOfflineManager').after(lmFrame);
+		};
+		
+		var _showOfflineForm = function() {
+			$('#offlineForm').show();
+		}
+		
+		var loadOnlineMode = function () {
+			window.setTimeout(function() {
+				location.replace(lmCmdUrl+"offlineMode2_sop2ilOk");
+			}, 2000);
+		};
+		
+		var loadOfflineMode = function () {
+			window.setTimeout(function() {
+				location.replace(lmCmdUrl+"offlineMode2_il2sopOk");
+			}, 2000);
+		};
+		
+		var exportLm = function () {
+			log("sop2: exportLm");
+			inProgress();
+			$('#iliasOfflineManager').after(lmFrame);
+		};
+		
+		var pushTracking = function () {
+			log("sop2: pushTracking");
+			msg("push tracking data", true);
+			var purgeCache = $('#chkPurgeCache').is(':checked');
+			inProgress();
+			// ToDo: pushTracking
+			// dummy
+			var timer = 0;
+			setInterval(dummy,1000);
+			function dummy() {
+				if (timer > 3000) {
+					clearInterval(dummy);
+					if (purgeCache) {
+						purgeAppCache();
+					}
+					else {
+						outProgress();
+						loadOnlineMode();
+					}
+				}
+				timer += 1000;
+			}
+		};
+		
+		var purgeAppCache = function () {
+			msg("purge application cache for slm");
+			inProgress();
+			document.cookie = "purgeCache=1";
+			lmAppCache.update();
+			//$('#iliasOfflineManager').after(lmFrame);	
+		}
+		
+		/*********************
+		 * sop appcache events
+		 *********************/ 
+		
+		
 		var sopAppCacheChecking = function() {
 			log("sop appcache on checking...");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Checking for sop appcache update...");
 		};
 		
+		/**
+		 * sop is already in appcache and the appcache manifest did not changed
+		 */ 
 		var sopAppCacheNoupdate = function() {
 			log("sop appcache on noupdate...");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("sop is already cached, no updated needed. Now you can import the SCORM Learning Module.");
-			$('#ilAppCacheEventProgress').text("");
-			$("#btnImport").prop('disabled', false);
+			showForm();
+			outProgress();
 		};
 		
 		var sopAppCacheDownloading = function() {
 			log("sop appcache on downloading");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Downloading sop appcache manifest");
-			$('#ilAppCacheEventProgress').text("");
 		};
 		
 		var sopAppCacheProgress = function(evt) {
 			log("sop appcache on progress...");
-			var msg = "Downloading sop appcache content";
-			if ($('#ilAppCacheEvent').text() != msg) {
-				$('#ilAppCacheEvent').text(msg); 
-			}
-			var progress = $('#ilAppCacheEventProgress').text() + ". ";
-			$('#ilAppCacheEventProgress').text(progress);
 		};
 		
 		var sopAppCacheCached = function() {
 			log("sop appcache on cached...");
-			$("#btnImport").prop('disabled', false);
-			var finished = $('#ilAppCacheEventProgress').text() + " sop files are downloaded into the browsers application cache! Now you can import the SCORM Learning Module."
-			$('#ilAppCacheEventProgress').text(finished);
+			showForm();
+			outProgress();
 		};
 		
 		var sopAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
 			log("sop appcache on updateready...");
-			sopAppCache.swapCache();
-			$("#btnImport").prop('disabled', false);
-			var finished = $('#ilAppCacheEventProgress').text() + " sop files are downloaded into the browsers application cache! Now you can import the SCORM Learning Module."
-			$('#ilAppCacheEventProgress').text(finished);
+			showForm();
+			outProgress();
 		};
 		
 		var sopAppCacheObsolete = function() {
@@ -95,84 +178,93 @@ $( document ).ready( function() {
 		
 		var sopAppCacheError = function(evt) {
 			log("sop appcache on error: " + evt);
+			msg(sop_download_failed,true,true);
+			outProgress();
 		};
 		
 		
-		// AppCache Event Handler for LearningModule
+		/*********************
+		 * lm appcache events
+		 *********************/ 
 		var lmAppCacheChecking = function() {
 			log("lm appcache on checking...");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Checking for lm appcache update...");
 		};
 		
 		var lmAppCacheNoupdate = function() {
 			log("lm appcache on noupdate...");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("lm content is already cached, no updated needed.");
-			$('#ilAppCacheEventProgress').text("");
+			if (sop2Globals.mode == "online") {
+				outProgress();
+				loadOfflineMode();
+			}
+			else {
+				if (isPurgeCookieRegEx.test(document.cookie)) { //purge, should never occure
+					log("strange...");
+				}
+				else { // initial standard 
+					log("initial");
+					outProgress();
+					_showOfflineForm();
+				}
+			}
 		};
 		
 		var lmAppCacheDownloading = function() {
 			log("lm appcache on downloading");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Downloading lm appcache manifest");
-			$('#ilAppCacheEventProgress').text("");
 		};
 		
 		var lmAppCacheProgress = function(evt) {
 			log("lm appcache on progress...");
-			
-			var msg = "Downloading lm appcache content";
-			if ($('#ilAppCacheEvent').text() != msg) {
-				$('#ilAppCacheEvent').text(msg); 
-			}
-			var progress = $('#ilAppCacheEventProgress').text() + ". ";
-			$('#ilAppCacheEventProgress').text(progress);
-			
-			//log($('#filesLoaded').text());
-			//log(evt.total);
-			//log(evt.lengthComputable);
-			//$('#filesLoaded').text(evt.loaded);
-			/*
-			if (parseInt($('#filesTotal').text()) == 0) {
-				$('#filesTotal').text(evt.total);
-			}
-			$('#filesLoaded').text(evt.loaded);
-			*/
 		};
 		
 		var lmAppCacheCached = function() {
 			log("lm appcache on cached...");
-			var finished = $('#ilAppCacheEventProgress').text() + " lm files are downloaded into the browsers application cache!"
-			$('#ilAppCacheEventProgress').text(finished);
+			if (sop2Globals.mode == "online") {
+				outProgress();
+				loadOfflineMode();
+			}
+			else { 
+				if (isPurgeCookieRegEx.test(document.cookie)) { //purge
+					outProgress();
+					loadOnlineMode();
+				}
+				else { // initial check
+					log("initial");
+					outProgress();
+					_showOfflineForm();
+				}
+			}
 		};
 		
 		var lmAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
 			log("lm appcache on updateready...");
-			lmAppCache.swapCache();
-			var msg = "lm appcache updated successfully";
-			$('#ilAppCacheEvents').show();
-			var progress = $('#ilAppCacheEventProgress').text() + "lm appcache updated successfully";
-			$('#ilAppCacheEventProgress').text(progress);
+			if (sop2Globals.mode == "online") {
+				outProgress();
+				loadOfflineMode();
+			}
+			else { 
+				if (isPurgeCookieRegEx.test(document.cookie)) { //purge
+					document.cookie = sop2Globals.sop_purge_cookie_0;
+					outProgress();
+					loadOnlineMode();
+				}
+				else {
+					log("initial");
+					outProgress();
+					lmAppCache = document.getElementById('lmAppCacheDownloadFrame').contentWindow.applicationCache;
+					lmAppCache.swapCache();
+					_showOfflineForm();
+				}
+			}
 		};
 		
 		var lmAppCacheObsolete = function() {
 			log("lm appcache on obsolete...");
-			$('#ilAppCacheEvents').show();
-			$('#ilAppCacheEvent').text("Failed to load the lm appcache manifest from server!");
 		};
 		
 		var lmAppCacheError = function(evt) {
-			console.dir(evt);
 			log("lm appcache on error: " + evt);
-			//log(evt.originalEvent.message);
-		};
-		
-		// gui events
-		var resetAppCacheGUI = function() {
-			$('#ilAppCacheEvent').text("");
-			$('#ilAppCacheEventProgress').text("");
-			$('#ilAppCacheEvents').hide();
+			outProgress();
+			msg(sop_lm_download_failed,true);
 		};
 		
 		var createSopAppCacheEventHandler = function(iframe) {
@@ -201,11 +293,83 @@ $( document ).ready( function() {
 			$(lmAppCache).on('error', lmAppCacheError);
 		};
 		
+		/**
+		 * utils
+		 */
+		
+		var log = function(txt) {
+			console.log(txt);
+		};
+		
+		var msg = function(txt,flush,reset) {
+			flush = typeof flush !== 'undefined' ? flush : false;
+			reset = typeof reset !== 'undefined' ? reset : false;
+			if (reset) {
+				msgs = [txt];
+			}
+			else {
+				msgs.push(txt);
+			}
+			if (flush) {
+				$('#sop2Message').html(msgs.join("<br/>"));
+				msgs = [];
+			}
+		};
+		
+		var msgShow = function() {
+			msg("",true);
+		};
+		
+		var msgReset = function() {
+			msg("",true,true);
+		}
+		
+		var msgProgress = function() {
+			var m = $('#sop2Progress').text() + " .";
+			$('#sop2Progress').text(m);
+		}
+		
+		var msgProgressTimeout = function() {
+			$('#sop2Progress').text(sop2Globals.sop_progress_timeout);
+		}
+		
+		var inProgress =  function() {
+			progress = true;
+			progressTime = 0;
+			var funcid = setInterval(inc, progressInterval);
+			function inc() {
+				if (!progress) {
+					clearInterval(funcid);
+					return;
+				}
+				if (progressTime > progressMaxtime) {
+					clearInterval(funcid);
+					msgProgressTimeout();
+					return;
+				}
+				msgProgress();
+				progressTime += progressInterval;
+			}
+		}
+		
+		var outProgress = function(keepMsg) {
+			progress = false;
+			$('#sop2Progress').text("");
+			if (!keepMsg) {
+				msgReset();
+			}
+		}
+		
+		var isPurgeCookie = function() {
+			return //.test(document.cookie)
+		}
+		
 		return {
 			init 				: init,
-			importLm 			: importLm,
+			exportLm 			: exportLm,
+			pushTracking 			: pushTracking,
 			createSopAppCacheEventHandler 	: createSopAppCacheEventHandler,
-			createLmAppCacheEventHandler 	: createLmAppCacheEventHandler	
+			createLmAppCacheEventHandler 	: createLmAppCacheEventHandler
 		};
 	}());
 	sop2.init();

@@ -95,7 +95,7 @@ class ilSAHSPresentationGUI
 		}
 		
 		if (substr($cmd,0,11) == "offlineMode" || $this->offline_mode) $next_class = "ilscormofflinemodegui";
-		if (substr($cmd,0,12) == "offlineMode2" || $this->offline_mode2) $next_class = "ilscormofflinemode2gui";
+		if (substr($cmd,0,12) == "offlineMode2" || $this->offline_mode) $next_class = "ilscormofflinemode2gui";
 		
 		switch($type)
 		{

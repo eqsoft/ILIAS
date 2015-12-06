@@ -118,6 +118,10 @@ class ilObjSAHSLearningModuleListGUI extends ilObjectListGUI
 			case "offlineModeStop":
 				$cmd_link = "ilias.php?baseClass=ilSAHSPresentationGUI&amp;ref_id=".$this->ref_id."&amp;cmdClass=ilSCORMOfflineModeGUI&amp;cmd=stop";
 				break;
+				
+			case "offlineMode2Stop":
+				$cmd_link = "ilias.php?baseClass=ilSAHSPresentationGUI&amp;ref_id=".$this->ref_id."&amp;cmdClass=ilSCORMOfflineMode2GUI&amp;cmd=stop";
+				break;
 
 			default:
 				$ilCtrl->setParameterByClass("ilrepositorygui", "ref_id", $this->ref_id);

@@ -43,14 +43,14 @@ class ilSCORMOfflineMode2
 	
 	private function read() {
 		global $ilDB,$ilUser;
-		$res = $ilDB->queryF('SELECT offline_mode2 FROM sahs_user WHERE obj_id=%s AND user_id=%s',
+		$res = $ilDB->queryF('SELECT offline_mode FROM sahs_user WHERE obj_id=%s AND user_id=%s',
 			array('integer','integer'),
 			array($this->obj_id,$ilUser->getId())
 		);
 		while($row = $ilDB->fetchAssoc($res))
 		{
-			if ($row['offline_mode2'] != null) {
-				$this->offlineMode = $row['offline_mode2'];
+			if ($row['offline_mode'] != null) {
+				$this->offlineMode = $row['offline_mode'];
 			} else {
 				$this->offlineMode = "online";
 			}
@@ -60,7 +60,7 @@ class ilSCORMOfflineMode2
 	//offlineMode: offline, online, il2sop, sop2il
 	function setOfflineMode($a_mode) {
 		global $ilDB,$ilUser;
-		$res = $ilDB->queryF('UPDATE sahs_user SET offline_mode2=%s WHERE obj_id=%s AND user_id=%s',
+		$res = $ilDB->queryF('UPDATE sahs_user SET offline_mode=%s WHERE obj_id=%s AND user_id=%s',
 			array('text','integer','integer'),
 			array($a_mode, $this->obj_id,$ilUser->getId())
 		);
@@ -71,7 +71,7 @@ class ilSCORMOfflineMode2
 		return $this->offlineMode;
 	}
 	
-	function createSopManifestFileIfNotExists() {
+	function createSopManifestFileIfNotExists() { // ToDo: create manifest content, currently created manually by "cli_create_sop2_manifest.php"
 		global $log;
 		$log->write("createSop2ManifestFileIfNotExists");
 		$this->sop2_appcache = "./Modules/ScormAicc/sop2/sop2.appcache";
@@ -86,6 +86,14 @@ class ilSCORMOfflineMode2
 			fclose($manifest_file);
 		}
 	}
+	
+	
+	function getPurgeIndexHtml() { // Quick and dirty
+		global $log;
+		$log->write("getPurgeIndexHtml");
+		return str_replace("cmd=offlineMode2_appcache","offlineMode2_purgeCache",file_get_contents(ilUtil::getWebspaceDir("filesystem").'/lm_data/lm_'.$this->lmId.'/sop2_index.html'));
+	}
+	 
 	
 	function createLmManifestFileIfNotExists() {
 		global $log;

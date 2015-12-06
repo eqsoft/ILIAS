@@ -1,4 +1,9 @@
+/**
+ * script for managing offline slm experience
+ */ 
+
 var sop2;
+
 var gui; // compatibility
 $( document ).ready( function() {
 	sop2 = (function() {
