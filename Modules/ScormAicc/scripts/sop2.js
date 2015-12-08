@@ -36,7 +36,7 @@ $( document ).ready( function() {
 			lmFrame = '<iframe id="lmAppCacheDownloadFrame" src="' + lmCmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createLmAppCacheEventHandler(this);"></iframe>';
 			$('#onlineForm').hide();
 			$('#offlineForm').hide();
-			isPurgeCookieRegEx = new RegExp(sop2Globals.sop_purge_cookie_1,"g");
+			isPurgeCookieRegEx = new RegExp(sop2Globals.sop_purge_cookie_1);
 			document.cookie = sop2Globals.sop_purge_cookie_0;
 			checkSystem();
 		};
@@ -110,10 +110,11 @@ $( document ).ready( function() {
 			// ToDo: pushTracking
 			// dummy
 			var timer = 0;
-			setInterval(dummy,1000);
+			var dummyInterval = setInterval(dummy,1000);
 			function dummy() {
+				timer += 1000;
 				if (timer > 3000) {
-					clearInterval(dummy);
+					clearInterval(dummyInterval);
 					if (purgeCache) {
 						purgeAppCache();
 					}
@@ -122,16 +123,17 @@ $( document ).ready( function() {
 						loadOnlineMode();
 					}
 				}
-				timer += 1000;
 			}
 		};
 		
 		var purgeAppCache = function () {
-			msg("purge application cache for slm");
+			msg("purge application cache for slm",true);
 			inProgress();
-			document.cookie = "purgeCache=1";
+			log("add " + sop2Globals.sop_purge_cookie_1);
+			document.cookie = sop2Globals.sop_purge_cookie_1;
+			log("cookies: " + document.cookie);
 			lmAppCache.update();
-			//$('#iliasOfflineManager').after(lmFrame);	
+			//$('#iliasOfflineManager').after(lmFrame); // old version
 		}
 		
 		/*********************
@@ -197,11 +199,11 @@ $( document ).ready( function() {
 				loadOfflineMode();
 			}
 			else {
-				if (isPurgeCookieRegEx.test(document.cookie)) { //purge, should never occure
-					log("strange...");
+				if (isPurgeCookieRegEx.test(document.cookie)) { //purge: should not occure
+					log("noupdate purge"); // ready
 				}
 				else { // initial standard 
-					log("initial");
+					log("noupdate initial");
 					outProgress();
 					_showOfflineForm();
 				}
@@ -224,11 +226,12 @@ $( document ).ready( function() {
 			}
 			else { 
 				if (isPurgeCookieRegEx.test(document.cookie)) { //purge
+					log("oncached purge");
 					outProgress();
 					loadOnlineMode();
 				}
 				else { // initial check
-					log("initial");
+					log("oncached initial");
 					outProgress();
 					_showOfflineForm();
 				}
@@ -239,16 +242,24 @@ $( document ).ready( function() {
 			log("lm appcache on updateready...");
 			if (sop2Globals.mode == "online") {
 				outProgress();
+				lmAppCache.swapCache();
 				loadOfflineMode();
 			}
 			else { 
 				if (isPurgeCookieRegEx.test(document.cookie)) { //purge
-					document.cookie = sop2Globals.sop_purge_cookie_0;
+					log("updateready purge");
 					outProgress();
+					lmAppCache.swapCache(); // don't think its nessessary because a new site is loaded
+					//log("remove purgeCookie");
+					//removeCookie("purgeCookie");
+					//log("cookies: " + document.cookie);
+					log("add " + sop2Globals.sop_purge_cookie_0);
+					document.cookie = sop2Globals.sop_purge_cookie_0;
+					log("cookies: " + document.cookie);
 					loadOnlineMode();
 				}
 				else {
-					log("initial");
+					log("updateready initial");
 					outProgress();
 					lmAppCache = document.getElementById('lmAppCacheDownloadFrame').contentWindow.applicationCache;
 					lmAppCache.swapCache();
@@ -297,6 +308,13 @@ $( document ).ready( function() {
 		 * utils
 		 */
 		
+		var removeCookie = function removeCookie(sKey, sPath, sDomain) {
+			document.cookie = encodeURIComponent(sKey) + 
+			"=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + 
+			(sDomain ? "; domain=" + sDomain : "") + 
+			(sPath ? "; path=" + sPath : "");
+		};
+
 		var log = function(txt) {
 			console.log(txt);
 		};
@@ -358,10 +376,6 @@ $( document ).ready( function() {
 			if (!keepMsg) {
 				msgReset();
 			}
-		}
-		
-		var isPurgeCookie = function() {
-			return //.test(document.cookie)
 		}
 		
 		return {
