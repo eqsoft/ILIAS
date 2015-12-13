@@ -1,6 +1,9 @@
 CACHE MANIFEST
 
 CACHE:
+./Modules/ScormAicc/sop2/data.json
+./Modules/ScormAicc/sop2/empty.appcache
+./Modules/ScormAicc/sop2/favicon.ico
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/buildrte/rte.js
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/jquery-1.4.4.min.js
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/rteconfig.js
@@ -14,11 +17,38 @@ CACHE:
 ./Modules/ScormAicc/sop2/Modules/ScormAicc/scripts/sop2.js
 ./Modules/ScormAicc/sop2/Modules/ScormAicc/templates/default/debug.html
 ./Modules/ScormAicc/sop2/Modules/ScormAicc/templates/default/dummy.html
-./Modules/ScormAicc/sop2/player/favicon.ico
+./Modules/ScormAicc/sop2/player/images/transparent.gif
 ./Modules/ScormAicc/sop2/player/msg.html
 ./Modules/ScormAicc/sop2/player/player12.html
 ./Modules/ScormAicc/sop2/player/player2004.html
 ./Modules/ScormAicc/sop2/player/specialPage.html
+./Modules/ScormAicc/sop2/player/templates/default/delos.css
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/asset.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/asset.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/asset_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/browsed.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/browsed_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/complete.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/complete.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/complete_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/completed.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/completed.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/completed_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/failed.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/failed.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/failed_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/incomplete.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/incomplete.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/incomplete_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/not_attempted.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/not_attempted.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/not_attempted_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/passed.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/passed.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/passed_s.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/running.png
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/running.svg
+./Modules/ScormAicc/sop2/player/templates/default/images/scorm/running_s.png
 ./Modules/ScormAicc/sop2/Services/UIComponent/NestedList/js/ilNestedList.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/animation/animation-debug.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/animation/animation-min.js
@@ -409,27 +439,8 @@ CACHE:
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/yuitest/yuitest_core-debug.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/yuitest/yuitest_core-min.js
 ./Modules/ScormAicc/sop2/Services/YUI/js/2_9_0/yuitest/yuitest_core.js
-./Modules/ScormAicc/sop2/templates/default/delos.css
-./Modules/ScormAicc/sop2/templates/default/images/scorm/asset.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/asset_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/browsed.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/browsed_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/complete.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/complete_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/completed.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/completed_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/failed.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/failed_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/incomplete.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/incomplete_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/not_attempted.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/not_attempted_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/passed.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/passed_s.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/running.png
-./Modules/ScormAicc/sop2/templates/default/images/scorm/running_s.png
 
 NETWORK:
 *
 
-#2015-12-04 22:31:20
+#2015-12-12 09:47:35

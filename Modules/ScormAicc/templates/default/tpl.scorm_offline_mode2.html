@@ -25,7 +25,12 @@
 		<div class="ilHeaderDesc">{DESC_EXPORT}</div>
 	</div>
 	<div id="offlineForm">
-		<div><input id="btnPushTracking" class="submit" type="button" value="{PUSH_TRACKING}" onclick="sop2.pushTracking()"/>&nbsp;&nbsp;{TEXT_PUSH_TRACKING}</div>
+		<div>
+			<div class="sopBtn"><input id="btnStartOffline" class="submit" type="button" value="{START_OFFLINE}" onclick="sop2.startOffline()"/>&nbsp;&nbsp;{TEXT_START_OFFLINE}</div>
+			<div class="sopBtn"><input id="btnStartSom" class="submit" type="button" value="{START_SOM}" onclick="sop2.startSom()"/>&nbsp;&nbsp;{TEXT_START_SOM}</div>
+		</div>
+		<hr />
+		<div class="sopBtn"><input id="btnPushTracking" class="submit" type="button" value="{PUSH_TRACKING}" onclick="sop2.pushTracking()"/>&nbsp;&nbsp;{TEXT_PUSH_TRACKING}</div>
 		<div>
 			<label for="chkPurgeCache">
 				<input type="checkbox" name="chkPurgeCache" value="chkPurgeCache" id="chkPurgeCache">
@@ -35,11 +40,6 @@
 	</div>
 	<div id="sop2Message"></div>
 	<div id="sop2Progress"></div>
-	<!--
-	<div id="ilAppCacheEvents">
-		<span id="ilAppCacheEvent"></span>
-		<span id="ilAppCacheEventProgress"></span>
-	</div>
-	-->
+	
 </div>
 <!-- END offline_content -->

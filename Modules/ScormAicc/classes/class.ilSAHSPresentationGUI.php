@@ -94,8 +94,14 @@ class ilSAHSPresentationGUI
 			$ret =& $this->ctrl->forwardCommand($scorm_gui);
 		}
 		
-		if (substr($cmd,0,11) == "offlineMode" || $this->offline_mode) $next_class = "ilscormofflinemodegui";
-		if (substr($cmd,0,12) == "offlineMode2" || $this->offline_mode) $next_class = "ilscormofflinemode2gui";
+		if (substr($cmd,0,12) == "offlineMode2" || $this->offline_mode) {
+			$next_class = "ilscormofflinemode2gui";
+		}
+		else {
+			if (substr($cmd,0,11) == "offlineMode" || $this->offline_mode) {
+				$next_class = "ilscormofflinemodegui";
+			}
+		}
 		
 		switch($type)
 		{

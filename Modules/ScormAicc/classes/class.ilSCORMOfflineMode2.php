@@ -185,8 +185,132 @@ class ilSCORMOfflineMode2
 		return $iliasDomain.';'.CLIENT_ID;
 	}
 	
-	function il2sop() {
+	function tracking2sop() {
 		global $ilUser, $ilias;
-		$this->setOfflineMode("il2sop");
+		//$this->setOfflineMode("il2sop");
+		header('Content-Type: text/javascript; charset=UTF-8');
+
+		include_once "./Modules/ScormAicc/classes/class.ilObjSAHSLearningModule.php";
+		$ob = new ilObjSAHSLearningModule($this->id);
+		$module_version = $ob->getModuleVersion();
+		$sahs_user = $this->il2sopSahsUser();
+		$support_mail = "";//TODO
+		$scorm_version = "1.2";
+		if ($this->type == "scorm2004") $scorm_version = "2004";
+		$tree="";
+		
+		$learning_progress_enabled = 1;
+		include_once './Services/Object/classes/class.ilObjectLP.php';
+		$olp = ilObjectLP::getInstance($this->obj_id);
+		if ($olp->getCurrentMode() == 0) $learning_progress_enabled = 0;
+		
+		$certificate_enabled = 0;
+
+		$adlact_data = null;
+		$ilias_version = $ilias->getSetting("ilias_version");
+
+		if ($this->type == 'scorm2004') {
+			include_once "./Modules/Scorm2004/classes/ilSCORM13Player.php";
+			$ob2004 = new ilSCORM13Player();
+			$init_data = $ob2004->getConfigForPlayer();
+			$resources = json_decode($ob2004->getCPDataInit());
+			$cmi = $ob2004->getCMIData($ilUser->getID(), $this->obj_id);
+			$max_attempt = $ob2004->get_max_attempts();
+			$adlact_data = json_decode($ob2004->getADLActDataInit());
+			//$globalobj_data = $ob2004->readGObjectiveInit();	
+		} else {
+			include_once "./Modules/ScormAicc/classes/SCORM/class.ilObjSCORMInitData.php";
+			$slm_obj =& new ilObjSCORMLearningModule($_GET["ref_id"]);
+			$init_data = ilObjSCORMInitData::getIliasScormVars($slm_obj);
+			$resources = json_decode(ilObjSCORMInitData::getIliasScormResources($this->obj_id));
+			$tree = json_decode(ilObjSCORMInitData::getIliasScormTree($this->obj_id));
+			$cmi = json_decode(ilObjSCORMInitData::getIliasScormData($this->obj_id));
+			$max_attempt = ilObjSCORMInitData::get_max_attempts($this->obj_id);
+		}
+		if ($max_attempt == null) $max_attempt = 0;
+		$result = array(
+			'client_data' => array(
+				$support_mail
+			),
+			'user_data' => $this->il2sopUserData(),
+			'lm' => array(
+				ilObject::_lookupTitle($this->obj_id),
+				ilObject::_lookupDescription($this->obj_id),
+				$scorm_version,
+				1,//active
+				$init_data,
+				$resources,
+				$tree,
+				$module_version,
+				"", //offline_zip_created!!!!!!!!
+				$learning_progress_enabled,
+				$certificate_enabled,
+				$max_attempt,
+				$adlact_data,
+				$ilias_version
+			),
+			'sahs_user' => $sahs_user,
+			'cmi' => $cmi
+		);
+		print(json_encode($result));
 	}
+	
+	function il2sopUserData() {
+		global $ilUser;
+		return array(
+			$ilUser->getLogin(),
+			"",
+			$ilUser->getFirstname(),
+			$ilUser->getLastname(),
+			$ilUser->getUTitle(),
+			$ilUser->getGender(),
+			$ilUser->getID()
+			);
+	}
+	function il2sopSahsUser() {
+		global $ilDB,$ilUser;
+		$package_attempts	= 0;
+		$module_version		= 1;//if module_version in sop is different...
+		$last_visited		= "";
+		$first_access		= null;
+		$last_access		= null;
+		$last_status_change	= null;
+		$total_time_sec		= null;
+		$sco_total_time_sec	= 0;
+		$status				= 0;
+		$percentage_completed = 0;
+		$user_data			= "";
+
+		global $ilDB,$ilUser;
+		$res = $ilDB->queryF('SELECT * FROM sahs_user WHERE obj_id=%s AND user_id=%s',
+			array('integer','integer'),
+			array($this->obj_id,$ilUser->getID())
+		);
+		while($row = $ilDB->fetchAssoc($res))
+		{
+			$package_attempts = $row['package_attempts'];
+			$module_version = $row['module_version'];
+			$last_visited = $row['last_visited'];
+			if ($row['first_access'] != null) {
+				$first_access = strtotime($row['first_access'])*1000;//check Oracle!
+			}
+			if ($row['last_access'] != null) {
+				$last_access = strtotime($row['last_access'])*1000;//check Oracle!
+			}
+			$total_time_sec = $row['total_time_sec'];
+			$sco_total_time_sec = $row['sco_total_time_sec'];
+			$status = $row['status'];
+			$percentage_completed = $row['percentage_completed'];
+		}
+		if ($first_access == null) {
+			include_once './Services/Tracking/classes/class.ilChangeEvent.php';
+			$all = ilChangeEvent::_lookupReadEvents($this->obj_id,$ilUser->getID());
+			foreach($all as $event)
+			{
+				$first_access = strtotime($event['first_access'])*1000;//
+			}
+		}
+		return array($package_attempts, $module_version, $last_visited, $first_access, $last_access, $last_status_change, $total_time_sec, $sco_total_time_sec, $status, $percentage_completed, $user_data);
+	}
+	
 }

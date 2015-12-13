@@ -17,15 +17,15 @@ $( document ).ready( function() {
 			console.log(txt);
 		};
 		
-		var getPlayerParams = function(win) {
+		var getPlayerParams = function(win) { // getPlayerParams fromm window name
 			log("player: getPlayerParams");
 			var qs = {};
 			var queryString;
-			queryString = (typeof win === "string") ? win.split("\?")[1] : win.document.location.search.slice(1);
+			queryString = win.name;
 			var re = /([^&=]+)=([^&]*)/g;
 			var m;
 			while (m = re.exec(queryString)) {
-				qs[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+				qs[m[1]] = m[2];
 			}
 			return qs;
 		};
@@ -34,13 +34,17 @@ $( document ).ready( function() {
 			log("getData");
 			log("key: " + key);
 			log("data: " + data);
+			var ret = '';
 			switch (key) {
 				case "lmGetAllByClientAndObjIdAtInitOfPlayer" :
-					
+					log("lmGetAllByClientAndObjIdAtInitOfPlayer");
+					ret = '{"data": "data"}';
 				break;
 				default :
+					ret = '{}';
 					log("no data key:" + key);
 			}
+			return ret;
 		};
 		
 		var setData = function(key,data) {
@@ -49,6 +53,7 @@ $( document ).ready( function() {
 		
 		return {
 			init 				: init,
+			log				: log,
 			getPlayerParams			: getPlayerParams,
 			getData				: getData,
 			setData				: setData

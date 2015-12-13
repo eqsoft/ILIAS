@@ -19,7 +19,7 @@ $( document ).ready( function() {
 		var progress;
 		var progressTime;
 		var progressInterval = 1000;
-		var progressMaxtime = 10000;
+		var progressMaxtime = 20000;
 		var isPurgeCookieRegEx;
 		/**
 		 * init sop2
@@ -34,6 +34,8 @@ $( document ).ready( function() {
 			sopCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sop2Globals.ilClient+'&cmd=offlineMode2_sop2';
 			sopFrame = '<iframe id="sopAppCacheDownloadFrame" src="' + sopCmdUrl + '" onload="sop2.createSopAppCacheEventHandler(this);"></iframe>';
 			lmFrame = '<iframe id="lmAppCacheDownloadFrame" src="' + lmCmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createLmAppCacheEventHandler(this);"></iframe>';
+			trackingUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sop2Globals.ilClient+'&cmd=offlineMode2_tracking2sop&ref_id='+sop2Globals.refId;
+			sopOfflineUrl = webroot + "Modules/ScormAicc/sop2/player/player12.html";
 			$('#onlineForm').hide();
 			$('#offlineForm').hide();
 			isPurgeCookieRegEx = new RegExp(sop2Globals.sop_purge_cookie_1);
@@ -99,7 +101,28 @@ $( document ).ready( function() {
 		var exportLm = function () {
 			log("sop2: exportLm");
 			inProgress();
-			$('#iliasOfflineManager').after(lmFrame);
+			$.getJSON( trackingUrl, function( data ) { // trigger trackingdata
+				if (typeof data == 'object') {
+					//var d = JSON.stringify(data);
+					//log(d);
+					//transformTrackingData(data);
+					localStorage.setItem(sop2Globals.lmId, JSON.stringify(transformTrackingData(data)));
+					$('#iliasOfflineManager').after(lmFrame); // trigger appcache download
+				}
+				else {
+					log('fetching trackingdata failed!');
+					outProgress();
+				}
+			});
+		};
+		
+		var startOffline = function () {
+			log("startOffline: " +sopOfflineUrl);
+			open(sopOfflineUrl,"client="+sop2Globals.ilClient+"&obj_id="+sop2Globals.lmId);
+		};
+		
+		var startSom = function () {
+			log("startSom");
 		};
 		
 		var pushTracking = function () {
@@ -107,14 +130,13 @@ $( document ).ready( function() {
 			msg("push tracking data", true);
 			var purgeCache = $('#chkPurgeCache').is(':checked');
 			inProgress();
-			// ToDo: pushTracking
-			// dummy
 			var timer = 0;
 			var dummyInterval = setInterval(dummy,1000);
 			function dummy() {
 				timer += 1000;
 				if (timer > 3000) {
 					clearInterval(dummyInterval);
+					localStorage.removeItem(sop2Globals.lmId);
 					if (purgeCache) {
 						purgeAppCache();
 					}
@@ -308,6 +330,25 @@ $( document ).ready( function() {
 		 * utils
 		 */
 		
+		var transformTrackingData = function (d) {
+				var ret = [{
+						"init_data":false,
+						"resources":false,
+						"scorm_tree":false,
+						"module_version":1,
+						"user_data":null,
+						"last_visited":"0",
+						"status":1,
+						"adlact_data":"null"	
+					}];
+				ret[0].init_data = JSON.parse(d.lm[4]);
+				ret[0].resources = d.lm[5];
+				ret[0].scorm_tree = d.lm[6];
+				ret[0].last_visited = ret[0].init_data.launchId.toString();
+				//log(JSON.stringify(ret[0]));
+				return ret;
+		};
+		
 		var removeCookie = function removeCookie(sKey, sPath, sDomain) {
 			document.cookie = encodeURIComponent(sKey) + 
 			"=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + 
@@ -381,6 +422,8 @@ $( document ).ready( function() {
 		return {
 			init 				: init,
 			exportLm 			: exportLm,
+			startOffline			: startOffline,
+			startSom			: startSom,
 			pushTracking 			: pushTracking,
 			createSopAppCacheEventHandler 	: createSopAppCacheEventHandler,
 			createLmAppCacheEventHandler 	: createLmAppCacheEventHandler
