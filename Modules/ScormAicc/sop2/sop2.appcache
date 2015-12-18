@@ -4,6 +4,9 @@ CACHE:
 ./Modules/ScormAicc/sop2/data.json
 ./Modules/ScormAicc/sop2/empty.appcache
 ./Modules/ScormAicc/sop2/favicon.ico
+./Modules/ScormAicc/sop2/manager/som.css
+./Modules/ScormAicc/sop2/manager/som.html
+./Modules/ScormAicc/sop2/manager/som.js
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/buildrte/rte.js
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/jquery-1.4.4.min.js
 ./Modules/ScormAicc/sop2/Modules/Scorm2004/scripts/rteconfig.js
@@ -443,4 +446,4 @@ CACHE:
 NETWORK:
 *
 
-#2015-12-12 09:47:35
+#2015-12-18 14:08:07

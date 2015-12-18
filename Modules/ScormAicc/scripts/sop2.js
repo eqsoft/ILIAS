@@ -36,6 +36,7 @@ $( document ).ready( function() {
 			lmFrame = '<iframe id="lmAppCacheDownloadFrame" src="' + lmCmdUrl + 'offlineMode2_il2sop" onload="parent.sop2.createLmAppCacheEventHandler(this);"></iframe>';
 			trackingUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sop2Globals.ilClient+'&cmd=offlineMode2_tracking2sop&ref_id='+sop2Globals.refId;
 			sopOfflineUrl = webroot + "Modules/ScormAicc/sop2/player/player12.html";
+			somOfflineUrl = webroot + "Modules/ScormAicc/sop2/manager/som.html";
 			$('#onlineForm').hide();
 			$('#offlineForm').hide();
 			isPurgeCookieRegEx = new RegExp(sop2Globals.sop_purge_cookie_1);
@@ -123,6 +124,7 @@ $( document ).ready( function() {
 		
 		var startSom = function () {
 			log("startSom");
+			open(somOfflineUrl,"client="+sop2Globals.ilClient);
 		};
 		
 		var pushTracking = function () {
@@ -338,6 +340,7 @@ $( document ).ready( function() {
 						"module_version":1,
 						"user_data":null,
 						"last_visited":"0",
+						"title" : "",
 						"status":1,
 						"adlact_data":"null"	
 					}];
@@ -345,6 +348,8 @@ $( document ).ready( function() {
 				ret[0].resources = d.lm[5];
 				ret[0].scorm_tree = d.lm[6];
 				ret[0].last_visited = ret[0].init_data.launchId.toString();
+				ret[0].title = d.lm[0];
+				ret[0].client = sop2Globals.ilClient;
 				//log(JSON.stringify(ret[0]));
 				return ret;
 		};
