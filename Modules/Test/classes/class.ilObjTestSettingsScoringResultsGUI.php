@@ -790,9 +790,16 @@ class ilObjTestSettingsScoringResultsGUI extends ilTestSettingsGUI
 		{
 			if( !$this->isHiddenFormItem('results_tax_filters') && count($this->getAvailableTaxonomyIds()) )
 			{
-				$this->testOBJ->setResultFilterTaxIds( array_intersect(
-					$this->getAvailableTaxonomyIds(), $form->getItemByPostVar('results_tax_filters')->getValue()
-				));
+				$taxFilters = array();
+				
+				if( is_array($form->getItemByPostVar('results_tax_filters')->getValue()) )
+				{
+					$taxFilters = array_intersect(
+						$this->getAvailableTaxonomyIds(), $form->getItemByPostVar('results_tax_filters')->getValue()
+					);
+				}
+
+				$this->testOBJ->setResultFilterTaxIds($taxFilters);
 			}
 		}
 
@@ -856,7 +863,7 @@ class ilObjTestSettingsScoringResultsGUI extends ilTestSettingsGUI
 		}
 
 		$mcScoring = $form->getItemByPostVar('mc_scoring');
-		if( is_object($mcScoring) && $mcScoring != $this->testOBJ->getMCScoring() )
+		if( is_object($mcScoring) && $mcScoring->getValue() != $this->testOBJ->getMCScoring() )
 		{
 			return true;
 		}

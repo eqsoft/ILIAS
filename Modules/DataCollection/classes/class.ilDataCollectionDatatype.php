@@ -553,7 +553,7 @@ class ilDataCollectionDatatype {
 							//resize proportional
 							if (!$new_height || !$new_width) {
 								$format = ilObjMediaObject::getMimeType($file);
-								$wh = ilObjMediaObject::_determineWidthHeight("", "", $format, "File", $file, "", true, false, $arr_properties[ilDataCollectionField::PROPERTYID_WIDTH], (int)$arr_properties[ilDataCollectionField::PROPERTYID_HEIGHT]);
+								$wh = ilObjMediaObject::_determineWidthHeight($format, "File", $file, "", true, false, $arr_properties[ilDataCollectionField::PROPERTYID_WIDTH], (int)$arr_properties[ilDataCollectionField::PROPERTYID_HEIGHT]);
 							} else {
 								$wh['width'] = (int)$arr_properties[ilDataCollectionField::PROPERTYID_WIDTH];
 								$wh['height'] = (int)$arr_properties[ilDataCollectionField::PROPERTYID_HEIGHT];
@@ -706,7 +706,10 @@ class ilDataCollectionDatatype {
 
 		switch ($this->id) {
 			case self::INPUTFORMAT_DATETIME:
+				$format = ilDatePresentation::useRelativeDates();
+				ilDatePresentation::setUseRelativeDates(false);
 				$html = ilDatePresentation::formatDate(new ilDate($value, IL_CAL_DATETIME));
+				ilDatePresentation::setUseRelativeDates($format);
 				break;
 
 			case self::INPUTFORMAT_FILE:

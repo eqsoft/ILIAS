@@ -116,7 +116,7 @@
 	list-style-position: inside;
 	margin: 0;
 	padding: 0;
-	padding-left: 20px;
+	padding-left: 30px;
 	margin: 3px 0;
 
 }
@@ -140,25 +140,6 @@
 h2.current_room_title {
 	display: inline;
 	width: auto;
-}
-
-.ilChatDialog {
-	background-color: white;
-	border: 1px solid #BCCAE5;
-	padding-top: 0;
-}
-
-.ilChatDialog .ilChatDialogBody {
-	padding: 3px;
-}
-
-.ilChatDialog .ilChatDialogButtons {
-	padding: 3px;
-	text-align: right;
-}
-
-.ilChatDialog .ilChatDialogButtons .submit {
-	margin: 2px;
 }
 
 .chat_block_title {

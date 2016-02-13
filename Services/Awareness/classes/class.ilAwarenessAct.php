@@ -139,7 +139,8 @@ class ilAwarenessAct
 		$notification->setAutoDisable(false);
 		//$notification->setLink();
 		$notification->setIconPath('templates/default/images/icon_usr.svg');
-		$notification->setValidForSeconds(1);
+		$notification->setValidForSeconds(ilNotificationConfig::TTL_SHORT);
+		$notification->setVisibleForSeconds(ilNotificationConfig::DEFAULT_TTS);
 
 		//$notification->setHandlerParam('mail.sender', $sender_id);
 

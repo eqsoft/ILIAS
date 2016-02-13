@@ -76,6 +76,7 @@ class ilObjUserFolderGUI extends ilObjectGUI
 			case 'ilrepositorysearchgui':
 				include_once('./Services/Search/classes/class.ilRepositorySearchGUI.php');
 				$user_search =& new ilRepositorySearchGUI();
+				$user_search->setTitle($this->lng->txt("search_user_extended")); // #17502
 				$user_search->enableSearchableCheck(false);
 				$user_search->setUserLimitations(false);
 				$user_search->setCallback(
@@ -243,6 +244,13 @@ class ilObjUserFolderGUI extends ilObjectGUI
 		$auto = new ilUserAutoComplete();
 		$auto->setSearchFields(array('login','firstname','lastname','email'));
 		$auto->enableFieldSearchableCheck(false);
+		$auto->setMoreLinkAvailable(true);
+
+		if(($_REQUEST['fetchall']))
+		{
+			$auto->setLimit(ilUserAutoComplete::MAX_ENTRIES);
+		}
+
 		echo $auto->getList($_REQUEST['term']);
 		exit();
 	}

@@ -572,6 +572,11 @@ class ilObjTest extends ilObject implements ilMarkSchemaAware, ilEctsGradesEnabl
 	 * @var bool
 	 */
 	protected $testFinalBroken;
+
+	/**
+	 * @var integer
+	 */
+	private $tmpCopyWizardCopyId;
 	
 	#endregion
 	
@@ -688,7 +693,25 @@ class ilObjTest extends ilObject implements ilMarkSchemaAware, ilEctsGradesEnabl
 		
 		$this->testFinalBroken = false;
 		
+		$this->tmpCopyWizardCopyId = null;
+		
 		$this->ilObject($a_id, $a_call_by_reference);
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getTmpCopyWizardCopyId()
+	{
+		return $this->tmpCopyWizardCopyId;
+	}
+
+	/**
+	 * @param int $tmpCopyWizardCopyId
+	 */
+	public function setTmpCopyWizardCopyId($tmpCopyWizardCopyId)
+	{
+		$this->tmpCopyWizardCopyId = $tmpCopyWizardCopyId;
 	}
 	
 	/**
@@ -807,7 +830,7 @@ class ilObjTest extends ilObject implements ilMarkSchemaAware, ilEctsGradesEnabl
 			ilObjMediaObject::_removeUsage($mob, "tst:html", $this->getId());
 			if (ilObjMediaObject::_exists($mob))
 			{
-				$mob_obj =& new ilObjMediaObject($mob);
+				$mob_obj = new ilObjMediaObject($mob);
 				$mob_obj->delete();
 			}
 		}
@@ -6921,7 +6944,7 @@ function getAnswerFeedbackPoints()
 */
 	function saveAuthorToMetadata($a_author = "")
 	{
-		$md =& new ilMD($this->getId(), 0, $this->getType());
+		$md = new ilMD($this->getId(), 0, $this->getType());
 		$md_life =& $md->getLifecycle();
 		if (!$md_life)
 		{
@@ -6964,7 +6987,7 @@ function getAnswerFeedbackPoints()
 	{
 		$author = array();
 		include_once "./Services/MetaData/classes/class.ilMD.php";
-		$md =& new ilMD($this->getId(), 0, $this->getType());
+		$md = new ilMD($this->getId(), 0, $this->getType());
 		$md_life =& $md->getLifecycle();
 		if ($md_life)
 		{
@@ -6997,7 +7020,7 @@ function getAnswerFeedbackPoints()
 	{
 		$author = array();
 		include_once "./Services/MetaData/classes/class.ilMD.php";
-		$md =& new ilMD($obj_id, 0, "tst");
+		$md = new ilMD($obj_id, 0, "tst");
 		$md_life =& $md->getLifecycle();
 		if ($md_life)
 		{
@@ -7068,6 +7091,7 @@ function getAnswerFeedbackPoints()
 		// Copy settings
 		/** @var $newObj ilObjTest */
 		$newObj = parent::cloneObject($a_target_id,$a_copy_id);
+		$newObj->setTmpCopyWizardCopyId($a_copy_id);
 		$this->cloneMetaData($newObj);
 
 		//copy online status if object is not the root copy object
@@ -7167,6 +7191,11 @@ function getAnswerFeedbackPoints()
 		
 		$newObj->saveToDb();
 		$newObj->updateMetaData();// #14467
+		
+		include_once('./Services/Tracking/classes/class.ilLPObjSettings.php');
+		$obj_settings = new ilLPObjSettings($this->getId());
+		$obj_settings->cloneSettings($newObj->getId());
+		
 		return $newObj;
 	}
 
@@ -8162,20 +8191,44 @@ function getAnswerFeedbackPoints()
 	function getPassFinishDate($active_id, $pass)
 	{
 		global $ilDB;
-		if (is_null($pass)) $pass = 0;
-		$result = $ilDB->queryF("SELECT tst_test_result.tstamp FROM tst_test_result WHERE active_fi = %s AND pass = %s ORDER BY tst_test_result.tstamp DESC",
+		
+		if (is_null($pass))
+		{
+			$pass = 0;
+		}
+		
+		$query = "
+			SELECT	tst_pass_result.tstamp pass_res_tstamp,
+					tst_test_result.tstamp quest_res_tstamp
+			
+			FROM tst_pass_result
+			
+			LEFT JOIN tst_test_result
+			ON tst_test_result.active_fi = tst_pass_result.active_fi
+			AND tst_test_result.pass = tst_pass_result.pass
+			
+			WHERE tst_pass_result.active_fi = %s
+			AND tst_pass_result.pass = %s
+			
+			ORDER BY tst_test_result.tstamp DESC
+		";
+		
+		$result = $ilDB->queryF($query,
 			array('integer', 'integer'),
 			array($active_id, $pass)
 		);
-		if ($result->numRows())
+		
+		while( $row = $ilDB->fetchAssoc($result) )
 		{
-			$row = $ilDB->fetchAssoc($result);
-			return $row["tstamp"];
+			if( $row['qres_tstamp'] )
+			{
+				return $row['quest_res_tstamp'];
+			}
+			
+			return $row['pass_res_tstamp'];
 		}
-		else
-		{
-			return 0;
-		}
+		
+		return 0;
 	}
 
 	/**
@@ -8258,29 +8311,46 @@ function getAnswerFeedbackPoints()
 		return $result;
 	}
 
-/**
-* Returns true, if the test results can be viewed
-*
-* @return boolean True, if the test results can be viewed, else false
-* @access public
-*/
+	/**
+	 * Returns true, if the test results can be viewed
+	 *
+	 * @return boolean True, if the test results can be viewed, else false
+	 * @access public
+	 * @deprecated use class ilTestPassesSelector instead
+	 */
 	function canViewResults()
 	{
-		$result = true;
-		if ($this->getScoreReporting() == 4) return false;
-		if ($this->getReportingDate())
+		// this logic was implemented before, it got stabled only for now
+		// this method is not as exact as it's required, it's to be replaced in the long time
+		
+		switch( $this->getScoreReporting() )
 		{
-			if (preg_match("/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/", $this->getReportingDate(), $matches))
-			{
-				$epoch_time = mktime($matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1]);
-				$now = mktime();
-				if ($now < $epoch_time)
+			case self::SCORE_REPORTING_IMMIDIATLY:
+			case self::SCORE_REPORTING_FINISHED: // this isn't excact enough
+				
+				return true;
+
+			case self::SCORE_REPORTING_DATE:
+
+				if (!$this->getReportingDate())
 				{
-					$result = false;
+					return false;
 				}
-			}
+				
+				if (preg_match("/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/", $this->getReportingDate(), $matches))
+				{
+					$epoch_time = mktime($matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1]);
+					$now = mktime();
+					if ($now < $epoch_time)
+					{
+						return false;
+					}
+				}
+
+				return true;
 		}
-		return $result;
+		
+		return false;
 	}
 
 	function canShowTestResults($testSession)
@@ -9214,7 +9284,7 @@ function getAnswerFeedbackPoints()
 			{
 				if (ilObjMediaObject::_exists($mob))
 				{
-					$mob_obj =& new ilObjMediaObject($mob);
+					$mob_obj = new ilObjMediaObject($mob);
 					$imgattrs = array(
 						"label" => $moblabel,
 						"uri" => "objects/" . "il_" . IL_INST_ID . "_mob_" . $mob . "/" . $mob_obj->getTitle()

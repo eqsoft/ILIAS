@@ -6428,6 +6428,10 @@ html,
 body {
   height: 100%;
 }
+/* see bug ILIAS bug #17589 and http://stackoverflow.com/questions/17045132/scrollbar-overlay-in-ie10-how-do-you-stop-that */
+body {
+  -ms-overflow-style: scrollbar;
+}
 #ilAll {
   position: relative;
   height: auto !important;
@@ -7076,6 +7080,19 @@ footer.ilFooter div.ilFooterContainer > a:hover {
 }
 [dir="rtl"] footer.ilFooter {
   text-align: right;
+}
+#devmodeBlock {
+  background-color: white;
+  color: black;
+  border: 1px dashed grey;
+  padding: 10px;
+  margin-top: 25px;
+}
+@media only screen and (max-width: 767px) {
+  #devmodeBlock table {
+    table-layout: fixed;
+    width: 100%;
+  }
 }
 /* ----------------- permanent link  ------------- */
 div.ilPermaLink {
@@ -9197,6 +9214,9 @@ tr.tblheader {
 .ilTableOuter .table {
   background-color: #F9F9F9;
 }
+td > img[src$="icon_custom.svg"] {
+  max-width: 32px;
+}
 /* Services/Notes */
 div.ilNotes {
   background-color: #F9F9F9;
@@ -9624,7 +9644,7 @@ span.bibl_text_inline_Emph {
   width: 306px;
   color: #F0F0F0;
   margin-top: -240px;
-  background: url("images//black60.png");
+  background: url("images/black60.png");
 }
 .ilPlayerPreviewOverlay img {
   cursor: pointer;
@@ -10516,6 +10536,10 @@ div#il_startup_logo img {
 }
 .ilToolbar .form-control {
   width: auto;
+  display: inline-block;
+}
+.ilToolbar input[type="file"] {
+  display: inline-block;
 }
 .ilToolbar li {
   border-bottom: 1px solid #d8d8d8;
@@ -11178,6 +11202,12 @@ div.ilPCMyCoursesPath {
 .ilAwrnBadgeHidden {
   visibility: hidden;
 }
+/* due to bug #17839 */
+#awareness-content .dropdown-backdrop {
+  display: none;
+  right: auto;
+  width: 0px;
+}
 /* Services/UIComponent/Modal */
 .modal-body .jstree li {
   overflow: hidden;
@@ -11281,6 +11311,18 @@ table.mceToolbar td {
 }
 .alert > a {
   text-decoration: underline;
+}
+.alert > a.btn {
+  text-decoration: none;
+}
+#mm_adm_tr + ul.dropdown-menu > li > div.row {
+  width: 750px;
+}
+@media only screen and (max-width: 767px) {
+  #mm_adm_tr + ul.dropdown-menu > li > div.row {
+    width: 100% !important;
+    margin: 0;
+  }
 }
 /* basic responsiveness (beta)
 

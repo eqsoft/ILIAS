@@ -312,7 +312,7 @@ abstract class ilTestOutputGUI extends ilTestPlayerAbstractGUI
 			$objectivesAdapter->buildQuestionRelatedObjectiveList($this->testSequence, $this->questionRelatedObjectivesList);
 			$this->questionRelatedObjectivesList->loadObjectivesTitles();
 
-			$objectivesString = $this->questionRelatedObjectivesList->getQuestionRelatedObjectiveTitle($questionId);
+			$objectivesString = $this->questionRelatedObjectivesList->getQuestionRelatedObjectiveTitles($questionId);
 			$headerBlockBuilder->setQuestionRelatedObjectives($objectivesString);
 		}
 		$questionGui->setQuestionHeaderBlockBuilder($headerBlockBuilder);
@@ -428,6 +428,17 @@ abstract class ilTestOutputGUI extends ilTestPlayerAbstractGUI
 				$this->testSequence->saveToDb();
 			}
 			
+			if( $this->getNextCommandParameter() )
+			{
+				if( $this->getNextSequenceParameter() )
+				{
+					$this->ctrl->setParameter($this, 'sequence', $this->getNextSequenceParameter());
+					$this->ctrl->setParameter($this, 'pmode', '');
+				}
+				
+				$this->ctrl->redirect($this, $this->getNextCommandParameter());
+			}
+			
 			$this->ctrl->setParameter($this, 'pmode', ilTestPlayerAbstractGUI::PRESENTATION_MODE_VIEW);
 		}
 
@@ -455,13 +466,24 @@ abstract class ilTestOutputGUI extends ilTestPlayerAbstractGUI
 	
 	protected function skipQuestionCmd()
 	{
-		if( $this->object->isPostponingEnabled() )
+		$curSequenceElement = $this->getCurrentSequenceElement();
+		$nextSequenceElement = $this->testSequence->getNextSequence($curSequenceElement);
+
+		if(!$this->isValidSequenceElement($nextSequenceElement))
 		{
-			$this->testSequence->postponeSequence($this->getCurrentSequenceElement());
-			$this->testSequence->saveToDb();
+			$nextSequenceElement = $this->testSequence->getFirstSequence();
 		}
 		
-		$this->nextQuestionCmd();
+		if( $this->object->isPostponingEnabled() )
+		{
+			$this->testSequence->postponeSequence($curSequenceElement);
+			$this->testSequence->saveToDb();
+		}
+
+		$this->ctrl->setParameter($this, 'sequence', $nextSequenceElement);
+		$this->ctrl->setParameter($this, 'pmode', '');
+
+		$this->ctrl->redirect($this, ilTestPlayerCommands::SHOW_QUESTION);
 	}
 
 	protected function nextQuestionCmd()

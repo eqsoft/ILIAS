@@ -42,7 +42,9 @@ class ilObjSCORMInitData
 		if ($_GET["autolaunch"] != "") $launchId=$_GET["autolaunch"];
 		$session_timeout = 0; //unlimited sessions
 		if ($slm_obj->getSession()) {
-			$session_timeout = (int)($ilias->ini->readVariable("session","expire"))/2;
+			// $session_timeout = (int)($ilias->ini->readVariable("session","expire"))/2;
+			require_once('./Services/WebAccessChecker/classes/class.ilWACSignedPath.php');
+			$session_timeout = (int)ilWACSignedPath::getCookieMaxLifetimeInSeconds()-1;
 		}
 		$b_autoReview='false';
 		if ($slm_obj->getAutoReview()) $b_autoReview='true';
@@ -301,17 +303,9 @@ class ilObjSCORMInitData
 	* Get max. number of attempts allowed for this package
 	*/
 	function get_max_attempts($a_packageId)
-	{		
-		global $ilDB;
-
-		$res = $ilDB->queryF(
-			'SELECT max_attempt FROM sahs_lm WHERE id = %s', 
-			array('integer'),
-			array($a_packageId)
-		);
-		$row = $ilDB->fetchAssoc($res);
-		
-		return $row['max_attempt']; 
+	{
+		//erased in 5.1
+		return 0;
 	}
 
 }

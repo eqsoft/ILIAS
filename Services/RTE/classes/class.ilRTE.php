@@ -54,7 +54,7 @@ class ilRTE
 	protected $initialWidth = null;
 
 
-	function ilRTE($a_version = "")
+	public function __construct($a_version = "")
 	{
 		global $tpl, $ilCtrl, $lng;
 		$this->tpl =& $tpl;
@@ -139,7 +139,7 @@ class ilRTE
 	*
 	* @access public
 	*/
-	function addRTESupport()
+	function addRTESupport($obj_id, $obj_type, $a_module = "", $allowFormElements = FALSE, $cfg_template = null, $hide_switch = false)
 	{
 		// must be overwritten in parent classes
 	}
@@ -219,7 +219,7 @@ class ilRTE
 		{
 			ilObjMediaObject::_removeUsage($mob, $a_usage_type,
 				$a_usage_id);
-			$mob_obj =& new ilObjMediaObject($mob);
+			$mob_obj = new ilObjMediaObject($mob);
 			$mob_obj->delete();
 		}
 	}
@@ -250,7 +250,7 @@ class ilRTE
 					{
 						if (ilObjMediaObject::_exists($mob))
 						{
-							$mob_obj =& new ilObjMediaObject($mob);
+							$mob_obj = new ilObjMediaObject($mob);
 							$replace = "il_" . $matches[1][$idx] . "_mob_" . $mob;
 							$resulttext = str_replace("src=\"$replace\"", "src=\"" . ILIAS_HTTP_PATH . "/data/" . CLIENT_ID . "/mobs/mm_" . $mob . "/" . $mob_obj->getTitle() . "\"", $resulttext);
 						}
@@ -306,7 +306,7 @@ class ilRTE
 		return $mediaObjects;
 	}
 	
-	public function setRTERootBlockElement()
+	public function setRTERootBlockElement($a_root_block_element)
 	{
 		// must be overwritten in sub classes
 	}
@@ -316,12 +316,12 @@ class ilRTE
 		// must be overwritten in sub classes
 	}
 	
-	public function disableButtons()
+	public function disableButtons($a_button)
 	{
 		// must be overwritten in sub classes
 	}
 	
-	public function getDisabledButtons()
+	public function getDisabledButtons($as_array = true)
 	{
 		// must be overwritten in sub classes
 	}

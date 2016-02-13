@@ -1022,7 +1022,8 @@ class ilChatroom
 			$notification->setAutoDisable(false);
 			$notification->setLink($invitationLink);
 			$notification->setIconPath('templates/default/images/icon_chtr.svg');
-			$notification->setValidForSeconds(0);
+			$notification->setValidForSeconds(ilNotificationConfig::TTL_LONG);
+			$notification->setVisibleForSeconds(ilNotificationConfig::DEFAULT_TTS);
 
 			$notification->setHandlerParam('mail.sender', $sender_id);
 

@@ -87,7 +87,7 @@ class ilCertificateGUI
 	* @param object $a_object A reference to the test container object
 	* @access public
 	*/
-	function ilCertificateGUI($adapter)
+	public function __construct($adapter)
 	{
 		global $lng, $tpl, $ilCtrl, $ilias, $tree;
 
@@ -269,7 +269,7 @@ class ilCertificateGUI
 		$import->setRequired(FALSE);
 		$import->setSuffixes(array("zip"));
 		// handle the certificate import
-		if (strlen($_FILES["certificate_import"]["tmp_name"]))
+		if (strlen($_FILES["certificate_import"]["name"]))
 		{
 			if ($import->checkInput())
 			{

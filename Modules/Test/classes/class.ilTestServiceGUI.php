@@ -81,6 +81,24 @@ class ilTestServiceGUI
 	 */
 	private $objectiveOrientedContainer;
 	
+	private $contextResultPresentation = true;
+
+	/**
+	 * @return boolean
+	 */
+	public function isContextResultPresentation()
+	{
+		return $this->contextResultPresentation;
+	}
+
+	/**
+	 * @param boolean $contextResultPresentation
+	 */
+	public function setContextResultPresentation($contextResultPresentation)
+	{
+		$this->contextResultPresentation = $contextResultPresentation;
+	}
+	
 	/**
 	 * The constructor takes the test object reference as parameter 
 	 *
@@ -134,7 +152,7 @@ class ilTestServiceGUI
 	 * @param $short
 	 * @return array
 	 */
-	public function getPassOverviewTableData(ilTestSession $testSession, $withResults)
+	public function getPassOverviewTableData(ilTestSession $testSession, $passes, $withResults)
 	{
 		$data = array();
 
@@ -152,13 +170,7 @@ class ilTestServiceGUI
 
 		$scoredPass = $this->object->_getResultPass($testSession->getActiveId());
 
-		require_once 'Modules/Test/classes/class.ilTestPassesSelector.php';
-		$testPassesSelector = new ilTestPassesSelector($GLOBALS['ilDB'], $this->object);
-		$testPassesSelector->setActiveId($testSession->getActiveId());
-		$lastFinishedPass = $testSession->getLastFinishedPass();
-		$testPassesSelector->setLastFinishedPass($lastFinishedPass);
-
-		foreach($testPassesSelector->getReportablePasses() as $pass)
+		foreach($passes as $pass)
 		{
 			$row = array();
 
@@ -391,18 +403,21 @@ class ilTestServiceGUI
 						if( $objectivesList !== null )
 						{
 							$objectives = $this->lng->txt('tst_res_lo_objectives_header').': ';
-							$objectives .= $objectivesList->getQuestionRelatedObjectiveTitle($question_gui->object->getId());
+							$objectives .= $objectivesList->getQuestionRelatedObjectiveTitles($question_gui->object->getId());
 							$template->setVariable("OBJECTIVES", $objectives);
 						}
 
 						$show_question_only = ($this->object->getShowSolutionAnswersOnly()) ? TRUE : FALSE;
 
+						$showFeedback = $this->isContextResultPresentation() && $this->object->getShowSolutionFeedback();
+						$show_solutions = $this->isContextResultPresentation() && $show_solutions;
+						
 						if($show_solutions)
 						{
 							$compare_template = new ilTemplate('tpl.il_as_tst_answers_compare.html', TRUE, TRUE, 'Modules/Test');
 							$compare_template->setVariable("HEADER_PARTICIPANT", $this->lng->txt('tst_header_participant'));
 							$compare_template->setVariable("HEADER_SOLUTION", $this->lng->txt('tst_header_solution'));
-							$result_output = $question_gui->getSolutionOutput($active_id, $pass, $show_solutions, FALSE, $show_question_only, $this->object->getShowSolutionFeedback());
+							$result_output = $question_gui->getSolutionOutput($active_id, $pass, $show_solutions, FALSE, $show_question_only, $showFeedback);
 							$best_output   = $question_gui->getSolutionOutput($active_id, $pass, FALSE, FALSE, $show_question_only, FALSE, TRUE);
 
 							$compare_template->setVariable('PARTICIPANT', $result_output);
@@ -411,7 +426,7 @@ class ilTestServiceGUI
 						}
 						else
 						{
-							$result_output = $question_gui->getSolutionOutput($active_id, $pass, $show_solutions, FALSE, $show_question_only, $this->object->getShowSolutionFeedback());
+							$result_output = $question_gui->getSolutionOutput($active_id, $pass, $show_solutions, FALSE, $show_question_only, $showFeedback);
 							$template->setVariable('SOLUTION_OUTPUT', $result_output);
 						}
 
@@ -734,7 +749,7 @@ class ilTestServiceGUI
 		if( $objectivesList !== null )
 		{
 			$objectives = $this->lng->txt('tst_res_lo_objectives_header').': ';
-			$objectives .= $objectivesList->getQuestionRelatedObjectiveTitle($question_gui->object->getId());
+			$objectives .= $objectivesList->getQuestionRelatedObjectiveTitles($question_gui->object->getId());
 			$template->setVariable('OBJECTIVES', $objectives);
 		}
 		$template->setVariable("SOLUTION_OUTPUT", $result_output);
