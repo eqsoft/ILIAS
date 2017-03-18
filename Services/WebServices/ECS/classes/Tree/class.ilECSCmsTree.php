@@ -46,7 +46,8 @@ class ilECSCmsTree extends ilTree
 	public static function deleteByTreeId($a_tree_id)
 	{
 		global $ilDB;
-		
+
+		$GLOBALS['DIC']->logger()->wsrv()->debug('Deleting cms tree: ' . $a_tree_id);
 		$query = 'DELETE FROM ecs_cms_tree '.
 				'WHERE tree = '.$ilDB->quote($a_tree_id,'integer');
 		$ilDB->manipulate($query);
@@ -63,7 +64,7 @@ class ilECSCmsTree extends ilTree
 
 		$query = 'SELECT COUNT(*) num FROM ecs_cms_tree WHERE tree = '.$ilDB->quote($a_tree_id,'integer');
 		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			return $row->num > 0 ? true : false;
 		}
@@ -80,7 +81,7 @@ class ilECSCmsTree extends ilTree
 
 		$query = 'SELECT child FROM ecs_cms_tree WHERE tree = '.$ilDB->quote($a_tree_id,'integer');
 		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			return $row->child;
 		}

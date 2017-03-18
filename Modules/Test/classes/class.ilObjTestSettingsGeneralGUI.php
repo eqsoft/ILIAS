@@ -48,7 +48,7 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 	/** @var ilTree $tree */
 	protected $tree = null;
 
-	/** @var ilDB $db */
+	/** @var ilDBInterface $db */
 	protected $db = null;
 
 	/** @var ilPluginAdmin $pluginAdmin */
@@ -70,7 +70,7 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 	 * @param ilAccessHandler $access
 	 * @param ilLanguage      $lng
 	 * @param ilTemplate      $tpl
-	 * @param ilDB            $db
+	 * @param ilDBInterface   $db
 	 * @param ilObjTestGUI    $testGUI
 	 *
 	 * @return \ilObjTestSettingsGeneralGUI
@@ -81,7 +81,7 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 		ilLanguage $lng,
 		ilTemplate $tpl,
 		ilTree $tree,
-		ilDB $db,
+		ilDBInterface $db,
 		ilPluginAdmin $pluginAdmin,
 		ilObjUser $activeUser,
 		ilObjTestGUI $testGUI
@@ -216,7 +216,7 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 			ilUtil::sendFailure($this->lng->txt('form_input_not_valid'));
 			return $this->showFormCmd($form);
 		}
-
+		
 		// return to form when online is to be set, but no questions are configured
 
 		$currentQuestionSetConfig = $this->testQuestionSetConfigFactory->getQuestionSetConfig();
@@ -293,6 +293,28 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 		if( $newQuestionSetType != ilObjTest::QUESTION_SET_TYPE_FIXED )
 		{
 			$form->getItemByPostVar('chb_use_previous_answers')->setChecked(false);
+		}
+		
+		// avoid settings conflict "obligate questions" and "freeze answer"
+		
+		if( $form->getItemByPostVar('obligations_enabled')->getChecked() )
+		{
+			switch( $form->getItemByPostVar('instant_feedback_handling')->getValue() )
+			{
+				case self::INST_FB_HANDLING_OPT_FREEZE:
+					
+					$form->getItemByPostVar('instant_feedback_handling')->setValue(self::INST_FB_HANDLING_OPT_NONE);
+					$infoMsg[] = $this->lng->txt("tst_conflict_fbh_oblig_quest");
+					$infoMsg[] = $this->lng->txt("tst_conflict_reset_non_fbh");
+					break;
+					
+				case self::INST_FB_HANDLING_OPT_FORCE_AND_FREEZE:
+
+					$form->getItemByPostVar('instant_feedback_handling')->setValue(self::INST_FB_HANDLING_OPT_FORCE);
+					$infoMsg[] = $this->lng->txt("tst_conflict_fbh_oblig_quest");
+					$infoMsg[] = $this->lng->txt("tst_conflict_reset_fbh_force");
+					break;
+			}
 		}
 
 		// perform saving the form data
@@ -728,48 +750,38 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 		$header->setTitle($this->lng->txt("tst_settings_header_execution"));
 		$form->addItem($header);
 
-		// enable starting time
-		$enablestartingtime = new ilCheckboxInputGUI($this->lng->txt("tst_starting_time"), "chb_starting_time");
-		$enablestartingtime->setInfo($this->lng->txt("tst_starting_time_desc"));
-		$enablestartingtime->setChecked($this->testOBJ->isStartingTimeEnabled());
-
 		// starting time
-		$startingtime = new ilDateTimeInputGUI('', 'starting_time');
+		$startingtime = new ilDateTimeInputGUI($this->lng->txt("tst_starting_time"), 'starting_time');
+		$startingtime->setInfo($this->lng->txt("tst_starting_time_desc"));
 		$startingtime->setShowTime(true);
-		if( strlen($this->testOBJ->getStartingTime()) )
+		if( $this->testOBJ->getStartingTime() != 0 )
 		{
-			$startingtime->setDate(new ilDateTime($this->testOBJ->getStartingTime(), IL_CAL_TIMESTAMP));
+			$startingtime->setDate(new ilDateTime($this->testOBJ->getStartingTime(), IL_CAL_UNIX));
 		}
 		else
 		{
-			$startingtime->setDate(new ilDateTime(time(), IL_CAL_UNIX));
+			$startingtime->setDate(null);
 		}
-		$enablestartingtime->addSubItem($startingtime);
-		$form->addItem($enablestartingtime);
+
+		$form->addItem($startingtime);
 		if ($this->testOBJ->participantDataExist())
 		{
-			$enablestartingtime->setDisabled(true);
 			$startingtime->setDisabled(true);
 		}
 
-		// enable ending time
-		$enableendingtime = new ilCheckboxInputGUI($this->lng->txt("tst_ending_time"), "chb_ending_time");
-		$enableendingtime->setInfo($this->lng->txt("tst_ending_time_desc"));
-		$enableendingtime->setChecked($this->testOBJ->isEndingTimeEnabled());
-
 		// ending time
-		$endingtime = new ilDateTimeInputGUI('', 'ending_time');
+		$endingtime = new ilDateTimeInputGUI($this->lng->txt("tst_ending_time"), 'ending_time');
+		$endingtime->setInfo($this->lng->txt("tst_ending_time_desc"));
 		$endingtime->setShowTime(true);
-		if (strlen($this->testOBJ->getEndingTime()))
+		if ($this->testOBJ->getEndingTime() != 0)
 		{
-			$endingtime->setDate(new ilDateTime($this->testOBJ->getEndingTime(), IL_CAL_TIMESTAMP));
+			$endingtime->setDate(new ilDateTime($this->testOBJ->getEndingTime(), IL_CAL_UNIX));
 		}
 		else
 		{
-			$endingtime->setDate(new ilDateTime(time(), IL_CAL_UNIX));
+			$endingtime->setDate(null);
 		}
-		$enableendingtime->addSubItem($endingtime);
-		$form->addItem($enableendingtime);
+		$form->addItem($endingtime);
 
 		// test password
 		$pwEnabled = new ilCheckboxInputGUI($this->lng->txt('tst_password'), 'password_enabled');
@@ -778,6 +790,7 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 		$password = new ilTextInputGUI($this->lng->txt("tst_password_enter"), "password");
 		$password->setRequired(true);
 		$password->setSize(20);
+		$password->setMaxLength(20);
 		$password->setValue($this->testOBJ->getPassword());
 		$pwEnabled->addSubItem($password);
 		$form->addItem($pwEnabled);
@@ -826,38 +839,33 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 	 */
 	private function saveTestAccessProperties(ilPropertyFormGUI $form)
 	{
-		// starting time
-		if( $this->formPropertyExists($form, 'chb_starting_time') && !$this->testOBJ->participantDataExist() )
+		if( !$this->testOBJ->participantDataExist() )
 		{
-			if( $form->getItemByPostVar('chb_starting_time')->getChecked() )
+			// starting time
+			$starting_time = $form->getItemByPostVar('starting_time')->getDate();
+			if($starting_time instanceof ilDateTime)
 			{
-				$this->testOBJ->setStartingTime(ilFormat::dateDB2timestamp(
-					$form->getItemByPostVar('starting_time')->getDate()->get(IL_CAL_DATETIME)
-				));
-
+				$this->testOBJ->setStartingTime($starting_time->getUnixtime());
 				$this->testOBJ->setStartingTimeEnabled(true);
 			}
 			else
 			{
+				$this->testOBJ->setStartingTime(null);
 				$this->testOBJ->setStartingTimeEnabled(false);
 			}
 		}
 
 		// ending time
-		if( $this->formPropertyExists($form, 'chb_ending_time') )
+		$ending_time = $form->getItemByPostVar('ending_time')->getDate();
+		if($ending_time instanceof ilDateTime)
 		{
-			if( $form->getItemByPostVar('chb_ending_time')->getChecked() )
-			{
-				$this->testOBJ->setEndingTime(ilFormat::dateDB2timestamp(
-					$form->getItemByPostVar('ending_time')->getDate()->get(IL_CAL_DATETIME)
-				));
-
-				$this->testOBJ->setEndingTimeEnabled(true);
-			}
-			else
-			{
-				$this->testOBJ->setEndingTimeEnabled(false);
-			}
+			$this->testOBJ->setEndingTime($ending_time->getUnixtime());
+			$this->testOBJ->setEndingTimeEnabled(true);
+		}
+		else
+		{
+			$this->testOBJ->setEndingTime(null);
+			$this->testOBJ->setEndingTimeEnabled(false);
 		}
 
 		if( $this->formPropertyExists($form, 'password_enabled') )
@@ -924,6 +932,29 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 		$limitPasses->addSubItem($nr_of_tries);
 		$form->addItem($limitPasses);
 
+		// pass_waiting time between testruns
+		$pass_waiting_enabled = new ilCheckboxInputGUI($this->lng->txt('tst_pass_waiting_enabled'), 'pass_waiting_enabled');
+		$pass_waiting_enabled->setInfo($this->lng->txt('tst_pass_waiting_info'));
+		$pass_waiting_enabled->setChecked($this->testOBJ->isPassWaitingEnabled());
+
+		// pass_waiting
+		$duration = new ilDurationInputGUI($this->lng->txt("tst_pass_waiting_time"), "pass_waiting");
+		
+		$duration->setShowMonths(TRUE);
+		$duration->setShowDays(TRUE);
+		$duration->setShowHours(TRUE);
+		$duration->setShowMinutes(TRUE);
+		
+		$pw_time_array = explode(':', $this->testOBJ->getPassWaiting());
+		$duration->setMonths($pw_time_array[0]);
+		$duration->setDays($pw_time_array[1]);
+		$duration->setHours($pw_time_array[2]);
+		$duration->setMinutes($pw_time_array[3]);
+		$duration->setRequired(FALSE);
+		$pass_waiting_enabled->addSubItem($duration);
+		
+		$form->addItem($pass_waiting_enabled);
+		
 		// enable max. processing time
 		$processing = new ilCheckboxInputGUI($this->lng->txt("tst_processing_time"), "chb_processing_time");
 		$processing->setInfo($this->lng->txt("tst_processing_time_desc"));
@@ -960,6 +991,9 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 			$processing->setDisabled(true);
 			$processingtime->setDisabled(true);
 			$resetprocessing->setDisabled(true);
+			
+			$duration->setDisabled(true);
+			$pass_waiting_enabled->setDisabled(true);
 		}
 
 		// kiosk mode
@@ -1007,6 +1041,28 @@ class ilObjTestSettingsGeneralGUI extends ilTestSettingsGUI
 				}
 			}
 
+			// pass_waiting
+			if($form->getItemByPostVar('pass_waiting_enabled') instanceof ilFormPropertyGUI)
+			{
+				if ($form->getItemByPostVar('pass_waiting_enabled')->getChecked())
+				{
+					$pass_waiting_values = $form->getItemByPostVar('pass_waiting');
+					
+					$pass_waiting_duration[] = sprintf("%'.02d", $pass_waiting_values->getMonths());
+					$pass_waiting_duration[] = sprintf("%'.03d",$pass_waiting_values->getDays());
+					$pass_waiting_duration[] = sprintf("%'.02d", $pass_waiting_values->getHours());
+					$pass_waiting_duration[] = sprintf("%'.02d", $pass_waiting_values->getMinutes());
+					$pass_waiting_duration[] = sprintf("%'.02d", $pass_waiting_values->getSeconds());
+
+					$pass_waiting_string = implode(':', $pass_waiting_duration);
+					$this->testOBJ->setPassWaiting($pass_waiting_string);
+				}
+				else
+				{
+					$this->testOBJ->setPassWaiting("00:000:00:00:00");
+				}
+			}
+			
 			$this->testOBJ->setEnableProcessingTime($form->getItemByPostVar('chb_processing_time')->getChecked());
 			if ($this->testOBJ->getEnableProcessingTime())
 			{

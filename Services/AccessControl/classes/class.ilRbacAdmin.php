@@ -202,30 +202,38 @@ class ilRbacAdmin
 	public function assignUserLimited($a_role_id, $a_usr_id, $a_limit, $a_limited_roles = array())
 	{
 		global $ilDB;
-		
-		$GLOBALS['ilDB']->lockTables(
-				array(
-					0 => array('name' => 'rbac_ua', 'type' => ilDB::LOCK_WRITE)
-				)
-		);
-		
-		$limit_query = 'SELECT COUNT(*) num FROM rbac_ua '.
-				'WHERE '.$GLOBALS['ilDB']->in('rol_id',(array) $a_limited_roles,FALSE,'integer');
-		$res = $GLOBALS['ilDB']->query($limit_query);
-		$row = $res->fetchRow(DB_FETCHMODE_OBJECT);
-		if($row->num >= $a_limit)
+
+		$ilAtomQuery = $ilDB->buildAtomQuery();
+		$ilAtomQuery->addTableLock('rbac_ua');
+
+		$ilAtomQuery->addQueryCallable(
+			function(ilDBInterface $ilDB) use(&$ret, $a_role_id, $a_usr_id,$a_limit, $a_limited_roles)
 		{
-			$GLOBALS['ilDB']->unlockTables();
-			return FALSE;
-		}
-		
-		$query = "INSERT INTO rbac_ua (usr_id, rol_id) ".
-			"VALUES (".
+			$ret = true;
+			$limit_query = 'SELECT COUNT(*) num FROM rbac_ua '.
+				'WHERE '.$ilDB->in('rol_id',(array) $a_limited_roles,FALSE,'integer');
+			$res = $ilDB->query($limit_query);
+			$row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT);
+			if($row->num >= $a_limit)
+			{
+				$ret = false;
+				return;
+			}
+
+			$query = "INSERT INTO rbac_ua (usr_id, rol_id) ".
+				"VALUES (".
 				$ilDB->quote($a_usr_id,'integer').",".$ilDB->quote($a_role_id,'integer').
-			")";
+				")";
 			$res = $ilDB->manipulate($query);
-		
-		$GLOBALS['ilDB']->unlockTables();
+		});
+
+		$ilAtomQuery->run();
+
+		if(!$ret)
+		{
+			return false;
+		}
+
 		$GLOBALS['rbacreview']->setAssignedCacheEntry($a_role_id,$a_usr_id,TRUE);
 		
 		$this->addDesktopItem($a_role_id,$a_usr_id);
@@ -737,6 +745,7 @@ class ilRbacAdmin
 		// exclude system role from rbac
 		if ($a_dest_id == SYSTEM_ROLE_ID)
 		{
+			ilLoggerFactory::getLogger('ac')->debug('Ignoring system role.');
 			return true;
 		}
 		
@@ -754,17 +763,20 @@ class ilRbacAdmin
                         "AND s2.parent = ".$ilDB->quote($a_source2_parent,'integer')." ".
                         "AND s1.type = s2.type ".
                         "AND s1.ops_id = s2.ops_id";
+		
+		ilLoggerFactory::getLogger('ac')->dump($query);
+		
 		$res = $ilDB->query($query);
 		$operations = array();
 		$rowNum = 0;
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$operations[$rowNum]['type'] = $row->type;
 			$operations[$rowNum]['ops_id'] = $row->ops_id;
 
 			$rowNum++;
 		}
-
+		
 		// Delete template permissions of target
 		$query = 'DELETE FROM rbac_templates WHERE rol_id = '.$ilDB->quote($a_dest_id,'integer').' '.
 			'AND parent = '.$ilDB->quote($a_dest_parent,'integer');
@@ -1022,9 +1034,18 @@ class ilRbacAdmin
 		{
 			$a_assign = "n";
 		}
-		
-		ilLoggerFactory::getLogger('ac')->debug('Assign role to folder: ' . $a_rol_id.' '. $a_parent);
 
+		// check if already assigned
+		$query = 'SELECT rol_id FROM rbac_fa '.
+			'WHERE rol_id = '.$ilDB->quote($a_rol_id,'integer'). ' '.
+			'AND parent = '. $ilDB->quote($a_parent,'integer');
+		$res = $ilDB->query($query);
+		if($res->numRows())
+		{
+			ilLoggerFactory::getLogger('ac')->info('Role already assigned to object');
+			return false;
+		}
+		
 		$query = sprintf('INSERT INTO rbac_fa (rol_id, parent, assign, protected) '.
 			'VALUES (%s,%s,%s,%s)',
 			$ilDB->quote($a_rol_id,'integer'),
@@ -1161,6 +1182,79 @@ class ilRbacAdmin
 	}
 	
 	/**
+	 * Init intersection permissions.
+	 * @global type $rbacreview
+	 * @param type $a_ref_id
+	 * @param type $a_role_id
+	 * @param type $a_role_parent
+	 * @param type $a_template_id
+	 * @param type $a_template_parent
+	 * @return type
+	 */
+	public function initIntersectionPermissions($a_ref_id, $a_role_id, $a_role_parent, $a_template_id, $a_template_parent)
+	{
+		global $rbacreview;
+		
+		if($rbacreview->isProtected($a_role_parent, $a_role_id))
+		{
+			// Assign object permissions
+			$new_ops = $rbacreview->getOperationsOfRole(
+				$a_role_id,
+				ilObject::_lookupType($a_ref_id, true),
+				$a_role_parent
+			);
+
+			// set new permissions for object
+			$this->grantPermission(
+				$a_role_id,
+				(array) $new_ops,
+				$a_ref_id
+			);
+			return;
+		}
+		if(!$a_template_id)
+		{
+			ilLoggerFactory::getLogger('ac')->info('No template id given. Aborting.');
+			return;
+		}
+		// create template permission intersection
+		$this->copyRolePermissionIntersection(
+			$a_template_id,
+			$a_template_parent,
+			$a_role_id,
+			$a_role_parent,
+			$a_ref_id,
+			$a_role_id
+		);
+
+		// assign role to folder
+		$this->assignRoleToFolder(
+			$a_role_id,
+			$a_ref_id,
+			'n'
+		);
+
+		// Assign object permissions
+		$new_ops = $rbacreview->getOperationsOfRole(
+			$a_role_id,
+			ilObject::_lookupType($a_ref_id, true),
+			$a_ref_id
+		);
+		
+		// revoke existing permissions 
+		$this->revokePermission($a_ref_id, $a_role_id);
+		
+		// set new permissions for object
+		$this->grantPermission(
+			$a_role_id,
+			(array) $new_ops,
+			$a_ref_id
+		);
+			
+		return;
+	}
+	
+	/**
 	 * Adjust permissions of moved objects
 	 * - Delete permissions of parent roles that do not exist in new context
 	 * - Delete role templates of parent roles that do not exist in new context
@@ -1178,7 +1272,7 @@ class ilRbacAdmin
 		$new_parent = $tree->getParentId($a_ref_id);
 		$old_context_roles = $rbacreview->getParentRoleIds($a_old_parent,false);
 		$new_context_roles = $rbacreview->getParentRoleIds($new_parent,false);
-
+		
 		$for_addition = $for_deletion = array();
 		foreach($new_context_roles as $new_role_id => $new_role)
 		{
@@ -1205,7 +1299,7 @@ class ilRbacAdmin
 		{
 			return true;
 		}
-
+		
 		include_once "Services/AccessControl/classes/class.ilRbacLog.php";
 		$rbac_log_active = ilRbacLog::isActive();
 		if($rbac_log_active)
@@ -1213,7 +1307,7 @@ class ilRbacAdmin
 			$role_ids = array_unique(array_merge(array_keys($for_deletion), array_keys($for_addition)));
 		}
 		
-		foreach($nodes = $tree->getSubTree($node_data = $tree->getNodeData($a_ref_id),true) as $node_data)
+		foreach($nodes = $tree->getSubTree($tree->getNodeData($a_ref_id),true) as $node_data)
 		{
 			$node_id = $node_data['child'];
 
@@ -1245,10 +1339,44 @@ class ilRbacAdmin
 			}
 			foreach($for_addition as $role_id => $role_data)
 			{
-				$this->grantPermission(
-					$role_id,
-					$ops = $rbacreview->getOperationsOfRole($role_id,$node_data['type'],$role_data['parent']),
-					$node_id);
+				switch($node_data['type'])
+				{
+					case 'grp':
+						include_once './Modules/Group/classes/class.ilObjGroup.php';
+						$tpl_id = ilObjGroup::lookupGroupStatusTemplateId($node_data['obj_id']);
+						$this->initIntersectionPermissions(
+							$node_data['child'],
+							$role_id,
+							$role_data['parent'],
+							$tpl_id,
+							ROLE_FOLDER_ID
+						);
+						break;
+					
+					case 'crs':
+						include_once './Modules/Course/classes/class.ilObjCourse.php';
+						$tpl_id = ilObjCourse::lookupCourseNonMemberTemplatesId();
+						$this->initIntersectionPermissions(
+							$node_data['child'],
+							$role_id,
+							$role_data['parent'],
+							$tpl_id,
+							ROLE_FOLDER_ID
+						);
+						break;
+							
+							
+					default:
+						$this->grantPermission(
+							$role_id,
+							$ops = $rbacreview->getOperationsOfRole($role_id,$node_data['type'],$role_data['parent']),
+							$node_id);
+						break;
+						
+							
+				}
+				
+				
 //var_dump("<pre>",'GRANT',$role_id,$ops,$role_id,$node_data['type'],$role_data['parent'],"</pre>");
 			}
 
@@ -1261,25 +1389,6 @@ class ilRbacAdmin
 		}
 
 	}
-	
-	
-	/**
-	 * Copies all permission from source to target for all roles 
-	 * @param type $a_source_ref_id
-	 * @param type $target_ref_id
-	 * @param type $a_subtree_id
-	 */
-	public function copyEffectiveRolePermissions($a_source_ref_id, $target_ref_id, $a_subtree_id)
-	{
-		global $rbacreview;
-		
-		$parent_roles = $rbacreview->getParentRoleIds($a_source_ref_id, FALSE);
-		$GLOBALS['ilLog']->write(__METHOD__.': '. print_r($parent_roles,TRUE));
-		
-		
-		
-	}
-	
 	
 	
 	

@@ -30,7 +30,10 @@ class ilSearchBaseGUI implements ilDesktopItemHandling, ilAdministrationCommandH
 	const SEARCH_FORM_STANDARD = 2;
 	const SEARCH_FORM_USER = 3;
 	
-	var $settings = null;
+	/**
+	 * @var ilSearchSettings
+	 */
+	protected $settings = null;
 
 	protected $ctrl = null;
 	var $ilias = null;
@@ -41,7 +44,7 @@ class ilSearchBaseGUI implements ilDesktopItemHandling, ilAdministrationCommandH
 	* Constructor
 	* @access public
 	*/
-	function ilSearchBaseGUI()
+	function __construct()
 	{
 		global $ilCtrl,$ilias,$lng,$tpl,$ilMainMenu;
 
@@ -52,7 +55,7 @@ class ilSearchBaseGUI implements ilDesktopItemHandling, ilAdministrationCommandH
 		$this->lng->loadLanguageModule('search');
 
 		$ilMainMenu->setActive('search');
-		$this->settings =& new ilSearchSettings();
+		$this->settings = new ilSearchSettings();
 	}
 
 	function prepareOutput()
@@ -255,6 +258,11 @@ class ilSearchBaseGUI implements ilDesktopItemHandling, ilAdministrationCommandH
 	 * Cancel delete
 	 */
 	public function cancelDelete()
+	{
+		$this->showSavedResults();
+	}
+	
+	public function cancelMoveLinkObject()
 	{
 		$this->showSavedResults();
 	}
@@ -493,7 +501,7 @@ $this->next_link = $this->ctrl->getLinkTarget($this,'performSearch');
 			$now = new ilDate(time(),IL_CAL_UNIX);
 		}
 		$ds = new ilDateTimeInputGUI('','screation_date');
-		#$ds->setMode(ilDateTimeInputGUI::MODE_INPUT);
+		$ds->setRequired(true);
 		$ds->setDate($now);
 		$enabled->addSubItem($ds);
 		
@@ -526,8 +534,18 @@ $this->next_link = $this->ctrl->getLinkTarget($this,'performSearch');
 		return $this->search_cache;
 	}
 	
+	/**
+	 * Load creation date filter
+	 * @return array
+	 */
 	protected function loadCreationFilter()
 	{
+		if(!$this->settings->isDateFilterEnabled())
+		{
+			return array();
+		}
+		
+		
 		$form = $this->getCreationDateForm();
 		$options = array();
 		if($form->checkInput())

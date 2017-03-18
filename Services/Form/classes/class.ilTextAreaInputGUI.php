@@ -89,7 +89,7 @@ class ilTextAreaInputGUI extends ilSubEnabledFormPropertyGUI
 	protected $root_block_element = null;
 	
 	protected $rte_tag_set = array(
-		"mini" => array("strong", "em", "u", "ol", "li", "ul", "blockquote", "a", "p", "span"), // #13286
+		"mini" => array("strong", "em", "u", "ol", "li", "ul", "blockquote", "a", "p", "span", "br"), // #13286/#17981
 		"standard" => array ("strong", "em", "u", "ol", "li", "ul", "p", "div",
 			"i", "b", "code", "sup", "sub", "pre", "strike", "gap"),
 		"extended" => array (
@@ -402,6 +402,8 @@ class ilTextAreaInputGUI extends ilSubEnabledFormPropertyGUI
 				: ilUtil::stripSlashes($_POST[$this->getPostVar()]);
 		}
 
+		$_POST[$this->getPostVar()] = $this->removeProhibitedCharacters($_POST[$this->getPostVar()]);
+
 		if ($this->getRequired() && trim($_POST[$this->getPostVar()]) == "")
 		{
 			$this->setAlert($lng->txt("msg_input_is_required"));
@@ -416,7 +418,7 @@ class ilTextAreaInputGUI extends ilSubEnabledFormPropertyGUI
 	*
 	* @return	int	Size
 	*/
-	function insert(&$a_tpl)
+	function insert($a_tpl)
 	{
 		$ttpl = new ilTemplate("tpl.prop_textarea.html", true, true, "Services/Form");
 		
@@ -524,7 +526,13 @@ class ilTextAreaInputGUI extends ilSubEnabledFormPropertyGUI
 			{
 				$ttpl->setVariable('DISABLED','disabled="disabled" ');
 			}
-			$ttpl->setVariable("PROPERTY_VALUE", ilUtil::prepareFormOutput($this->getValue()));
+			$ttpl->setVariable("PROPERTY_VALUE", ilUtil::prepareFormOutput($this->getValue()));						
+		
+			if($this->getRequired())
+			{
+				$ttpl->setVariable("REQUIRED", "required=\"required\"");
+			}
+		
 			$ttpl->parseCurrentBlock();
 		}
 		
@@ -533,8 +541,6 @@ class ilTextAreaInputGUI extends ilSubEnabledFormPropertyGUI
 			$ttpl->setVariable("HIDDEN_INPUT",
 				$this->getHiddenTag($this->getPostVar(), $this->getValue()));
 		}
-
-		
 		$a_tpl->setCurrentBlock("prop_generic");
 		$a_tpl->setVariable("PROP_GENERIC", $ttpl->get());
 		$a_tpl->parseCurrentBlock();

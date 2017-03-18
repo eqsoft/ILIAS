@@ -26,16 +26,20 @@ class ilExAssignmentGUI
 	 */
 	function getOverviewHeader(ilExAssignment $a_ass)
 	{
-		global $lng;
+		global $lng, $ilUser;
 		
 		$lng->loadLanguageModule("exc");
 		
 		$tpl = new ilTemplate("tpl.assignment_head.html", true, true, "Modules/Exercise");
 		
 		// we are completely ignoring the extended deadline here
-
-		if ($a_ass->getDeadline() &&
-			$a_ass->getDeadline() < time())
+		
+		$idl = $a_ass->getPersonalDeadline($ilUser->getId());
+		
+		// :TODO: meaning of "ended on"
+		$dl = max($a_ass->getDeadline(), $idl);		
+		if ($dl &&
+			$dl < time())
 		{
 			$tpl->setCurrentBlock("prop");
 			$tpl->setVariable("PROP", $lng->txt("exc_ended_on"));
@@ -64,7 +68,7 @@ class ilExAssignmentGUI
 		}
 		else
 		{					
-			$time_str = $this->getTimeString($a_ass->getDeadline());
+			$time_str = $this->getTimeString($idl);
 			$tpl->setCurrentBlock("prop");
 			$tpl->setVariable("PROP", $lng->txt("exc_time_to_send"));
 			$tpl->setVariable("PROP_VAL", $time_str);
@@ -79,6 +83,14 @@ class ilExAssignmentGUI
 				$tpl->parseCurrentBlock();
 			}
 			
+			if ($idl && $idl != $a_ass->getDeadline())
+			{
+				$tpl->setCurrentBlock("prop");
+				$tpl->setVariable("PROP", $lng->txt("exc_individual_deadline"));
+				$tpl->setVariable("PROP_VAL",
+					ilDatePresentation::formatDate(new ilDateTime($idl,IL_CAL_UNIX)));
+				$tpl->parseCurrentBlock();
+			}		
 		}
 
 		$mand = "";
@@ -109,11 +121,6 @@ class ilExAssignmentGUI
 		include_once("./Services/InfoScreen/classes/class.ilInfoScreenGUI.php");
 		include_once("./Services/UIComponent/Button/classes/class.ilLinkButton.php");
 
-		if(IS_PAYMENT_ENABLED)
-		{
-			include_once './Services/Payment/classes/class.ilPaymentObject.php';
-		}
-		
 		$info = new ilInfoScreenGUI(null);
 		$info->setTableClass("");
 		
@@ -160,7 +167,9 @@ class ilExAssignmentGUI
 	
 	protected function addSchedule(ilInfoScreenGUI $a_info, ilExAssignment $a_ass)
 	{		
-		global $lng;
+		global $lng, $ilUser;
+		
+		$idl = $a_ass->getPersonalDeadline($ilUser->getId());		
 		
 		$a_info->addSection($lng->txt("exc_schedule"));
 		if ($a_ass->getStartTime() > 0)
@@ -168,28 +177,51 @@ class ilExAssignmentGUI
 			$a_info->addProperty($lng->txt("exc_start_time"),
 				ilDatePresentation::formatDate(new ilDateTime($a_ass->getStartTime(),IL_CAL_UNIX)));
 		}
+		
+		// extended deadline info/warning						
+		$late_dl = "";
+		if ($idl &&
+			$idl < time() &&				
+			$a_ass->beforeDeadline()) // ext dl is last deadline
+		{				
+			// extended deadline date should not be presented anywhere
+			$late_dl = ilDatePresentation::formatDate(new ilDateTime($idl, IL_CAL_UNIX));
+			$late_dl = "<br />".sprintf($lng->txt("exc_late_submission_warning"), $late_dl);								
+			$late_dl = '<span class="warning">'.$late_dl.'</span>';									
+		}			
+		
 		if ($a_ass->getDeadline())
 		{
 			$until = ilDatePresentation::formatDate(new ilDateTime($a_ass->getDeadline(),IL_CAL_UNIX));
 			
-			// extended deadline date should not be presented anywhere
-			
-			// extended deadline info/warning
-			if($a_ass->getDeadline() < time() &&				
-				$a_ass->beforeDeadline())
-			{				
-				$dl = ilDatePresentation::formatDate(new ilDateTime($a_ass->getDeadline(),IL_CAL_UNIX));
-				$dl = "<br />".sprintf($lng->txt("exc_late_submission_warning"), $dl);								
-				$dl = '<span class="warning">'.$dl.'</span>';						
-				$until .= $dl;
+			// add late info if no idl
+			if ($late_dl &&
+				$idl == $a_ass->getDeadline())
+			{
+				$until .= $late_dl;
 			}
+			
 			$a_info->addProperty($lng->txt("exc_edit_until"), $until);			
 		}
-		$time_str = $this->getTimeString($a_ass->getDeadline());
+		
+		if ($idl && 
+			$idl != $a_ass->getDeadline())
+		{
+			$until = ilDatePresentation::formatDate(new ilDateTime($idl,IL_CAL_UNIX));
+			
+			// add late info?
+			if ($late_dl)
+			{
+				$until .= $late_dl;
+			}
+			
+			$a_info->addProperty($lng->txt("exc_individual_deadline"), $until);	
+		}
+				
 		if (!$a_ass->notStartedYet())
 		{
 			$a_info->addProperty($lng->txt("exc_time_to_send"),
-				"<b>".$time_str."</b>");
+				"<b>".$this->getTimeString($idl)."</b>");
 		}
 	}
 	
@@ -222,20 +254,7 @@ class ilExAssignmentGUI
 			$a_info->addSection($lng->txt("exc_files"));
 			foreach($files as $file)
 			{
-				// if download must be purchased first show a "buy"-button
-				if(IS_PAYMENT_ENABLED && (ilPaymentObject::_isBuyable($this->exc->getRefId(),'download') &&
-				   !ilPaymentObject::_hasAccess($this->exc->getRefId(),'','download')))
-				{
-					$a_info->addProperty($file["name"],
-						$lng->txt("buy"),
-						$ilCtrl->getLinkTargetByClass("ilShopPurchaseGUI", "showDetails"));
-				}
-				else
-				{						
-					$a_info->addProperty($file["name"],
-						$lng->txt("download"),
-						$this->getSubmissionLink("downloadFile", array("file"=>urlencode($file["name"]))));
-				}
+				$a_info->addProperty($file["name"], $lng->txt("download"), $this->getSubmissionLink("downloadFile", array("file"=>urlencode($file["name"]))));
 			}
 		}			
 	}
@@ -243,58 +262,40 @@ class ilExAssignmentGUI
 	protected function addSubmission(ilInfoScreenGUI $a_info, ilExAssignment $a_ass)
 	{		
 		global $lng, $ilCtrl, $ilUser;
-						
-		// if submission must be purchased first
-		if(IS_PAYMENT_ENABLED
-			&& (ilPaymentObject::_isBuyable($this->exc->getRefId(),'upload')
-			&& !ilPaymentObject::_hasAccess($this->exc->getRefId(),'','upload')))
+
+		$a_info->addSection($lng->txt("exc_your_submission"));
+
+		include_once "Modules/Exercise/classes/class.ilExSubmission.php";
+		$submission = new ilExSubmission($a_ass, $ilUser->getId());
+
+		include_once "Modules/Exercise/classes/class.ilExSubmissionGUI.php";
+		ilExSubmissionGUI::getOverviewContent($a_info, $submission);
+
+		$last_sub = null;
+		if($submission->hasSubmitted())
 		{
-			$a_info->addSection($lng->txt("exc_your_submission"));
-
-			$ilCtrl->clearParameters($this);
-
-			$ilCtrl->setParameter($this, "ref_id", $this->exc->getRefId());
-			$ilCtrl->setParameter($this,'subtype','upload');
-			$a_info->addProperty($lng->txt('exc_hand_in'),
-				$lng->txt("buy"),
-				$ilCtrl->getLinkTargetByClass("ilShopPurchaseGUI", "showDetails"));
-		}
-		else 
-		{						
-			$a_info->addSection($lng->txt("exc_your_submission"));
-			
-			include_once "Modules/Exercise/classes/class.ilExSubmission.php";
-			$submission = new ilExSubmission($a_ass, $ilUser->getId());			
-				
-			include_once "Modules/Exercise/classes/class.ilExSubmissionGUI.php";
-			ilExSubmissionGUI::getOverviewContent($a_info, $submission);
-				
-			$last_sub = null;
-			if($submission->hasSubmitted())
+			$last_sub = $submission->getLastSubmission();
+			if($last_sub)
 			{
-				$last_sub = $submission->getLastSubmission();
-				if($last_sub)
-				{
-					$last_sub = ilDatePresentation::formatDate(new ilDateTime($last_sub,IL_CAL_DATETIME));
-					$a_info->addProperty($lng->txt("exc_last_submission"), $last_sub);
-				}				
+				$last_sub = ilDatePresentation::formatDate(new ilDateTime($last_sub,IL_CAL_DATETIME));
+				$a_info->addProperty($lng->txt("exc_last_submission"), $last_sub);
 			}
-
-			include_once "Modules/Exercise/classes/class.ilExPeerReviewGUI.php";
-			ilExPeerReviewGUI::getOverviewContent($a_info, $submission);
-			
-			// global feedback / sample solution
-			if($a_ass->getFeedbackDate() == ilExAssignment::FEEDBACK_DATE_DEADLINE)
-			{
-				$show_global_feedback = ($a_ass->afterDeadlineStrict() && $a_ass->getFeedbackFile());
-			}
-			else
-			{
-				$show_global_feedback = ($last_sub && $a_ass->getFeedbackFile());
-			}								
-
-			$this->addSubmissionFeedback($a_info, $a_ass, $submission->getFeedbackId(), $show_global_feedback);												
 		}
+
+		include_once "Modules/Exercise/classes/class.ilExPeerReviewGUI.php";
+		ilExPeerReviewGUI::getOverviewContent($a_info, $submission);
+
+		// global feedback / sample solution
+		if($a_ass->getFeedbackDate() == ilExAssignment::FEEDBACK_DATE_DEADLINE)
+		{
+			$show_global_feedback = ($a_ass->afterDeadlineStrict() && $a_ass->getFeedbackFile());
+		}
+		else
+		{
+			$show_global_feedback = ($last_sub && $a_ass->getFeedbackFile());
+		}
+
+		$this->addSubmissionFeedback($a_info, $a_ass, $submission->getFeedbackId(), $show_global_feedback);
 	}
 	
 	protected function addSubmissionFeedback(ilInfoScreenGUI $a_info, ilExAssignment $a_ass, $a_feedback_id, $a_show_global_feedback)
@@ -386,22 +387,8 @@ class ilExAssignmentGUI
 			$time_str = $lng->txt("exc_time_over_short");
 		}
 		else
-		{
-			$time_diff = ilUtil::int2array($a_deadline - time(),null);	
-			// #11576  - order ascending!
-			if (isset($time_diff['minutes']))
-			{
-				unset($time_diff['seconds']);
-			}			
-			if (isset($time_diff['days']))
-			{
-				unset($time_diff['minutes']);
-			}
-			if (isset($time_diff['months']))
-			{
-				unset($time_diff['hours']);
-			}		
-			$time_str = ilUtil::timearray2string($time_diff);
+		{			
+			$time_str = ilUtil::period2String(new ilDateTime($a_deadline, IL_CAL_UNIX));
 		}
 
 		return $time_str;

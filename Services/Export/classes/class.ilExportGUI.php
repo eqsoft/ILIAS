@@ -255,7 +255,7 @@ class ilExportGUI
 			{
 				if (is_object($f["call_obj"]))
 				{
-					$f["call_obj"]->$f["call_func"]();
+					$f["call_obj"]->{$f["call_func"]}();
 				}
 				elseif($this->getParentGUI() instanceof ilContainerGUI)
 				{
@@ -388,7 +388,7 @@ class ilExportGUI
 		{
 			if ($c["func"] == $cmd)
 			{
-				$c["obj"]->$c["func"]($_POST["file"]);
+				$c["obj"]->{$c["func"]}($_POST["file"]);
 			}
 		}
 	}

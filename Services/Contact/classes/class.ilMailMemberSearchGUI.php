@@ -14,6 +14,11 @@ class ilMailMemberSearchGUI
 	protected $mail_roles;
 
 	/**
+	 * @var ilObjGroupGUI|ilObjCourseGUI
+	 */
+	protected $gui;
+
+	/**
 	 * @var ilAbstractMailMemberRoles
 	 */
 	protected $objMailMemberRoles;
@@ -23,23 +28,46 @@ class ilMailMemberSearchGUI
 	protected $objParticipants = NULL;
 
 	/**
+	 * @var ilCtrl
+	 */
+	protected $ctrl;
+
+	/**
+	 * @var ilTemplate
+	 */
+	protected $tpl;
+
+	/**
+	 * @var ilLanguage
+	 */
+	protected $lng;
+	
+	/**
+	 * @var ilAccessHandler
+	 */
+	protected $access;
+
+	/**
 	 * ilMailMemberSearchGUI constructor.
+	 * @param ilObjGroupGUI|ilObjCourseGUI $gui
 	 * @param                           $ref_id
 	 * @param ilAbstractMailMemberRoles $objMailMemberRoles
 	 */
-	public function __construct($ref_id, ilAbstractMailMemberRoles $objMailMemberRoles)
+	public function __construct($gui, $ref_id, ilAbstractMailMemberRoles $objMailMemberRoles)
 	{
-		global $ilCtrl, $tpl, $lng;
-		
-		$this->ctrl = $ilCtrl;
-		$this->tpl = $tpl;
-		$this->lng = $lng;
-		
+		global $DIC;
+
+		$this->ctrl   = $DIC['ilCtrl'];
+		$this->tpl    = $DIC['tpl'];
+		$this->lng    = $DIC['lng'];
+		$this->access = $DIC['ilAccess'];
+
 		$this->lng->loadLanguageModule('mail');
 		$this->lng->loadLanguageModule('search');
 
+		$this->gui    = $gui;
 		$this->ref_id = $ref_id;
-		
+
 		$this->objMailMemberRoles = $objMailMemberRoles;
 		$this->mail_roles = $objMailMemberRoles->getMailRoles($ref_id);
 	}
@@ -126,8 +154,6 @@ class ilMailMemberSearchGUI
 	 */
 	protected function nextMailForm()
 	{
-		global $lng;
-		
 		$form = $this->initMailToMembersForm();
 		if($form->checkInput())
 		{
@@ -142,17 +168,25 @@ class ilMailMemberSearchGUI
 						$mailbox = $this->objMailMemberRoles->getMailboxRoleAddress($role_id);
 						$role_mail_boxes[] = $mailbox;
 					}
-					
+
 					require_once 'Services/Mail/classes/class.ilMailFormCall.php';
 					$_SESSION['mail_roles'] = $role_mail_boxes;
+
 					ilUtil::redirect(ilMailFormCall::getRedirectTarget(
-							$this, 'showSearchForm', array('type' => 'role'), array('type' => 'role', 'rcp_to' => implode(',', $role_mail_boxes), 'sig' => ''
-					)));
+						$this, 'showSearchForm',
+						array('type' => 'role'),
+						array(
+							'type'   => 'role',
+							'rcp_to' => implode(',', $role_mail_boxes),
+							'sig'    => $this->gui->createMailSignature()
+						),
+						$this->generateContextArray()
+					));
 				}
 				else
 				{
 					$form->setValuesByPost();
-					ilUtil::sendFailure($lng->txt('no_checkbox'));
+					ilUtil::sendFailure($this->lng->txt('no_checkbox'));
 					$this->showSearchForm();
 					return;
 				}
@@ -167,23 +201,40 @@ class ilMailMemberSearchGUI
 		$form->setValuesByPost();
 		$this->showSearchForm();
 	}
+	
+	/**
+	 * @return array
+	 */
+	protected function generateContextArray()
+	{
+		$context_array = array();
+		require_once 'Modules/Course/classes/class.ilCourseMailTemplateTutorContext.php';
+		if($this->access->checkAccess('write',"",$this->ref_id) )
+		{
+			$context_array = array(
+				ilMailFormCall::CONTEXT_KEY => ilCourseMailTemplateTutorContext::ID,
+				'ref_id'                    => $this->ref_id,
+				'ts'                        => time()
+			);
+		}
 
+		return $context_array;
+	}
+	
 	/**
 	 * 
 	 */
 	protected function showSelectableUsers()
 	{
-		global $tpl;
-		
 		include_once './Services/Contact/classes/class.ilMailMemberSearchTableGUI.php';
 		include_once './Services/Contact/classes/class.ilMailMemberSearchDataProvider.php';
 		
-		$tpl->getStandardTemplate();
+		$this->tpl->getStandardTemplate();
 		$tbl = new ilMailMemberSearchTableGUI($this, 'showSelectableUsers');
 		$provider = new ilMailMemberSearchDataProvider($this->getObjParticipants());
 		$tbl->setData($provider->getData());
-		
-		$tpl->setContent($tbl->getHTML());
+
+		$this->tpl->setContent($tbl->getHTML());
 	}
 
 	/**
@@ -212,9 +263,18 @@ class ilMailMemberSearchGUI
 		}
 
 		require_once 'Services/Mail/classes/class.ilMailFormCall.php';
+		ilMailFormCall::setRecipients($rcps);
+
 		ilUtil::redirect(ilMailFormCall::getRedirectTarget(
-			$this, 'members', array(),
-			array('type' => 'new', 'rcp_to' => implode(',', $rcps), 'sig' => '')));
+			$this, 'members',
+			array(),
+			array(
+				'type' => 'new',
+				'sig'  =>  $this->gui->createMailSignature()
+			),
+			$this->generateContextArray()
+		));
+
 		return true;
 	}
 	
@@ -223,13 +283,10 @@ class ilMailMemberSearchGUI
 	 */
 	protected function showSearchForm()
 	{
-		global $tpl;
-		
 		$this->storeReferer();
-		$tpl->getStandardTemplate();
-		
+
 		$form = $this->initMailToMembersForm();
-		$tpl->setContent($form->getHTML());
+		$this->tpl->setContent($form->getHTML());
 	}
 
 	/**
@@ -264,7 +321,7 @@ class ilMailMemberSearchGUI
 		$radio_grp = $this->getMailRadioGroup();
 
 		$form->addItem($radio_grp);
-		$form->addCommandButton('nextMailForm', $this->lng->txt('continue'));
+		$form->addCommandButton('nextMailForm', $this->lng->txt('mail_members_search_continue'));
 		$form->addCommandButton('cancel', $this->lng->txt('cancel'));
 
 		return $form;
@@ -284,8 +341,11 @@ class ilMailMemberSearchGUI
 	protected function getMailRadioGroup()
 	{
 		$mail_roles = $this->getMailRoles();
-		
+
 		$radio_grp   = new ilRadioGroupInputGUI('', 'mail_member_type');
+
+		$radio_sel_users = new ilRadioOption($this->lng->txt('mail_sel_users'), 'mail_sel_users');
+
 		$radio_roles = new ilRadioOption($this->objMailMemberRoles->getRadioOptionTitle(), 'mail_member_roles');
 		foreach($mail_roles as $role)
 		{
@@ -295,12 +355,11 @@ class ilMailMemberSearchGUI
 			$radio_roles->addSubItem($chk_role);
 		}
 
-		$radio_sel_users = new ilRadioOption($this->lng->txt('mail_sel_users'), 'mail_sel_users');
-
 		$radio_grp->setValue('mail_member_roles');
-		$radio_grp->addOption($radio_roles);
+
 		$radio_grp->addOption($radio_sel_users);
-		
+		$radio_grp->addOption($radio_roles);
+
 		return $radio_grp;
 	}
 }

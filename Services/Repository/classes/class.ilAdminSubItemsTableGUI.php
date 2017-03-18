@@ -2,6 +2,7 @@
 /* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
 include_once("./Services/Table/classes/class.ilTable2GUI.php");
+require_once('./Services/Repository/classes/class.ilObjectPlugin.php');
 
 /**
 * TableGUI class for sub items listed in repository administration
@@ -23,6 +24,7 @@ class ilAdminSubItemsTableGUI extends ilTable2GUI
 		
 		$this->ref_id = $a_ref_id;
 		
+		$this->setId('recf_'. $a_ref_id);
 		parent::__construct($a_parent_obj, $a_parent_cmd);
 //		$this->setTitle($lng->txt("items"));
 		$this->setSelectAllCheckbox("id[]");
@@ -39,7 +41,7 @@ class ilAdminSubItemsTableGUI extends ilTable2GUI
 		$this->setEnableTitle(true);
 		$this->setDefaultOrderField("title");
 		$this->setDefaultOrderDirection("asc");
-
+		
 		// TODO: Needs other solution
 		if(ilObject::_lookupType((int) $_GET['ref_id'],true) == 'chac')
 		{
@@ -172,7 +174,7 @@ class ilAdminSubItemsTableGUI extends ilTable2GUI
 		$this->tpl->setVariable("VAL_DESC", ilUtil::shortenText($a_set["desc"] ,ilObject::DESC_LENGTH, true));
 		$this->tpl->setVariable("VAL_LAST_CHANGE",  ilDatePresentation::formatDate(new ilDateTime($a_set["last_update"],IL_CAL_DATETIME)));
 		$alt = ($objDefinition->isPlugin($a_set["type"]))
-			? $lng->txt("icon")." ".ilPlugin::lookupTxt("rep_robj", $a_set["type"], "obj_".$a_set["type"])
+			? $lng->txt("icon")." ".ilObjectPlugin::lookupTxtById($a_set["type"], "obj_".$a_set["type"])
 			: $lng->txt("icon")." ".$lng->txt("obj_".$a_set["type"]);
 		$this->tpl->setVariable("IMG_TYPE", ilUtil::img(ilObject::_getIcon($a_set["obj_id"], "small"), $alt));
 		//$this->tpl->setVariable("IMG_TYPE", ilObject::_getIcon($a_set["obj_id"], "small", $this->getIconImageType()),

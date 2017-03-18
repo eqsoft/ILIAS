@@ -12,7 +12,7 @@ require_once 'Modules/TestQuestionPool/classes/class.ilAssQuestionSkillAssignmen
 class ilAssQuestionSkillAssignmentList
 {
 	/**
-	 * @var ilDB
+	 * @var ilDBInterface
 	 */
 	private $db;
 
@@ -41,10 +41,14 @@ class ilAssQuestionSkillAssignmentList
 	 */
 	private $questionIdFilter;
 
-	public function __construct(ilDB $db)
+	public function __construct(ilDBInterface $db)
 	{
 		$this->db = $db;
 		
+		$this->parentObjId = null;
+		$this->assignments = array();
+		$this->numAssignsBySkill = array();
+		$this->maxPointsBySkill = array();
 		$this->questionIdFilter = null;
 	}
 
@@ -87,7 +91,7 @@ class ilAssQuestionSkillAssignmentList
 		$this->maxPointsBySkill = array();
 	}
 
-	private function addAssignment(ilAssQuestionSkillAssignment $assignment)
+	public function addAssignment(ilAssQuestionSkillAssignment $assignment)
 	{
 		if( !isset($this->assignments[$assignment->getQuestionId()]) )
 		{

@@ -308,6 +308,8 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 
 	function duplicateImage($question_id, $objectId = null)
 	{
+		global $ilLog;
+
 		$imagepath = $this->getImagePath();
 		$imagepath_original = str_replace("/$this->id/images", "/$question_id/images", $imagepath);
 		
@@ -315,13 +317,24 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 		{
 			$imagepath_original = str_replace("/$this->obj_id/", "/$objectId/", $imagepath_original);
 		}
-		
-		if (!file_exists($imagepath)) {
+
+		if(!file_exists($imagepath))
+		{
 			ilUtil::makeDirParents($imagepath);
 		}
 		$filename = $this->getImageFilename();
-		if (!copy($imagepath_original . $filename, $imagepath . $filename)) {
-			print "image could not be duplicated!!!! ";
+
+		// #18755
+		if(!file_exists($imagepath_original . $filename))
+		{
+			$ilLog->write("Could not find an image map file when trying to duplicate image: " . $imagepath_original . $filename);
+			$imagepath_original = str_replace("/$this->obj_id/", "/$objectId/", $imagepath_original);
+			$ilLog->write("Using fallback source directory:" . $imagepath_original);
+		}
+
+		if(!file_exists($imagepath_original . $filename) || !copy($imagepath_original . $filename, $imagepath . $filename))
+		{
+			$ilLog->write("Could not duplicate image for image map question: " . $imagepath_original . $filename);
 		}
 	}
 
@@ -401,31 +414,24 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 	}
 
 	/**
-	* Uploads an image map and takes over the areas
-	*
-	* @param string $imagemap_filename Imagemap filename
-	* @return integer number of areas added
-	*/
-	function uploadImagemap($imagemap_filename = "") 
+	 * Uploads an image map and takes over the areas
+	 *
+	 * @param ASS_AnswerImagemap[] $shapes
+	 * @return integer number of areas added
+	 */
+	public function uploadImagemap(array $shapes) 
 	{
 		$added = 0;
-		if (!empty($imagemap_filename)) 
+
+		if(count($shapes) > 0)
 		{
-			$fp = fopen($imagemap_filename, "r");
-			$contents = fread($fp, filesize($imagemap_filename));
-			fclose($fp);
-			if (preg_match_all("/<area(.+)>/siU", $contents, $matches)) 
+			foreach($shapes as $shape)
 			{
-				for ($i=0; $i< count($matches[1]); $i++) 
-				{
-					preg_match("/alt\s*=\s*\"(.+)\"\s*/siU", $matches[1][$i], $alt);
-					preg_match("/coords\s*=\s*\"(.+)\"\s*/siU", $matches[1][$i], $coords);
-					preg_match("/shape\s*=\s*\"(.+)\"\s*/siU", $matches[1][$i], $shape);
-					$this->addAnswer($alt[1], 0.0, count($this->answers), $coords[1], $shape[1]);
-					$added++;
-				}
+				$this->addAnswer($shape->getAnswertext(), 0.0, count($this->answers), $shape->getCoords(), $shape->getArea());
+				$added++;
 			}
 		}
+
 		return $added;
 	}
 
@@ -681,7 +687,8 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 
 	public function calculateReachedPointsFromPreviewSession(ilAssQuestionPreviewSession $previewSession)
 	{
-		return $this->calculateReachedPointsForSolution(array_values($previewSession->getParticipantsSolution()));
+		$solutionData = $previewSession->getParticipantsSolution();
+		return $this->calculateReachedPointsForSolution(is_array($solutionData) ? array_values($solutionData) : array());
 	}
 
 	public function isAutosaveable()
@@ -707,62 +714,91 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 			$pass = ilObjTest::_getPass($active_id);
 		}
 
-		$this->getProcessLocker()->requestUserSolutionUpdateLock();
+		$imageWasSelected = false;
 
-		if($this->is_multiple_choice && strlen($_GET['remImage']))
-		{
-			$query  = "DELETE FROM tst_solutions WHERE active_fi = %s AND question_fi = %s AND pass = %s AND value1 = %s AND authorized = %s";
-			$types  = array("integer", "integer", "integer", "integer", 'integer');
-			$values = array($active_id, $this->getId(), $pass, $_GET['remImage'], (int)$authorized);
-			
-			if( $this->getStep() !== NULL )
+		$this->getProcessLocker()->executeUserSolutionUpdateLockOperation(function() use (&$imageWasSelected, $ilDB, $active_id, $pass, $authorized) {
+
+			if(!$authorized)
 			{
-				$query .= " AND step = %s ";
-				$types[]  = 'integer';
-				$values[] = $this->getStep();
-			}
-			$affectedRows = $ilDB->manipulateF($query, $types, $values);
-		}
-		elseif(!$this->is_multiple_choice)
-		{
-			$affectedRows = $this->removeCurrentSolution($active_id, $pass, $authorized);
-		}
+				$solutions = $this->getSolutionValues($active_id, $pass, false);
+				if(0 == count($solutions))
+				{
+					$solutions = $this->getSolutionValues($active_id, $pass, true);
+// fau: testNav - don't delete an authorized solution if an intermediate is saved
+					//$this->removeCurrentSolution($active_id, $pass, true);
+// fau.
+					$this->removeCurrentSolution($active_id, $pass, false);
+					foreach($solutions as $solution)
+					{
+						$this->saveCurrentSolution($active_id, $pass, $solution['value1'], null, false);
+					}
+				}
 
-		if (strlen($_GET["selImage"]))
-		{
-			$imageWasSelected = true;
-			
-			$types = array('integer', 'integer', 'integer', 'integer', 'integer');
-			$values = array($active_id, $this->getId(), $pass,  (int)$_GET['selImage'], (int)$authorized);
-			$query = 'DELETE FROM tst_solutions WHERE active_fi = %s AND question_fi = %s AND pass = %s AND value1 = %s AND authorized = %s';
-			if($this->getStep() != null)
-			{
-				$types[] = 'integer';
-				$values[] = $this->getStep();
-				$query .= ' AND step = %s';
-			}
+				if($this->is_multiple_choice && strlen($_GET['remImage']))
+				{
+					$query  = "DELETE FROM tst_solutions WHERE active_fi = %s AND question_fi = %s AND pass = %s AND value1 = %s AND authorized = %s";
+					$types  = array("integer", "integer", "integer", "integer", 'integer');
+					$values = array($active_id, $this->getId(), $pass, $_GET['remImage'], (int)$authorized);
 
-			$ilDB->manipulateF($query, $types, $values);
+					if($this->getStep() !== NULL)
+					{
+						$query .= " AND step = %s ";
+						$types[]  = 'integer';
+						$values[] = $this->getStep();
+					}
+					$ilDB->manipulateF($query, $types, $values);
+				}
+				elseif(!$this->is_multiple_choice)
+				{
+					$this->removeCurrentSolution($active_id, $pass, $authorized);
+				}
 
-			$affectedRows = $this->saveCurrentSolution($active_id, $pass, $_GET['selImage'], null, $authorized);
-		}
-		else
-		{
-			$imageWasSelected = false;
-		}
+				if(!$authorized && strlen($_GET["selImage"]))
+				{
+					$imageWasSelected = true;
 
-		$this->getProcessLocker()->releaseUserSolutionUpdateLock();
+					$types = array('integer', 'integer', 'integer', 'integer', 'integer');
+					$values = array($active_id, $this->getId(), $pass,  (int)$_GET['selImage'], (int)$authorized);
+					$query = 'DELETE FROM tst_solutions WHERE active_fi = %s AND question_fi = %s AND pass = %s AND value1 = %s AND authorized = %s';
+					if($this->getStep() != null)
+					{
+						$types[] = 'integer';
+						$values[] = $this->getStep();
+						$query .= ' AND step = %s';
+					}
 
-		require_once 'Modules/Test/classes/class.ilObjAssessmentFolder.php';
-		if( ilObjAssessmentFolder::_enabledAssessmentLogging() )
-		{
-			if( $imageWasSelected )
-			{
-				$this->logAction($this->lng->txtlng("assessment", "log_user_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
+					$ilDB->manipulateF($query, $types, $values);
+
+					$this->saveCurrentSolution($active_id, $pass, $_GET['selImage'], null, $authorized);
+				}
+				else
+				{
+					$imageWasSelected = false;
+				}
 			}
 			else
 			{
-				$this->logAction($this->lng->txtlng("assessment", "log_user_not_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
+				$solutions = $this->getUserSolutionPreferingIntermediate($active_id, $pass);
+				$this->removeCurrentSolution($active_id, $pass, true);
+				$this->removeCurrentSolution($active_id, $pass, false);
+				foreach($solutions as $solution)
+				{
+					$this->saveCurrentSolution($active_id, $pass, $solution['value1'], null, true);
+				}
+			}
+
+		});
+
+		require_once 'Modules/Test/classes/class.ilObjAssessmentFolder.php';
+		if( !$authorized && ilObjAssessmentFolder::_enabledAssessmentLogging() )
+		{
+			if( $imageWasSelected )
+			{
+				assQuestion::logAction($this->lng->txtlng("assessment", "log_user_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
+			}
+			else
+			{
+				assQuestion::logAction($this->lng->txtlng("assessment", "log_user_not_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
 			}
 		}
 
@@ -790,16 +826,11 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 
 		$previewSession->setParticipantsSolution($solution);
 	}
-	
+
 	/**
-	 * Reworks the allready saved working data if neccessary
-	 *
-	 * @access protected
-	 * @param integer $active_id
-	 * @param integer $pass
-	 * @param boolean $obligationsAnswered
+	 * {@inheritdoc}
 	 */
-	protected function reworkWorkingData($active_id, $pass, $obligationsAnswered)
+	protected function reworkWorkingData($active_id, $pass, $obligationsAnswered, $authorized)
 	{
 		// nothing to rework!
 	}
@@ -866,37 +897,30 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 	}
 
 	/**
-	* Creates an Excel worksheet for the detailed cumulated results of this question
-	*
-	* @param object $worksheet Reference to the parent excel worksheet
-	* @param object $startrow Startrow of the output in the excel worksheet
-	* @param object $active_id Active id of the participant
-	* @param object $pass Test pass
-	* @param object $format_title Excel title format
-	* @param object $format_bold Excel bold format
-	* @param array $eval_data Cumulated evaluation data
-	* @access public
-	*/
-	public function setExportDetailsXLS(&$worksheet, $startrow, $active_id, $pass, &$format_title, &$format_bold)
+	 * {@inheritdoc}
+	 */
+	public function setExportDetailsXLS($worksheet, $startrow, $active_id, $pass)
 	{
-		include_once ("./Services/Excel/classes/class.ilExcelUtils.php");
+		parent::setExportDetailsXLS($worksheet, $startrow, $active_id, $pass);
+
 		$solution = $this->getSolutionValues($active_id, $pass);
-		$worksheet->writeString($startrow, 0, ilExcelUtils::_convert_text($this->lng->txt($this->getQuestionType())), $format_title);
-		$worksheet->writeString($startrow, 1, ilExcelUtils::_convert_text($this->getTitle()), $format_title);
+
 		$i = 1;
 		foreach ($this->getAnswers() as $id => $answer)
 		{
-			$worksheet->writeString($startrow + $i, 0, ilExcelUtils::_convert_text($answer->getArea() . ": " . $answer->getCoords()), $format_bold);
+			$worksheet->setCell($startrow + $i, 0, $answer->getArea() . ": " . $answer->getCoords());
+			$worksheet->setBold($worksheet->getColumnCoord(0) . ($startrow + $i));
 			if ($id == $solution[0]["value1"])
 			{
-				$worksheet->write($startrow + $i, 1, 1);
+				$worksheet->setCell($startrow + $i, 1, 1);
 			}
 			else
 			{
-				$worksheet->write($startrow + $i, 1, 0);
+				$worksheet->setCell($startrow + $i, 1, 0);
 			}
 			$i++;
 		}
+
 		return $startrow + $i + 1;
 	}
 
@@ -1019,7 +1043,7 @@ class assImagemapQuestion extends assQuestion implements ilObjQuestionScoringAdj
 	*/
 	public function getUserQuestionResult($active_id, $pass)
 	{
-		/** @var ilDB $ilDB */
+		/** @var ilDBInterface $ilDB */
 		global $ilDB;
 		$result = new ilUserQuestionResult($this, $active_id, $pass);
 

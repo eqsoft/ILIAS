@@ -1,10 +1,9 @@
 <?php
 /* Copyright (c) 1998-2009 ILIAS open source, Extended GPL, see docs/LICENSE */
 
-include_once 'classes/class.ilSaxParser.php';
 include_once 'Services/Tracking/classes/class.ilChangeEvent.php';
-include_once 'Modules/Exercise/classes/class.ilExerciseException.php';
 include_once 'Modules/Exercise/classes/class.ilExerciseXMLWriter.php';
+include_once './Services/Xml/classes/class.ilSaxParser.php';
 
 /**
 * Exercise XML Parser which completes/updates a given exercise by an xml string.
@@ -73,11 +72,12 @@ class ilExerciseXMLParser extends ilSaxParser
 	* @param   int $obj_id obj id of exercise which is to be updated
 	* @access	public
 	*/
-	function ilExerciseXMLParser(& $exercise, $a_xml_data, $obj_id = -1)
+	function __construct($exercise, $a_xml_data, $obj_id = -1)
 	{
 // @todo: needs to be revised for multiple assignments per exercise
 
-		parent::ilSaxParser();
+		parent::__construct();
+		
 		$this->exercise = $exercise;
 		// get all assignments and choose first one if exists, otherwise create
 		$assignments = ilExAssignment::getAssignmentDataOfExercise($exercise->getId());
@@ -122,9 +122,7 @@ class ilExerciseXMLParser extends ilSaxParser
 	* @throws   ilExerciseException   when obj id != - 1 and if it it does not match the id in the xml
 	*/
 	function handlerBeginTag($a_xml_parser,$a_name,$a_attribs)
-	{
-		global $ilErr;
-
+	{		
 		switch($a_name)
 		{
 			case 'Exercise':

@@ -247,6 +247,7 @@ class ilScoringAdjustmentGUI
 
 		/** @var $question assQuestionGUI|ilGuiQuestionScoringAdjustable|ilGuiAnswerScoringAdjustable */
 		$question = assQuestion::instantiateQuestionGUI( $question_id );
+		$question->setEditContext(assQuestionGUI::EDIT_CONTEXT_ADJUSTMENT);
 		$form->setTitle( $question->object->getTitle() . '<br /><small>(' . $question->outQuestionType() . ')</small>' );
 
 		$hidden_question_id = new ilHiddenInputGUI('q_id');
@@ -276,7 +277,7 @@ class ilScoringAdjustmentGUI
 		
 		foreach ($active_ids as $active_id)
 		{
-			$passes[] = $this->object->_getPass($active_id);
+			$passes[] = ilObjTest::_getPass($active_id);
 			foreach ($passes as $key => $pass)
 			{
 				for ($i = 0; $i <= $pass; $i++)
@@ -350,6 +351,7 @@ class ilScoringAdjustmentGUI
 		require_once './Modules/TestQuestionPool/classes/class.assQuestion.php';
 		/** @var $question assQuestionGUI|ilGuiQuestionScoringAdjustable */
 		$question = assQuestion::instantiateQuestionGUI( $question_id );
+		$question->setEditContext(assQuestionGUI::EDIT_CONTEXT_ADJUSTMENT);
 
 		if ($question instanceof ilGuiQuestionScoringAdjustable)
 		{
@@ -380,37 +382,34 @@ class ilScoringAdjustmentGUI
 		$scoring->setPreserveManualScores($_POST['preserve_manscoring'] == 1 ? true : false);
 		$scoring->recalculateSolutions();
 
-		if ($this->object->getEnableArchiving())
-		{
-			require_once 'Modules/Test/classes/class.ilTestArchiveService.php';
-			$archiveService = new ilTestArchiveService($this->object);
-			$archiveService->archivePassesByActives($scoring->getRecalculatedPassesByActives());
-		}
-
 		ilUtil::sendSuccess($this->lng->txt('saved_adjustment'));
 		$this->questionsObject();
 		
 	}
 
 	/**
-	 * @param $question
+	 * @param assQuestionGUI $question
 	 * @param $form
 	 */
 	protected function populateScoringAdjustments( $question, $form )
 	{
+		$question->setAdjustmentEditContext();
+		
 		if ( $question instanceof ilGuiQuestionScoringAdjustable )
 		{
-			$question->populateQuestionSpecificFormPart( $form );
-			$this->suppressPostParticipationFormElements( $form,
-														  $question->getAfterParticipationSuppressionQuestionPostVars()
+			$question->populateQuestionSpecificFormPart($form);
+			
+			$this->suppressPostParticipationFormElements(
+				$form, $question->getAfterParticipationSuppressionQuestionPostVars()
 			);
 		}
 
 		if ( $question instanceof ilGuiAnswerScoringAdjustable )
 		{
-			$question->populateAnswerSpecificFormPart( $form );
-			$this->suppressPostParticipationFormElements( $form,
-														  $question->getAfterParticipationSuppressionAnswerPostVars()
+			$question->populateAnswerSpecificFormPart($form);
+			
+			$this->suppressPostParticipationFormElements(
+				$form, $question->getAfterParticipationSuppressionAnswerPostVars()
 			);
 		}
 	}

@@ -204,7 +204,7 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 	 *		array("permission" => "write", "cmd" => "edit", "lang_var" => "edit"),
 	 *	);
 	 */
-	function _getCommands()
+	static function _getCommands()
 	{
 		$commands = array();
 		$commands[] = array("permission" => "crs_linked", "cmd" => "", "lang_var" => "view", "default" => true);
@@ -250,7 +250,7 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 	/**
 	* check whether goto script will succeed
 	*/
-	function _checkGoto($a_target)
+	static function _checkGoto($a_target)
 	{
 		global $ilAccess,$ilUser;
 		
@@ -286,13 +286,13 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 	 * @return 
 	 * @param object $a_id
 	 */
-	function _lookupViewMode($a_id)
+	public static function _lookupViewMode($a_id)
 	{
 		global $ilDB;
 
 		$query = "SELECT view_mode FROM crs_settings WHERE obj_id = ".$ilDB->quote($a_id ,'integer')." ";
 		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			return $row->view_mode;
 		}
@@ -312,7 +312,7 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 		$query = "SELECT * FROM crs_settings ".
 			"WHERE obj_id = ".$ilDB->quote($a_obj_id ,'integer')." ";
 		$res = $ilDB->query($query);
-		$row = $res->fetchRow(DB_FETCHMODE_OBJECT);				
+		$row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT);
 		return (bool)$row->activation_type;	
 	}
 
@@ -381,7 +381,7 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 			"WHERE obj_id = ".$ilDB->quote($a_obj_id ,'integer')." ";
 
 		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$type = $row->sub_limitation_type;
 			$reg_start = $row->sub_start;
@@ -425,7 +425,7 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 		$res = $ilDB->query($query);
 		
 		$info = array();
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$info['reg_info_start'] = new ilDateTime($row->sub_start, IL_CAL_UNIX);
 			$info['reg_info_end'] = new ilDateTime($row->sub_end, IL_CAL_UNIX);
@@ -470,19 +470,25 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 		
 		if($info['reg_info_mem_limit'] && $info['reg_info_max_members'] && $registration_possible)
 		{		
-			// Check if users are on waiting list
-			// @todo
-			
-			
 			// Check for free places
+			include_once './Modules/Course/classes/class.ilCourseParticipant.php';
 			$part = ilCourseParticipant::_getInstanceByObjId($a_obj_id, $ilUser->getId());
-			if($part->getNumberOfMembers() <= $info['reg_info_max_members'])
+
+			include_once './Modules/Course/classes/class.ilCourseWaitingList.php';
+			$info['reg_info_list_size'] = ilCourseWaitingList::lookupListSize($a_obj_id);
+			if($info['reg_info_list_size'])
+			{
+				$info['reg_info_free_places'] = 0;
+			}
+			else
+			{
+				$info['reg_info_free_places'] = max(0,$info['reg_info_max_members'] - $part->getNumberOfMembers());
+			}
+			
+			if($info['reg_info_free_places'])
 			{
 				$info['reg_info_list_prop_limit']['property'] = $lng->txt('crs_list_reg_limit_places');
-				$info['reg_info_list_prop_limit']['value'] = max(
-						0,
-						$info['reg_info_max_members'] - $part->getNumberOfMembers()
-					);
+				$info['reg_info_list_prop_limit']['value'] = $info['reg_info_free_places'];
 			}
 			else
 			{
@@ -513,7 +519,7 @@ class ilObjCourseAccess extends ilObjectAccess implements ilConditionHandling
 	 *
 	 * @param array $a_obj_ids array of object ids
 	 */
-	function _preloadData($a_obj_ids, $a_ref_ids)
+	static function _preloadData($a_obj_ids, $a_ref_ids)
 	{
 		global $ilUser, $lng;
 		

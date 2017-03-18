@@ -71,13 +71,35 @@ class ilMDCopyrightSelectionEntry
 		
 		$query = "SELECT entry_id FROM il_md_cpr_selections ";
 		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$entries[] = new ilMDCopyrightSelectionEntry($row->entry_id);
 		}
 		return $entries ? $entries : array();
 	}
 	
+	/**
+	 * Lookup copyright title. 
+	 * Currently used for export of meta data
+	 * @param type $a_cp_string
+	 */
+	public static function lookupCopyyrightTitle($a_cp_string)
+	{
+		global $ilDB;
+		
+		if(!$entry_id = self::_extractEntryId($a_cp_string))
+		{
+			return $a_cp_string;
+		}
+				
+		$query = "SELECT title FROM il_md_cpr_selections ".
+			"WHERE entry_id = ".$ilDB->quote($entry_id)." ";
+		$res = $ilDB->query($query);
+		$row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT);
+		return $row->title ? $row->title : '';
+	}
+
+
 	/**
 	 * lookup copyright by entry id
 	 *
@@ -98,7 +120,7 @@ class ilMDCopyrightSelectionEntry
 		$query = "SELECT copyright FROM il_md_cpr_selections ".
 			"WHERE entry_id = ".$ilDB->quote($entry_id)." ";
 		$res = $ilDB->query($query);
-		$row = $res->fetchRow(DB_FETCHMODE_OBJECT);
+		$row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT);
 		return $row->copyright ? $row->copyright : '';
 	}
 	
@@ -376,7 +398,7 @@ class ilMDCopyrightSelectionEntry
 	 	$query = "SELECT * FROM il_md_cpr_selections ".
 	 		"WHERE entry_id = ".$this->db->quote($this->entry_id ,'integer')." ";
 	 	$res = $this->db->query($query);
-	 	while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+	 	while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 	 	{
 	 		$this->setTitle($row->title);
 	 		$this->setDescription($row->description);
@@ -391,7 +413,7 @@ class ilMDCopyrightSelectionEntry
 	 	$query = "SELECT count(meta_rights_id) used FROM il_meta_rights ".
 	 		"WHERE description = ".$ilDB->quote($desc ,'text');
 	 	$res = $this->db->query($query);
-	 	$row = $res->fetchRow(DB_FETCHMODE_OBJECT);
+	 	$row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT);
 	 	$this->usage = $row->used;
 	}
 }

@@ -57,6 +57,24 @@ abstract class ilWaitingList
 	}
 	
 	/**
+	 * Lookup waiting lit size
+	 * @param int $a_obj_id
+	 */
+	public static function lookupListSize($a_obj_id)
+	{
+		global $ilDB;
+		
+		$query = 'SELECT count(usr_id) num from crs_waiting_list WHERE obj_id = '. $ilDB->quote($a_obj_id, 'integer');
+		$res = $ilDB->query($query);
+		
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
+		{
+			return (int) $row->num;
+		}
+		return 0;
+	}
+	
+	/**
 	 * delete all
 	 *
 	 * @access public
@@ -230,7 +248,7 @@ abstract class ilWaitingList
 	 * @param array $a_usr_ids array of user ids
 	 * @param array $a_obj_ids array of object ids
 	 */
-	function _preloadOnListInfo($a_usr_ids, $a_obj_ids)
+	static function _preloadOnListInfo($a_usr_ids, $a_obj_ids)
 	{
 		global $ilDB;
 		
@@ -337,7 +355,7 @@ abstract class ilWaitingList
 
 		$res = $this->db->query($query);
 		$counter = 0;
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			++$counter;
 			$this->users[$row->usr_id]['position']	= $counter;

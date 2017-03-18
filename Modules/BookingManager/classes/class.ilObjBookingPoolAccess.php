@@ -4,6 +4,7 @@
 
 
 include_once("./Services/Object/classes/class.ilObjectAccess.php");
+require_once('./Services/WebAccessChecker/interfaces/interface.ilWACCheckingClass.php');
 
 /**
 * Class ilObjBookingPoolAccess
@@ -14,7 +15,7 @@ include_once("./Services/Object/classes/class.ilObjectAccess.php");
 *
 * @ingroup ModulesBookingManager
 */
-class ilObjBookingPoolAccess extends ilObjectAccess
+class ilObjBookingPoolAccess extends ilObjectAccess implements ilWACCheckingClass
 {
 
 	/**
@@ -29,7 +30,7 @@ class ilObjBookingPoolAccess extends ilObjectAccess
 	 *		array("permission" => "write", "cmd" => "edit", "lang_var" => "edit"),
 	 *	);
 	 */
-	function _getCommands()
+	static function _getCommands()
 	{
 		$commands = array();
 		$commands[] = array("permission" => "read", "cmd" => "render", "lang_var" => "show", "default" => true);
@@ -42,7 +43,7 @@ class ilObjBookingPoolAccess extends ilObjectAccess
 	/**
 	* check whether goto script will succeed
 	*/
-	function _checkGoto($a_target)
+	static function _checkGoto($a_target)
 	{
 		global $ilAccess;
 		
@@ -86,6 +87,18 @@ class ilObjBookingPoolAccess extends ilObjectAccess
 		}
 
 		return true;
+	}
+
+	/**
+	 * @param ilWACPath $ilWACPath
+	 *
+	 * @return bool
+	 */
+	public function canBeDelivered(ilWACPath $ilWACPath) {
+
+		// we return always false, since the files in the file/ and post/ directoies
+		// are server by php (they could/should be moved to the data dir outside of the web doc root)
+		return false;
 	}
 }
 

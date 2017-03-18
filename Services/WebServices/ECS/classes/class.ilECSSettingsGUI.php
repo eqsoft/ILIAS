@@ -36,7 +36,11 @@ class ilECSSettingsGUI
 {
 	const MAPPING_EXPORT = 1;
 	const MAPPING_IMPORT = 2;
-
+	
+	/**
+	 * @var ilLogger
+	 */
+	protected $log = null;
 
 	protected $tpl;
 	protected $lng;
@@ -58,6 +62,8 @@ class ilECSSettingsGUI
 		$this->lng->loadLanguageModule('ecs');
 		$this->ctrl = $ilCtrl;
 		$this->tabs_gui = $ilTabs;
+		
+		$this->log = $GLOBALS['DIC']->logger()->wsrv();
 
 		$this->initSettings();
 	}
@@ -592,7 +598,7 @@ class ilECSSettingsGUI
 		 	{
 				foreach($community->getParticipants() as $part)
 				{
-					$GLOBALS['ilLog']->write(__METHOD__.': '.print_r($community,true));
+					$this->log->dump($community);
 					if($part->isSelf())
 					{
 						$this->settings->setTitle($part->getParticipantName());
@@ -663,8 +669,7 @@ class ilECSSettingsGUI
 				{
 					if(!$creader->getParticipantByMID($mid))
 					{
-						$GLOBALS['ilLog']->write(__METHOD__.': Deleting deprecated participant '. $server->getServerId().' '. $mid);
-
+						$this->log->notice('Deleting deprecated participant: ' . $server->getServerId().' '. $mid);
 						$part = new ilECSParticipantSetting($server->getServerId(),$mid);
 						$part->delete();
 					}
@@ -833,7 +838,7 @@ class ilECSSettingsGUI
 			}
 			catch(Exception $e)
 			{
-				$GLOBALS['ilLog']->write(__METHOD__.': Cannot read ecs communities: '.$e->getMessage());
+				$this->log->error('Cannot read ecs communities: ' . $e->getMessage());
 			}
 		}
 
@@ -862,7 +867,7 @@ class ilECSSettingsGUI
 				}
 				catch(Exception $e)
 				{
-					$GLOBALS['ilLog']->write(__METHOD__.': Cannot read ecs communities: '.$e->getMessage());
+					$this->log->error('Cannot read ecs communities: ' . $e->getMessage());
 				}
 
 				$set->update();
@@ -1515,10 +1520,12 @@ class ilECSSettingsGUI
 		$duration->setInfo($this->lng->txt('ecs_cat_mapping_duration_info'));
 		
 			$dur_start = new ilDateTimeInputGUI($this->lng->txt('from'),'dur_begin');
+			$dur_start->setRequired(true);
 			$dur_start->setDate($this->rule->getDateRangeStart());
 			$duration->addSubItem($dur_start);
 			
 			$dur_end = new ilDateTimeInputGUI($this->lng->txt('to'),'dur_end');
+			$dur_end->setRequired(true);
 			$dur_end->setDate($this->rule->getDateRangeEnd());
 			$duration->addSubItem($dur_end);
 		
@@ -1698,10 +1705,22 @@ class ilECSSettingsGUI
 			$writer->addColumn(isset($values[$field]) ? $values[$field] : '');
 			
 			$field = $settings->getMappingByECSName(ilECSDataMappingSetting::MAPPING_IMPORT_RCRS,'begin');
-			$writer->addColumn(isset($values[$field]) ?  ilFormat::formatUnixTime($values[$field],true) : '');
+			$dt = '';
+			if(isset($values[$field]))
+			{
+				$dt = new ilDateTime($values[$field], IL_CAL_UNIX);
+				$dt = $dt->get(IL_CAL_DATETIME);
+			}
+			$writer->addColumn($dt);
 			
 			$field = $settings->getMappingByECSName(ilECSDataMappingSetting::MAPPING_IMPORT_RCRS,'end');
-			$writer->addColumn(isset($values[$field]) ?  ilFormat::formatUnixTime($values[$field],true) : '');
+			$dt = '';
+			if(isset($values[$field]))
+			{
+				$dt = new ilDateTime($values[$field], IL_CAL_UNIX);
+				$dt = $dt->get(IL_CAL_DATETIME);
+			}
+			$writer->addColumn($dt);
 			
 			$writer->addColumn($ilObjDataCache->lookupLastUpdate($obj_id));
 		}
@@ -1837,10 +1856,22 @@ class ilECSSettingsGUI
 			$writer->addColumn(isset($values[$field]) ? $values[$field] : '');
 			
 			$field = $settings->getMappingByECSName(0,'begin');
-			$writer->addColumn(isset($values[$field]) ?  ilFormat::formatUnixTime($values[$field],true) : '');
+			$dt = '';
+			if(isset($values[$field]))
+			{
+				$dt = new ilDateTime($values[$field], IL_CAL_UNIX);
+				$dt = $dt->get(IL_CAL_DATETIME);
+			}
+			$writer->addColumn($dt);
 			
 			$field = $settings->getMappingByECSName(0,'end');
-			$writer->addColumn(isset($values[$field]) ?  ilFormat::formatUnixTime($values[$field],true) : '');
+			$dt = '';
+			if(isset($values[$field]))
+			{
+				$dt = new ilDateTime($values[$field], IL_CAL_UNIX);
+				$dt = $dt->get(IL_CAL_DATETIME);
+			}
+			$writer->addColumn($dt);
 			
 			$writer->addColumn($ilObjDataCache->lookupLastUpdate($obj_id));
 		}
@@ -1965,7 +1996,6 @@ class ilECSSettingsGUI
 	{
 		global $ilDB,$ilSetting;
 
-		#$ilDB->lockTables(array('name' => 'settings', 'type' => ilDB::LOCK_WRITE));
 		$setting = new ilSetting('ecs');
 		$setting->set(
 			'next_execution_'.$this->settings->getServerId(),

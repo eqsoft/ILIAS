@@ -416,7 +416,7 @@ class ilForum
 		return $row;
 	}
 
-	public function _lookupPostMessage($a_id)
+	public static function _lookupPostMessage($a_id)
 	{
 		global $ilDB;
 
@@ -537,6 +537,11 @@ class ilForum
 			$news_item->setPriority(NEWS_NOTICE);
 			$news_item->setTitle($objNewPost->getSubject());
 			$news_item->setContent(ilRTE::_replaceMediaObjectImageSrc($this->prepareText($objNewPost->getMessage(), 0), 1));
+			if($objNewPost->getMessage() != strip_tags($objNewPost->getMessage()))
+			{
+				$news_item->setContentHtml(true);	
+			}	
+			
 			$news_item->setUserId($display_user_id);
 			$news_item->setVisibility(NEWS_USERS);
 			$news_item->create();
@@ -755,7 +760,7 @@ class ilForum
 				update_user = %s
 			WHERE pos_pk = %s',
 			array('text', 'timestamp', 'integer', 'integer', 'integer'),
-			array($message, $cens_date, $cens, $_SESSION['AccountId'], $pos_pk));
+			array($message, $cens_date, $cens, $GLOBALS['DIC']['ilUser']->getId(), $pos_pk));
 		
 		// Change news item accordingly
 		include_once("./Services/News/classes/class.ilNewsItem.php");
@@ -768,6 +773,15 @@ class ilForum
 				$news_item = new ilNewsItem($news_id);
 				//$news_item->setTitle($subject);
 				$news_item->setContent(nl2br($this->prepareText($message, 0)));
+				if($message != strip_tags($message))
+				{
+					$news_item->setContentHtml(true);
+				}
+				else
+				{
+					$news_item->setContentHtml(false);
+				}
+				
 				$news_item->update();
 			}
 			else				// revoke censorship
@@ -783,6 +797,15 @@ class ilForum
 				$news_item = new ilNewsItem($news_id);
 				//$news_item->setTitle($subject);
 				$news_item->setContent(nl2br($this->prepareText($rec["pos_message"], 0)));
+				if($rec["pos_message"] != strip_tags($rec["pos_message"]))
+				{
+					$news_item->setContentHtml(true);	
+				}
+				else
+				{
+					$news_item->setContentHtml(false);
+				}
+				
 				$news_item->update();
 			}
 		}
@@ -826,6 +849,13 @@ class ilForum
 
 		// delete tree and get id's of all posts to delete
 		$del_id = $this->deletePostTree($p_node);
+
+		// delete drafts_history
+		$obj_history = new ilForumDraftsHistory();
+		$draft_ids = $obj_history->deleteHistoryByPostIds($del_id);
+		// delete all drafts
+		$obj_draft = new ilForumPostDraft();
+		$obj_draft->deleteDraftsByDraftIds($draft_ids);
 
 		// Delete User read entries
 		foreach($del_id as $post_id)
@@ -1044,7 +1074,7 @@ class ilForum
 	public function getAllThreads($a_topic_id, array $params = array(), $limit = 0, $offset = 0)
 	{
 		/**
-		 * @var $ilDB      ilDB
+		 * @var $ilDB      ilDBInterface
 		 * @var $ilUser    ilObjUser
 		 * @var $ilSetting ilSetting
 		 */
@@ -1373,9 +1403,7 @@ class ilForum
    	*/
 	public function getModerators()
 	{
-		global $rbacreview;
-
-		return $this->_getModerators($this->getForumRefId());
+		return self::_getModerators($this->getForumRefId());
 	}
 
 	/**
@@ -1385,20 +1413,16 @@ class ilForum
 	* @return	array	user_ids
 	* @access	public
 	*/
-	function _getModerators($a_ref_id)
+	public static function _getModerators($a_ref_id)
 	{
 		global $rbacreview;
 
-		$role_arr  = $rbacreview->getRolesOfRoleFolder($a_ref_id);
-
-		foreach ($role_arr as $role_id)
+		$role_arr = $rbacreview->getRolesOfRoleFolder($a_ref_id);
+		foreach($role_arr as $role_id)
 		{
-			//$roleObj = $this->ilias->obj_factory->getInstanceByObjId($role_id);
-			$title = ilObject::_lookupTitle($role_id);
-			if ($title == "il_frm_moderator_".$a_ref_id)			
+			if(ilObject::_lookupTitle($role_id) == 'il_frm_moderator_' . $a_ref_id)
 			{
-				#return $rbacreview->assignedUsers($roleObj->getId());
-				return $title = $rbacreview->assignedUsers($role_id);
+				return $rbacreview->assignedUsers($role_id);
 			}
 		}
 
@@ -1417,7 +1441,7 @@ class ilForum
 	{
 		if(!self::$moderators_by_ref_id_map[$a_ref_id])
 		{
-			self::$moderators_by_ref_id_map[$a_ref_id] = ilForum::_getModerators($a_ref_id);
+			self::$moderators_by_ref_id_map[$a_ref_id] = self::_getModerators($a_ref_id);
 		}
 		return in_array($a_usr_id, self::$moderators_by_ref_id_map[$a_ref_id]);
 	}
@@ -1879,10 +1903,11 @@ class ilForum
 
 				if($edit == 0)
 				{
-					$ws= "[ \t\r\f\v\n]*";
-
-					$text = eregi_replace("\[(quote$ws=$ws\"([^\"]*)\"$ws)\]",
-						$this->replQuote1.'<div class="ilForumQuoteHead">'.$lng->txt("quote")." (\\2)".'</div>', $text);
+					$text = preg_replace(
+						'@\[(quote\s*?=\s*?"([^"]*?)"\s*?)\]@i',
+						$this->replQuote1 . '<div class="ilForumQuoteHead">' . $lng->txt('quote'). ' ($2)</div>',
+						$text
+					);
 
 					$text = str_replace("[quote]",
 						$this->replQuote1.'<div class="ilForumQuoteHead">'.$lng->txt("quote").'</div>', $text);
@@ -1896,8 +1921,9 @@ class ilForum
 		{
 			if($edit == 0)
 			{
-				$text = ilUtil::insertLatexImages($text, "\<span class\=\"latex\">", "\<\/span>");
-				$text = ilUtil::insertLatexImages($text, "\[tex\]", "\[\/tex\]");
+				include_once './Services/MathJax/classes/class.ilMathJax.php';
+				$text = ilMathJax::getInstance()->insertLatexImages($text, "\<span class\=\"latex\">", "\<\/span>");
+				$text = ilMathJax::getInstance()->insertLatexImages($text, "\[tex\]", "\[\/tex\]");
 			}
 			
 			// workaround for preventing template engine
@@ -2379,6 +2405,11 @@ class ilForum
 		{
 			$merge_thread_target->reopen();
 		}
+		// raise event for updating existing drafts
+		$GLOBALS['ilAppEventHandler']->raise('Modules/Forum', 'mergedThreads',
+			array(  'source_thread_id'  => $merge_thread_source->getId(),
+			        'target_thread_id'  => $merge_thread_target->getId())
+		);
 
 // delete source thread 
 		ilForumTopic::deleteByThreadId($merge_thread_source->getId());

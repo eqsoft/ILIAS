@@ -40,7 +40,7 @@ class ilFormPropertyGUI
 	/**
 	* Execute command.
 	*/
-	function &executeCommand()
+	function executeCommand()
 	{
 		global $ilCtrl;
 		
@@ -482,6 +482,19 @@ class ilFormPropertyGUI
 	{
 		
 	}
+
+	/**
+	 * Remove prohibited characters
+	 * see #19159
+	 *
+	 * @param string $a_text
+	 * @return string
+	 */
+	function removeProhibitedCharacters($a_text)
+	{
+		return str_replace("\x0B", "", $a_text);
+	}
+
 }
 
 ?>

@@ -44,12 +44,13 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	* Constructor
 	* @access public
 	*/
-	function ilObjFileAccessSettingsGUI($a_data,$a_id,$a_call_by_reference)
+	function __construct($a_data,$a_id,$a_call_by_reference)
 	{
-		global $tree;
+		global $DIC;
+		$tree = $DIC['tree'];
 
 		$this->type = "facs";
-		$this->ilObjectGUI($a_data,$a_id,$a_call_by_reference, false);
+		parent::__construct($a_data,$a_id,$a_call_by_reference, false);
 		$this->folderSettings = new ilSetting('fold');
 
 		// Load the disk quota settings object
@@ -65,7 +66,12 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	 */
 	public function executeCommand()
 	{
-		global $rbacsystem,$ilErr,$ilAccess, $ilias, $lng;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilAccess = $DIC['ilAccess'];
+		$ilias = $DIC['ilias'];
+		$lng = $DIC['lng'];
 
 		$next_class = $this->ctrl->getNextClass($this);
 		$cmd = $this->ctrl->getCmd();
@@ -82,7 +88,7 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 			case 'ilpermissiongui':
 				$this->tabs_gui->setTabActive('perm_settings');
 				include_once("Services/AccessControl/classes/class.ilPermissionGUI.php");
-				$perm_gui =& new ilPermissionGUI($this);
+				$perm_gui = new ilPermissionGUI($this);
 				$ret =& $this->ctrl->forwardCommand($perm_gui);
 				break;
 
@@ -113,9 +119,11 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	 */
 	public function getAdminTabs()
 	{
-		global $rbacsystem, $ilAccess;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilAccess = $DIC['ilAccess'];
 
-		$GLOBALS['lng']->loadLanguageModule('fm');
+		$GLOBALS['DIC']['lng']->loadLanguageModule('fm');
 
 		if ($rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
 		{
@@ -153,22 +161,18 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 				array(),'ilpermissiongui');
 		}
 	}
-
+	
 	/**
-	* Edit settings.
-	*/
-	public function editDownloadingSettings()
+	 * Edit settings.
+	 */
+	protected function initDownloadingSettingsForm()
 	{
-		global $rbacsystem, $ilErr, $ilTabs;
-
-		$this->tabs_gui->setTabActive('downloading_settings');
-
-		if (! $rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
-		{
-			$ilErr->raiseError($lng->txt("no_permission"),$ilErr->WARNING);
-		}
-
-		global $tpl, $ilCtrl, $lng, $tree, $settings;
+		global $DIC;
+		global $DIC;
+		$tpl = $DIC['tpl'];
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
+		$tree = $DIC['tree'];
 
 		require_once("./Services/Form/classes/class.ilPropertyFormGUI.php");
 		require_once("./Services/Form/classes/class.ilCheckboxInputGUI.php");
@@ -206,6 +210,43 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 		$dl_prop->setInfo($lng->txt('enable_multi_download_info'));
 		$form->addItem($dl_prop);
 		
+		
+		// background task
+		
+		$lng->loadLanguageModule("bgtask");
+		$dl_bg = new ilCheckboxInputGUI($lng->txt("bgtask_setting"), "enable_bg");
+		$dl_bg->setInfo($lng->txt("bgtask_setting_info"));
+		$dl_bg->setChecked($this->folderSettings->get("bgtask_download", 0));		
+		$form->addItem($dl_bg);
+		
+		$dl_bgtc = new ilNumberInputGUI($lng->txt("bgtask_setting_threshold_count"), "bg_tcount");
+		$dl_bgtc->setInfo($lng->txt("bgtask_setting_threshold_count_info"));
+		$dl_bgtc->setRequired(true);
+		$dl_bgtc->setSize(10);
+		$dl_bgtc->setMinValue(1);
+		$dl_bgtc->setSuffix($lng->txt("files"));
+		$dl_bgtc->setValue($this->folderSettings->get("bgtask_download_tcount", null));
+		$dl_bg->addSubItem($dl_bgtc);
+		
+		$dl_bgts = new ilNumberInputGUI($lng->txt("bgtask_setting_threshold_size"), "bg_tsize");
+		$dl_bgts->setInfo($lng->txt("bgtask_setting_threshold_size_info"));
+		$dl_bgts->setRequired(true);
+		$dl_bgts->setSize(10);
+		$dl_bgts->setMinValue(1);
+		$dl_bgts->setSuffix($lng->txt("lang_size_mb"));
+		$dl_bgts->setValue($this->folderSettings->get("bgtask_download_tsize", null));
+		$dl_bg->addSubItem($dl_bgts);
+				
+		$dl_bgl = new ilNumberInputGUI($lng->txt("bgtask_setting_limit"), "bg_limit");		
+		$dl_bgl->setInfo($lng->txt("bgtask_setting_limit_info"));
+		$dl_bgl->setRequired(true);
+		$dl_bgl->setSize(10);
+		$dl_bgl->setMinValue(1);
+		$dl_bgl->setSuffix($lng->txt("lang_size_mb"));
+		$dl_bgl->setValue($this->folderSettings->get("bgtask_download_limit", null));
+		$dl_bg->addSubItem($dl_bgl);
+		
+		
 		// Inline file extensions
 		$tai_prop = new ilTextAreaInputGUI($lng->txt('inline_file_extensions'), 'inline_file_extensions');
 		$tai_prop->setValue($this->object->getInlineFileExtensions());
@@ -214,12 +255,33 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 		$tai_prop->setRows(5);
 		$form->addItem($tai_prop);
 
-
 		// command buttons
 		$form->addCommandButton('saveDownloadingSettings', $lng->txt('save'));
 		$form->addCommandButton('view', $lng->txt('cancel'));
 
-		$tpl->setContent($form->getHTML());
+		return $form;
+	}
+
+	/**
+	* Edit settings.
+	*/
+	public function editDownloadingSettings(ilPropertyFormGUI $a_form = null)
+	{
+		global $rbacsystem, $ilErr, $tpl, $lng;
+
+		$this->tabs_gui->setTabActive('downloading_settings');
+
+		if (! $rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
+		{
+			$ilErr->raiseError($lng->txt("no_permission"),$ilErr->WARNING);
+		}
+		
+		if(!$a_form)
+		{
+			$a_form = $this->initDownloadingSettingsForm();
+		}
+
+		$tpl->setContent($a_form->getHTML());
 	}
 
 	/**
@@ -227,22 +289,41 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	public function saveDownloadingSettings()
 	{
-		global $rbacsystem, $ilErr, $ilCtrl, $lng;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
 
 		if (! $rbacsystem->checkAccess("write",$this->object->getRefId()))
 		{
 			$ilErr->raiseError($lng->txt("no_permission"),$ilErr->WARNING);
 		}
+		
+		$form = $this->initDownloadingSettingsForm();
+		if($form->checkInput())
+		{
+			$this->object->setDownloadWithUploadedFilename(ilUtil::stripSlashes($_POST['download_with_uploaded_filename']));
+			$this->object->setInlineFileExtensions(ilUtil::stripSlashes($_POST['inline_file_extensions']));
+			$this->object->update();
 
-		$this->object->setDownloadWithUploadedFilename(ilUtil::stripSlashes($_POST['download_with_uploaded_filename']));
-		$this->object->setInlineFileExtensions(ilUtil::stripSlashes($_POST['inline_file_extensions']));
-		$this->object->update();
+			$this->folderSettings->set("enable_download_folder", $_POST["enable_download_folder"] == 1);
+			$this->folderSettings->set("enable_multi_download", $_POST["enable_multi_download"] == 1);
 
-		$this->folderSettings->set("enable_download_folder", $_POST["enable_download_folder"] == 1);
-		$this->folderSettings->set("enable_multi_download", $_POST["enable_multi_download"] == 1);
+			$this->folderSettings->set("bgtask_download", (bool)$_POST["enable_bg"]);
+			if((bool)$_POST["enable_bg"])
+			{
+				$this->folderSettings->set("bgtask_download_limit", (int)$_POST["bg_limit"]);
+				$this->folderSettings->set("bgtask_download_tcount", (int)$_POST["bg_tcount"]);
+				$this->folderSettings->set("bgtask_download_tsize", (int)$_POST["bg_tsize"]);
+			}
 
-		ilUtil::sendInfo($lng->txt('settings_saved'),true);
-		$ilCtrl->redirect($this, "editDownloadingSettings");
+			ilUtil::sendSuccess($lng->txt('settings_saved'),true);
+			$ilCtrl->redirect($this, "editDownloadingSettings");
+		}
+		
+		$form->setValuesByPost();
+		$this->editDownloadingSettings($form);
 	}
 
 	/**
@@ -250,8 +331,15 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	public function editWebDAVSettings()
 	{
-		global $rbacsystem, $ilErr, $ilTabs;
-		global $tpl, $ilCtrl, $lng, $tree, $settings;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilTabs = $DIC['ilTabs'];
+		global $DIC;
+		$tpl = $DIC['tpl'];
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
+		$tree = $DIC['tree'];
 
 
 		$this->tabs_gui->setTabActive('webdav');
@@ -274,34 +362,21 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 
 		// Enable webdav
 		$ilDAVServer = ilDAVServer::getInstance();
-		$isPearAuthHTTPInstalled = @include_once("Auth/HTTP.php");
 		$cb_prop = new ilCheckboxInputGUI($lng->txt("enable_webdav"), "enable_webdav");
 		$cb_prop->setValue('1');
-		$cb_prop->setChecked($this->object->isWebdavEnabled() && $isPearAuthHTTPInstalled);
-		$cb_prop->setDisabled(! $isPearAuthHTTPInstalled);
-		$cb_prop->setInfo($isPearAuthHTTPInstalled ?
-			sprintf($lng->txt('enable_webdav_info'),$ilDAVServer->getMountURI($tree->getRootId(),0,null,null,true)) :
-			$lng->txt('webdav_pear_auth_http_needed')
-		);
+		$cb_prop->setChecked($this->object->isWebdavEnabled());
 		$form->addItem($cb_prop);
 
-		// Webdav help text
-		if ($isPearAuthHTTPInstalled)
-		{
-			$rgi_prop = new ilRadioGroupInputGUI($lng->txt('webfolder_instructions'), 'custom_webfolder_instructions_choice');
-			$rgi_prop->addOption(new ilRadioOption($lng->txt('use_default_instructions'), 'default'));
-			$rgi_prop->addOption(new ilRadioOption($lng->txt('use_customized_instructions'), 'custom'));
-			$rgi_prop->setValue($this->object->isCustomWebfolderInstructionsEnabled() ? 'custom':'default');
-			$rgi_prop->setDisabled(! $isPearAuthHTTPInstalled);
-			$form->addItem($rgi_prop);
-			$tai_prop = new ilTextAreaInputGUI('', 'custom_webfolder_instructions');
-			$tai_prop->setValue($this->object->getCustomWebfolderInstructions());
-			$tai_prop->setInfo($lng->txt("webfolder_instructions_info"));
-			$tai_prop->setCols(80);
-			$tai_prop->setRows(20);
-			$tai_prop->setDisabled(! $isPearAuthHTTPInstalled);
-			$form->addItem($tai_prop);
-		}
+		$rgi_prop = new ilRadioGroupInputGUI($lng->txt('webfolder_instructions'), 'custom_webfolder_instructions_choice');
+		$rgi_prop->addOption(new ilRadioOption($lng->txt('use_default_instructions'), 'default'));
+		$rgi_prop->addOption(new ilRadioOption($lng->txt('use_customized_instructions'), 'custom'));
+		$rgi_prop->setValue($this->object->isCustomWebfolderInstructionsEnabled() ? 'custom':'default');
+		$form->addItem($rgi_prop);
+		$tai_prop = new ilTextAreaInputGUI('', 'custom_webfolder_instructions');
+		$tai_prop->setValue($this->object->getCustomWebfolderInstructions());
+		$tai_prop->setInfo($lng->txt("webfolder_instructions_info"));
+		$tai_prop->setRows(20);
+		$form->addItem($tai_prop);
 
 		// command buttons
 		$form->addCommandButton('saveWebDAVSettings', $lng->txt('save'));
@@ -315,7 +390,11 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	public function saveWebDAVSettings()
 	{
-		global $rbacsystem, $ilErr, $ilCtrl, $lng;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
 
 		if (! $rbacsystem->checkAccess("write",$this->object->getRefId()))
 		{
@@ -348,7 +427,9 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	function addDiskQuotaSubtabs($a_active_subtab)
 	{
-		global $ilCtrl, $ilTabs;
+		global $DIC;
+		$ilCtrl = $DIC['ilCtrl'];
+		$ilTabs = $DIC['ilTabs'];
 
 		include_once("./Services/COPage/classes/class.ilPageEditorSettings.php");
 
@@ -377,7 +458,13 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	public function editDiskQuotaSettings()
 	{
-		global $rbacsystem, $ilErr, $ilSetting, $tpl, $lng, $ilCtrl;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilSetting = $DIC['ilSetting'];
+		$tpl = $DIC['tpl'];
+		$lng = $DIC['lng'];
+		$ilCtrl = $DIC['ilCtrl'];
 
 
 		if (! $rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
@@ -422,7 +509,11 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	public function saveDiskQuotaSettings()
 	{
-		global $rbacsystem, $ilErr, $ilCtrl, $lng;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
 
 		if (! $rbacsystem->checkAccess("write",$this->object->getRefId()))
 		{
@@ -439,7 +530,11 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	public function viewDiskQuotaReport()
 	{
-		global $rbacsystem, $ilErr, $ilSetting, $lng;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilSetting = $DIC['ilSetting'];
+		$lng = $DIC['lng'];
 
 		if (! $rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
 		{
@@ -471,7 +566,8 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 		}
 		else
 		{
-			$this->tpl->setVariable('LAST_UPDATE_TEXT',$lng->txt('last_update').': '.ilFormat::formatDate($last_update,'datetime',true));
+			$this->tpl->setVariable('LAST_UPDATE_TEXT',$lng->txt('last_update').': '.
+				ilDatePresentation::formatDate(new ilDateTime($last_update, IL_CAL_DATETIME)));
 		}
 
 		// Filter
@@ -583,7 +679,7 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 						}
 						else
 						{
-							$tbl_content_cell = ilFormat::formatSize($row[$key],'short');
+							$tbl_content_cell = ilUtil::formatSize($row[$key],'short');
 						}
 						break;
 					case 'disk_usage' :
@@ -593,11 +689,11 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 						}
 						else if ($row['disk_usage'] > $row['disk_quota'])
 						{
-						 $tbl_content_cell = "<span class=\"smallred\">".ilFormat::formatSize($row[$key],'short').'</span>';
+						 $tbl_content_cell = "<span class=\"smallred\">".ilUtil::formatSize($row[$key],'short').'</span>';
 						}
 						else
 						{
-						 $tbl_content_cell = ilFormat::formatSize($row[$key],'short');
+						 $tbl_content_cell = ilUtil::formatSize($row[$key],'short');
 						}
 						break;
 					case 'access_until' :
@@ -615,7 +711,7 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 						}
 						else
 						{
-							$tbl_content_cell = ilFormat::formatDate($row[$key]);
+							$tbl_content_cell = ilDatePresentation::formatDate(new ilDateTime($row[$key], IL_CAL_DATETIME));
 						}
 						break;
 					case 'last_login' :
@@ -626,7 +722,7 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 						}
 						else
 						{
-							$tbl_content_cell = ilFormat::formatDate($row[$key]);
+							$tbl_content_cell = ilDatePresentation::formatDate(new ilDateTime($row[$key], IL_CAL_DATETIME));
 						}
 						break;
 					default :
@@ -660,103 +756,139 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 		$this->tpl->setVariable("USER_TABLE",$a_tpl->get());
 	}
 
+	protected function initDiskQuotaMailTemplateForm()
+	{
+		global $DIC;
+		$lng = $DIC['lng'];
+		
+		$lng->loadLanguageModule("meta");
+		$lng->loadLanguageModule("mail");
+
+		include_once "Services/Form/classes/class.ilPropertyFormGUI.php";
+		$form = new ilPropertyFormGUI();
+		$form->setFormAction($this->ctrl->getFormAction($this));
+		
+		$form->setTitle($lng->txt("disk_quota_reminder_mail"));
+		$form->setDescription($lng->txt("disk_quota_reminder_mail_desc"));
+		
+		foreach($lng->getInstalledLanguages() as $lang_key)
+		{								
+			$lang_def = ($lang_key == $lng->getDefaultLanguage())
+				?  " (".$lng->txt("default").")"
+				: "";			
+			
+			$sec = new ilFormSectionHeaderGUI();
+			$sec->setTitle($lng->txt("meta_l_".$lang_key).$lang_def);
+			$form->addItem($sec);
+			
+			$subj = new ilTextInputGUI($lng->txt("subject"), "subject_".$lang_key);
+			$subj->setRequired(true);
+			$form->addItem($subj);
+			
+			$sal_g = new ilTextInputGUI($lng->txt("mail_salutation_general"), "sal_g_".$lang_key);
+			$sal_g->setRequired(true);
+			$form->addItem($sal_g);
+			
+			$sal_f = new ilTextInputGUI($lng->txt("mail_salutation_female"), "sal_f_".$lang_key);
+			$sal_f->setRequired(true);
+			$form->addItem($sal_f);
+			
+			$sal_m = new ilTextInputGUI($lng->txt("mail_salutation_male"), "sal_m_".$lang_key);
+			$sal_m->setRequired(true);
+			$form->addItem($sal_m);
+			
+			$body = new ilTextAreaInputGUI($lng->txt("message_content"), "body_".$lang_key);
+			$body->setRequired(true);
+			$body->setRows(10);
+			$form->addItem($body);				
+			
+			// current values
+			$amail = ilObjDiskQuotaSettings::_lookupReminderMailTemplate($lang_key);
+			$subj->setValue($amail["subject"]);
+			$sal_g->setValue($amail["sal_g"]);
+			$sal_f->setValue($amail["sal_f"]);
+			$sal_m->setValue($amail["sal_m"]);
+			$body->setValue($amail["body"]);			
+		}
+		
+		$form->addCommandButton("saveDiskQuotaMailTemplate", $lng->txt("save"));
+		$form->addCommandButton("editDiskQuotaSettings", $lng->txt("cancel"));
+		
+		return $form;
+	}
+
 	/**
 	* Edit disk quota settings.
 	*/
-	public function editDiskQuotaMailTemplate()
+	public function editDiskQuotaMailTemplate(ilPropertyFormGUI $a_form = null)
 	{
-		global $rbacsystem, $ilErr, $ilSetting, $tpl, $lng, $ilCtrl;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$lng = $DIC['lng'];
 
 		if (! $rbacsystem->checkAccess("visible,read",$this->object->getRefId()))
 		{
 			$ilErr->raiseError($lng->txt("no_permission"),$ilErr->WARNING);
 		}
-
-		$this->tabs_gui->setTabActive('disk_quota');
-		$this->addDiskQuotaSubtabs('disk_quota_reminder_mail');
-
-		$this->tpl->addBlockFile('ADM_CONTENT','adm_content','tpl.disk_quota_reminder_mail.html',
-			"Services/WebDAV");
-		$this->tpl->setVariable("FORMACTION", $this->ctrl->getFormAction($this));
-		$this->tpl->setVariable("IMG_MAIL", ilUtil::getImagePath("icon_mail.svg"));
-
-		$lng->loadLanguageModule("meta");
-		$lng->loadLanguageModule("mail");
-		$this->tpl->setVariable("TXT_NEW_USER_ACCOUNT_MAIL", $lng->txt("disk_quota_reminder_mail"));
-		$this->tpl->setVariable("TXT_NEW_USER_ACCOUNT_MAIL_DESC", $lng->txt("disk_quota_reminder_mail_desc"));
-
-		// placeholder help text
-		$this->tpl->setVariable("TXT_USE_PLACEHOLDERS", $lng->txt("mail_nacc_use_placeholder"));
-		$this->tpl->setVariable("TXT_MAIL_SALUTATION", $lng->txt("mail_nacc_salutation"));
-		$this->tpl->setVariable("TXT_FIRST_NAME", $lng->txt("firstname"));
-		$this->tpl->setVariable("TXT_LAST_NAME", $lng->txt("lastname"));
-		$this->tpl->setVariable("TXT_EMAIL", $lng->txt("email"));
-		$this->tpl->setVariable("TXT_LOGIN", $lng->txt("mail_nacc_login"));
-		$this->tpl->setVariable("TXT_DISK_QUOTA", $lng->txt("disk_quota"));
-		$this->tpl->setVariable("TXT_DISK_USAGE", $lng->txt("disk_usage"));
-		$this->tpl->setVariable("TXT_DISK_USAGE_DETAILS", $lng->txt("disk_usage_details"));
-		$this->tpl->setVariable("TXT_ADMIN_MAIL", $lng->txt("mail_nacc_admin_mail"));
-		$this->tpl->setVariable("TXT_ILIAS_URL", $lng->txt("mail_nacc_ilias_url"));
-		$this->tpl->setVariable("TXT_CLIENT_NAME", $lng->txt("mail_nacc_client_name"));
-
-		$langs = $lng->getInstalledLanguages();
-		foreach($langs as $lang_key)
+		
+		$this->tabs_gui->setTabActive("disk_quota");
+		$this->addDiskQuotaSubtabs("disk_quota_reminder_mail");
+			
+		if(!$a_form)
 		{
-			$amail = $this->disk_quota_obj->_lookupReminderMailTemplate($lang_key);
-			$this->tpl->setCurrentBlock("mail_block");
-			$add = "";
-			if ($lang_key == $lng->getDefaultLanguage())
-			{
-				$add = " (".$lng->txt("default").")";
-			}
-			$this->tpl->setVariable("TXT_LANGUAGE",
-				$lng->txt("meta_l_".$lang_key).$add);
-			$this->tpl->setVariable("TXT_BODY", $lng->txt("message_content"));
-			$this->tpl->setVariable("TA_BODY", "body_".$lang_key);
-			$this->tpl->setVariable("VAL_BODY",
-				ilUtil::prepareFormOutput($amail["body"]));
-			$this->tpl->setVariable("TXT_SUBJECT", $lng->txt("subject"));
-			$this->tpl->setVariable("INPUT_SUBJECT", "subject_".$lang_key);
-			$this->tpl->setVariable("VAL_SUBJECT",
-				ilUtil::prepareFormOutput($amail["subject"]));
-			$this->tpl->setVariable("TXT_SAL_G", $lng->txt("mail_salutation_general"));
-			$this->tpl->setVariable("INPUT_SAL_G", "sal_g_".$lang_key);
-			$this->tpl->setVariable("VAL_SAL_G",
-				ilUtil::prepareFormOutput($amail["sal_g"]));
-			$this->tpl->setVariable("TXT_SAL_M", $lng->txt("mail_salutation_male"));
-			$this->tpl->setVariable("INPUT_SAL_M", "sal_m_".$lang_key);
-			$this->tpl->setVariable("VAL_SAL_M",
-				ilUtil::prepareFormOutput($amail["sal_m"]));
-			$this->tpl->setVariable("TXT_SAL_F", $lng->txt("mail_salutation_female"));
-			$this->tpl->setVariable("INPUT_SAL_F", "sal_f_".$lang_key);
-			$this->tpl->setVariable("VAL_SAL_F",
-				ilUtil::prepareFormOutput($amail["sal_f"]));
-			$this->tpl->parseCurrentBlock();
+			$a_form = $this->initDiskQuotaMailTemplateForm();
 		}
-		$this->tpl->setVariable("TXT_CANCEL", $lng->txt("cancel"));
-		$this->tpl->setVariable("TXT_SAVE", $lng->txt("save"));
+			
+		$tpl = new ilTemplate("tpl.disk_quota_reminder_mail.html", true, true, "Services/WebDAV");		
+		$tpl->setVariable("TXT_USE_PLACEHOLDERS", $lng->txt("mail_nacc_use_placeholder"));
+		$tpl->setVariable("TXT_MAIL_SALUTATION", $lng->txt("mail_nacc_salutation"));
+		$tpl->setVariable("TXT_FIRST_NAME", $lng->txt("firstname"));
+		$tpl->setVariable("TXT_LAST_NAME", $lng->txt("lastname"));
+		$tpl->setVariable("TXT_EMAIL", $lng->txt("email"));
+		$tpl->setVariable("TXT_LOGIN", $lng->txt("mail_nacc_login"));
+		$tpl->setVariable("TXT_DISK_QUOTA", $lng->txt("disk_quota"));
+		$tpl->setVariable("TXT_DISK_USAGE", $lng->txt("disk_usage"));
+		$tpl->setVariable("TXT_DISK_USAGE_DETAILS", $lng->txt("disk_usage_details"));
+		$tpl->setVariable("TXT_ADMIN_MAIL", $lng->txt("mail_nacc_admin_mail"));
+		$tpl->setVariable("TXT_ILIAS_URL", $lng->txt("mail_nacc_ilias_url"));
+		$tpl->setVariable("TXT_CLIENT_NAME", $lng->txt("mail_nacc_client_name"));
+		
+		include_once "Services/UIComponent/Panel/classes/class.ilPanelGUI.php";
+		$legend = ilPanelGUI::getInstance();
+		$legend->setHeadingStyle(ilPanelGUI::HEADING_STYLE_BLOCK);
+		$legend->setHeading($lng->txt("mail_nacc_use_placeholder"));
+		$legend->setBody($tpl->get());
+		
+		$this->tpl->setContent($a_form->getHTML().$legend->getHTML());
 	}
-	function cancelDiskQuotaMailTemplate()
-	{
-		$this->ctrl->redirect($this, "editDiskQuotaSettings");
-	}
-
+	
 	function saveDiskQuotaMailTemplate()
 	{
-		global $lng;
-
-		ilUtil::sendSuccess($this->lng->txt("msg_obj_modified"), true);
-		$langs = $lng->getInstalledLanguages();
-		foreach($langs as $lang_key)
-		{
-			$this->disk_quota_obj->_writeReminderMailTemplate($lang_key,
-				ilUtil::stripSlashes($_POST["subject_".$lang_key]),
-				ilUtil::stripSlashes($_POST["sal_g_".$lang_key]),
-				ilUtil::stripSlashes($_POST["sal_f_".$lang_key]),
-				ilUtil::stripSlashes($_POST["sal_m_".$lang_key]),
-				ilUtil::stripSlashes($_POST["body_".$lang_key]));
+		global $DIC;
+		$lng = $DIC['lng'];
+		
+		$form = $this->initDiskQuotaMailTemplateForm();
+		if($form->checkInput())
+		{		
+			foreach($lng->getInstalledLanguages() as $lang_key)
+			{
+				$this->disk_quota_obj->_writeReminderMailTemplate(
+					$lang_key,
+					$form->getInput("subject_".$lang_key),
+					$form->getInput("sal_g_".$lang_key),
+					$form->getInput("sal_f_".$lang_key),
+					$form->getInput("sal_m_".$lang_key),
+					$form->getInput("body_".$lang_key)
+				);
+			}
+			
+			ilUtil::sendSuccess($this->lng->txt("msg_obj_modified"), true);
+			$this->ctrl->redirect($this, "editDiskQuotaMailTemplate");
 		}
-		$this->ctrl->redirect($this, "editDiskQuotaMailTemplate");
+		
+		$form->setValuesByPost();
+		$this->editDiskQuotaMailTemplate($form);
 	}
 	
 	/**
@@ -764,7 +896,9 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	private function initUploadSettingsForm()
 	{
-		global $ilCtrl, $lng;
+		global $DIC;
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
 
 		require_once("./Services/Form/classes/class.ilPropertyFormGUI.php");
 		$form = new ilPropertyFormGUI();
@@ -819,7 +953,12 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	 */
 	public function editUploadSettings()
 	{
-		global $rbacsystem, $ilErr, $tpl, $lng, $ilSetting;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$tpl = $DIC['tpl'];
+		$lng = $DIC['lng'];
+		$ilSetting = $DIC['ilSetting'];
 
 		$this->tabs_gui->setTabActive('upload_settings');
 
@@ -850,7 +989,13 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	 */
 	public function saveUploadSettings()
 	{
-		global $rbacsystem, $ilErr, $ilCtrl, $lng, $tpl, $ilSetting;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
+		$tpl = $DIC['tpl'];
+		$ilSetting = $DIC['ilSetting'];
 
 		if (!$rbacsystem->checkAccess("write",$this->object->getRefId()))
 		{
@@ -884,7 +1029,9 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	*/
 	private function initPreviewSettingsForm()
 	{
-		global $ilCtrl, $lng;
+		global $DIC;
+		$ilCtrl = $DIC['ilCtrl'];
+		$lng = $DIC['lng'];
 
 		require_once("./Services/Form/classes/class.ilPropertyFormGUI.php");
 		$form = new ilPropertyFormGUI();
@@ -924,7 +1071,11 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	 */
 	public function editPreviewSettings()
 	{
-		global $rbacsystem, $ilErr, $tpl, $lng;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$tpl = $DIC['tpl'];
+		$lng = $DIC['lng'];
 
 		$this->tabs_gui->setTabActive('preview_settings');
 
@@ -934,7 +1085,8 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 		}
 		
 		// set warning if ghostscript not installed
-		if (!is_file(PATH_TO_GHOSTSCRIPT))
+		include_once("./Services/Preview/classes/class.ilGhostscriptRenderer.php");
+		if (!ilGhostscriptRenderer::isGhostscriptInstalled())
 		{
 			ilUtil::sendInfo($lng->txt("ghostscript_not_configured"));
 		}
@@ -973,7 +1125,12 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	 */
 	public function savePreviewSettings()
 	{
-		global $rbacsystem, $ilErr, $ilCtrl, $tpl, $lng;
+		global $DIC;
+		$rbacsystem = $DIC['rbacsystem'];
+		$ilErr = $DIC['ilErr'];
+		$ilCtrl = $DIC['ilCtrl'];
+		$tpl = $DIC['tpl'];
+		$lng = $DIC['lng'];
 
 		$this->tabs_gui->setTabActive('preview_settings');
 
@@ -1002,7 +1159,8 @@ class ilObjFileAccessSettingsGUI extends ilObjectGUI
 	
 	public function addToExternalSettingsForm($a_form_id)
 	{
-		global $ilSetting;
+		global $DIC;
+		$ilSetting = $DIC['ilSetting'];
 		
 		switch($a_form_id)
 		{

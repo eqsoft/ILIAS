@@ -30,6 +30,9 @@ class ilContext
 	const CONTEXT_REST = "ilContextRest";
 	const CONTEXT_SCORM = "ilContextScorm";
 	const CONTEXT_WAC = "ilContextWAC";
+	const CONTEXT_APACHE_SSO = 'ilContextApacheSSO';
+	const CONTEXT_SHIBBOLETH = 'ilContextShibboleth';
+	
 	
 	/**
 	 * Init context by type
@@ -147,6 +150,18 @@ class ilContext
 	public static function getType()
 	{
 		return self::$type;
+	}
+	
+	/**
+	 * Check if context supports persistent
+	 * session handling.
+	 * false for cli context
+	 * 
+	 * @return bool
+	 */
+	public static function supportsPersistentSessions()
+	{
+		return (bool) self::callContext('supportsPersistentSessions');
 	}
 }
 

@@ -4,6 +4,7 @@
 
 include_once("Services/Block/classes/class.ilBlockGUI.php");
 include_once './Services/PersonalDesktop/interfaces/interface.ilDesktopItemHandling.php';
+require_once('./Services/Repository/classes/class.ilObjectPlugin.php');
 
 /**
 * BlockGUI class for Selected Items on Personal Desktop
@@ -32,7 +33,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 	{
 		global $ilCtrl, $lng, $ilUser;
 		
-		parent::ilBlockGUI();
+		parent::__construct();
 
 		$lng->loadLanguageModule('pd');
 		$lng->loadLanguageModule('cntr'); // #14158
@@ -219,15 +220,6 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		
 		switch((int)$this->view)
 		{
-			case self::VIEW_MY_STUDYPROGRAMME:
-				// TODO: This seems to be very hacky, but i did not find a way to get the standard PD blocks
-				// and only exchange the middle blog for the study programme list. Sry Alex.
-				require_once("Modules/StudyProgramme/classes/class.ilPDStudyProgrammeExpandableListGUI.php");
-				$list = new ilPDStudyProgrammeExpandableListGUI();
-				$this->setTitle($lng->txt("objs_prg"));
-				$this->setContent($list->getDataSectionContent());
-				$this->setAvailableDetailLevels(0);
-				break;
 			case self::VIEW_MY_MEMBERSHIPS:
 				$ilHelp->setDefaultScreenId(ilHelpGUI::ID_PART_SCREEN, "crs_grp");
 				if ($ilSetting->get('disable_my_offers') == 0)
@@ -280,7 +272,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 	/**
 	* execute command
 	*/
-	function &executeCommand()
+	function executeCommand()
 	{
 		global $ilCtrl;
 
@@ -508,7 +500,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 				// get list gui class for each object type
 				if ($cur_obj_type != $item["type"])
 				{
-					$item_list_gui =& $this->getItemListGUI($item["type"]);
+					$item_list_gui = $this->getItemListGUI($item["type"]);
 					if(!$item_list_gui)
 					{
 						continue;
@@ -523,7 +515,6 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 					$item_list_gui->enableDelete(false);
 					$item_list_gui->enableCut(false);
 					$item_list_gui->enableCopy(false);
-					$item_list_gui->enablePayment(false);
 					$item_list_gui->enableLink(false);
 					$item_list_gui->enableInfoScreen(true);
 					if ($ilSetting->get('disable_my_offers') == 1)
@@ -714,7 +705,6 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 						$item_list_gui->enableDelete(false);
 						$item_list_gui->enableCut(false);
 						$item_list_gui->enableCopy(false);
-						$item_list_gui->enablePayment(false);
 						$item_list_gui->enableLink(false);
 						$item_list_gui->enableInfoScreen(true);
 						if ($ilSetting->get('disable_my_offers') == 1)
@@ -854,7 +844,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 	{
 		global $ilUser, $rbacsystem, $objDefinition, $ilBench;
 
-		$tpl =& $this->newBlockTemplate();
+		$tpl = $this->newBlockTemplate();
 		
 		switch ($ilUser->getPref("pd_order_items"))
 		{
@@ -972,7 +962,6 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 						$item_list_gui->enableDelete(false);
 						$item_list_gui->enableCut(false);
 						$item_list_gui->enableCopy(false);
-						$item_list_gui->enablePayment(false);
 						$item_list_gui->enableLink(false);
 						$item_list_gui->enableInfoScreen(true);
 						$item_list_gui->setContainerObject($this);
@@ -1090,7 +1079,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 				// get list gui class for each object type
 				if ($cur_obj_type != $item["type"])
 				{
-					$item_list_gui =& $this->getItemListGUI($item["type"]);
+					$item_list_gui = $this->getItemListGUI($item["type"]);
 					if(!$item_list_gui)
 					{
 						continue;
@@ -1105,7 +1094,6 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 					$item_list_gui->enableDelete(false);
 					$item_list_gui->enableCut(false);
 					$item_list_gui->enableCopy(false);
-					$item_list_gui->enablePayment(false);
 					$item_list_gui->enableLink(false);
 					$item_list_gui->enableInfoScreen(true);
 					if ($this->getCurrentDetailLevel() < 3 || $this->manage)
@@ -1220,11 +1208,11 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 			//echo "<br>-".$location."/class.".$full_class.".php"."-";
 			include_once($location."/class.".$full_class.".php");
 			$item_list_gui = new $full_class();
-			$this->item_list_guis[$a_type] =& $item_list_gui;
+			$this->item_list_guis[$a_type] = $item_list_gui;
 		}
 		else
 		{
-			$item_list_gui =& $this->item_list_guis[$a_type];
+			$item_list_gui = $this->item_list_guis[$a_type];
 		}
 
 		if ($this->manage)
@@ -1256,7 +1244,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		{
 			include_once("./Services/Component/classes/class.ilPlugin.php");
 			$title =
-				ilPlugin::lookupTxt("rep_robj", $a_type, "objs_".$a_type);
+				ilObjectPlugin::lookupTxtById($a_type, "objs_".$a_type);
 
 		}
 		$header_id = "th_".$a_type;
@@ -1291,7 +1279,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		
 		$par_id = ilObject::_lookupObjId($a_ref_id);
 		$type = ilObject::_lookupType($par_id);
-		if (!in_array($type, array("lm", "dbk", "sahs", "htlm")))
+		if (!in_array($type, array("lm", "sahs", "htlm")))
 		{
 			$icon = ilUtil::getImagePath("icon_".$type.".svg");
 		}
@@ -1326,12 +1314,11 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		}
 		
 /*		
-		$item_list_gui =& $this->getItemListGUI($type);
+		$item_list_gui = $this->getItemListGUI($type);
 		
 		$item_list_gui->enableIcon(false);
 		$item_list_gui->enableDelete(false);
 		$item_list_gui->enableCut(false);
-		$item_list_gui->enablePayment(false);
 		$item_list_gui->enableLink(false);
 		$item_list_gui->enableDescription(false);
 		$item_list_gui->enableProperties(false);
@@ -1379,7 +1366,7 @@ class ilPDSelectedItemsBlockGUI extends ilBlockGUI implements ilDesktopItemHandl
 		
 		if ($a_image_type != "")
 		{
-			if (!is_array($a_image_type) && !in_array($a_image_type, array("lm", "dbk", "htlm", "sahs")))
+			if (!is_array($a_image_type) && !in_array($a_image_type, array("lm", "htlm", "sahs")))
 			{
 				$icon = ilUtil::getImagePath("icon_".$a_image_type.".svg");
 				$title = $this->lng->txt("obj_".$a_image_type);

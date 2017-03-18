@@ -227,7 +227,11 @@ class ilCharSelectorGUI
 		// provide texts to be dynamically rendered in the js script
 		$this->jstexts = new stdClass();
 		$this->jstexts->page = $lng->txt('page');
-		
+		// fau: testNav - add texts for open/close char selector actions in the question menu
+		$this->jstexts->open= $lng->txt('char_selector_menu_open');
+		$this->jstexts->close= $lng->txt('char_selector_menu_close');
+		// fau.
+
 		// add everything neded to the page
 		// addLightbox() is just used to add the panel template outside the body
 		// The panel template is added as <script> to be not included in the DOM by default
@@ -259,11 +263,11 @@ class ilCharSelectorGUI
 				$tpl->parseCurrentBlock();
 				$index++;
 			}
-
-			$tpl->setVariable('TXT_PREVIOUS_PAGE', $lng->txt('previous'));
-			$tpl->setVariable('TXT_NEXT_PAGE', $lng->txt('next'));
-			$tpl->setVariable('TXT_PAGE', $lng->txt('page'));
 		}
+
+        $tpl->setVariable('TXT_PREVIOUS_PAGE', $lng->txt('previous'));
+        $tpl->setVariable('TXT_NEXT_PAGE', $lng->txt('next'));
+        $tpl->setVariable('TXT_PAGE', $lng->txt('page'));
 
 		$tpl->touchBlock('chars');
 		return '<script type="text/html" id="ilCharSelectorTemplate">'.$tpl->get().'</script>';

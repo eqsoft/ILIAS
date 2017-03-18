@@ -89,6 +89,7 @@ class ilMimeMail
 	 * by default autoCheck feature is on
 	 * @param boolean	set to true to turn on the auto validation
 	 * @access public
+	 * @deprecated
 	 */
 	function autoCheck($bool )
 	{
@@ -318,35 +319,34 @@ class ilMimeMail
 	 * Build the email message
 	 * @access public
 	 */
-	function BuildMail()
+	protected function BuildMail()
 	{
 		/**
-		 * @var $ilUser ilObjUser
+		 * @var $ilUser          ilObjUser
+		 * @var $ilSetting       ilSetting
+		 * @var $ilClientIniFile ilIniFile
 		 */
-		global $ilUser;
+		global $ilUser, $ilSetting, $ilClientIniFile;
 
-		require_once './Services/Mail/phpmailer/class.phpmailer.php';
+		require_once 'libs/composer/vendor/autoload.php';
 		$mail = new PHPMailer();
 
-		/** @var ilIniFile $ilClientIniFile */
-		global $ilClientIniFile;
-		$style = $ilClientIniFile->readVariable('layout', 'style');
-
-		$bracket_path = './Services/Mail/templates/default/tpl.html_mail_template.html';
-
-		if($style != 'delos')
+		if($ilSetting->get('mail_system_return_path', ''))
 		{
-			$tplpath = './Customizing/global/skin/'.$style.'/Services/Mail/tpl.html_mail_template.html';
-
-			if(@file_exists($tplpath))
-			{
-				$bracket_path = './Customizing/global/skin/'.$style.'/Services/Mail/tpl.html_mail_template.html';
-			}
+			$mail->Sender = $ilSetting->get('mail_system_return_path', '');
 		}
-		$bracket = file_get_contents($bracket_path);
 
-		$mail->SetFrom($this->xheaders['From'], $this->xheaders['FromName']);
-
+		require_once 'Services/Mail/classes/class.ilMail.php';
+		$addr = ilMail::getIliasMailerAddress();
+		if($this->xheaders['From'] == $addr[0])
+		{
+			$mail->setFrom($this->xheaders['From'], $this->xheaders['FromName']);
+		}
+		else
+		{
+			$mail->addReplyTo($this->xheaders['From'], $this->xheaders['FromName']);
+			$mail->setFrom($addr[0], $addr[1]);
+		}
 		foreach($this->sendto as $recipients)
 		{
 			$recipient_pieces = array_filter(array_map('trim', explode(',', $recipients)));
@@ -377,36 +377,64 @@ class ilMimeMail
 		$mail->CharSet = 'utf-8';
 		$mail->Subject = $this->xheaders['Subject'];
 
-		$directory = './Services/Mail/templates/default/img/';
-
-		if($style != 'delos')
+		if($ilSetting->get('mail_send_html', 0))
 		{
-			$directory = './Customizing/global/skin/'.$style.'/Services/Mail/img/';
-		}
+			$mail->IsHTML(true);
 
-		if(!$this->body)
-		{
-			$this->body  = ' ';
-		}
+			$skin = $ilClientIniFile->readVariable('layout', 'skin');
 
-		$mail->Body    = str_replace( '{PLACEHOLDER}', nl2br( ilUtil::makeClickable( $this->body ) ), $bracket );
-		$mail->AltBody = $this->body;
-
-		$directory_handle  = @opendir($directory);
-		$files = array();
-		if($directory_handle)
-		{
-			while ($filename = @readdir($directory_handle))
+			$bracket_path = './Services/Mail/templates/default/tpl.html_mail_template.html';
+			if($skin != 'delos')
 			{
-				$files[] = $filename;
+				$tplpath = './Customizing/global/skin/' . $skin . '/Services/Mail/tpl.html_mail_template.html';
+
+				if(@file_exists($tplpath))
+				{
+					$bracket_path = './Customizing/global/skin/' . $skin . '/Services/Mail/tpl.html_mail_template.html';
+				}
+			}
+			$bracket = file_get_contents($bracket_path);
+
+			if(!$this->body)
+			{
+				$this->body  = ' ';
 			}
 
-			$images = preg_grep ('/\.jpg$/i', $files);
+			$mail->AltBody = $this->body;
 
-			foreach($images as $image)
+			if(strip_tags($this->body, '<b><u><i><a>') == $this->body)
 			{
-				$mail->AddEmbeddedImage($directory.$image, 'img/'.$image, $image);
+				// Let's assume that there is no HTML, so convert "\n" to "<br>" 
+				$this->body = nl2br($this->body);
 			}
+			$mail->Body    = str_replace( '{PLACEHOLDER}', ilUtil::makeClickable( $this->body ), $bracket );
+
+			$directory = './Services/Mail/templates/default/img/';
+			if($skin != 'delos')
+			{
+				$directory = './Customizing/global/skin/' . $skin . '/Services/Mail/img/';
+			}
+			$directory_handle  = @opendir($directory);
+			$files = array();
+			if($directory_handle)
+			{
+				while ($filename = @readdir($directory_handle))
+				{
+					$files[] = $filename;
+				}
+
+				$images = preg_grep ('/\.jpg$/i', $files);
+
+				foreach($images as $image)
+				{
+					$mail->AddEmbeddedImage($directory.$image, 'img/'.$image, $image);
+				}
+			}
+		}
+		else
+		{
+			$mail->IsHTML(false);
+			$mail->Body = $this->body;
 		}
 
 		$i = 0;
@@ -422,28 +450,37 @@ class ilMimeMail
 			++$i;
 		}
 
-		ilLoggerFactory::getLogger('mail')->debug(sprintf(
+		ilLoggerFactory::getLogger('mail')->debug(
 			"Trying to delegate external email delivery:" .
 			" Initiated by: " . $ilUser->getLogin() . " (" . $ilUser->getId() . ")" .
 			" | From: " . $this->xheaders['From'] .
 			" | To: " . implode(', ', $this->sendto) .
-			" | CC: " . implode(', ', $this->abcc) .
-			" | BCC: " . implode(', ', $this->acc) .
+			" | CC: " . implode(', ', $this->acc) .
+			" | BCC: " . implode(', ', $this->abcc) .
 			" | Subject: " .$mail->Subject
-		));
+		);
 
-		$result = $mail->Send();
-
-		if($result)
+		if(!(int)$ilSetting->get('prevent_smtp_globally'))
 		{
-			ilLoggerFactory::getLogger('mail')->debug(sprintf(
-				'Successfully delegated external mail delivery'
-			));
+			$result = $mail->Send();
+
+			if($result)
+			{
+				ilLoggerFactory::getLogger('mail')->debug(sprintf(
+					'Successfully delegated external mail delivery'
+				));
+			}
+			else
+			{
+				ilLoggerFactory::getLogger('mail')->debug(sprintf(
+					'Could not deliver external email: %s', $mail->ErrorInfo
+				));
+			}
 		}
 		else
 		{
 			ilLoggerFactory::getLogger('mail')->debug(sprintf(
-				'Could not deliver external email: %s', $mail->ErrorInfo
+				'Suppressed delegation of email delivery according to global setting ( prevent_smtp_globally ).'
 			));
 		}
 	}
@@ -475,14 +512,18 @@ class ilMimeMail
 	 * 	@access public
 	 * 	@param string address : email address to check
 	 * 	@return boolean true if email adress is ok
+	 * @deprecated                  
 	 */
 
 	function ValidEmail($address)
 	{
-		if( ereg( ".*<(.+)>", $address, $regs ) ) {
+		$regs = array();
+		if(preg_match("/.*<(.+)>/", $address, $regs))
+		{
 			$address = $regs[1];
 		}
-		if(ereg( "^[^@  ]+@([a-zA-Z0-9\-]+\.)+([a-zA-Z0-9\-]{2}|net|com|gov|mil|org|edu|int)\$",$address) )
+
+		if(preg_match('/^[^@  ]+@([a-zA-Z0-9\-]+\.)+([a-zA-Z0-9\-]{2}|net|com|gov|mil|org|edu|int)$/', $address))
 		{
 			return true;
 		}
@@ -496,6 +537,7 @@ class ilMimeMail
 	 * check validity of email addresses
 	 * return if unvalid, output an error message and exit, this may -should- be customized
 	 * @param	array aad -
+	 * @deprecated                 
 	 */
 	function CheckAdresses( $aad )
 	{
@@ -556,7 +598,7 @@ class ilMimeMail
 		$this->fullBody .= implode($sep, $ata);
 	}
 
-	function _mimeEncode($a_string)
+	public static function _mimeEncode($a_string)
 	{
 		$encoded = '=?utf-8?b?';
 		$encoded .= base64_encode($a_string);

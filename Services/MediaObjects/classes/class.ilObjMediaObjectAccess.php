@@ -34,6 +34,9 @@ class ilObjMediaObjectAccess implements ilWACCheckingClass {
 
 			// for content snippets we must get their usages and check them
 			switch ($usage["type"]) {
+				case "auth:pg":
+					// Mobs on the Loginpage should always be delivered
+					return true;
 				case "mep:pg":
 					include_once("./Modules/MediaPool/classes/class.ilMediaPoolPage.php");
 					$usages2 = ilMediaPoolPage::lookupUsages($usage["id"]);
@@ -99,6 +102,28 @@ class ilObjMediaObjectAccess implements ilWACCheckingClass {
 				//				}
 				break;
 
+			case 'frm~d:html':
+				$draft_id = $usage['id'];
+				
+				include_once 'Modules/Forum/classes/class.ilForumPostDraft.php';
+				$oDraft = ilForumPostDraft::newInstanceByDraftId($draft_id);
+				if($user_id == $oDraft->getPostAuthorId())
+				{
+					return true;
+				}
+				break;
+			case 'frm~h:html':
+				$history_id = $usage['id'];
+				include_once 'Modules/Forum/classes/class.ilForumDraftsHistory.php';
+				include_once 'Modules/Forum/classes/class.ilForumPostDraft.php';
+				
+				$oHistoryDraft = new ilForumDraftsHistory($history_id);
+				$oDraft = ilForumPostDraft::newInstanceByDraftId($oHistoryDraft->getDraftId());
+				if($user_id == $oDraft->getPostAuthorId())
+				{
+					return true;
+				}
+				break;
 			case 'qpl:pg':
 			case 'qpl:html':
 				// test questions

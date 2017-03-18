@@ -20,8 +20,11 @@ abstract class ilContainerContentGUI
 	const DETAILS_ALL = 2;
 	
 	protected $details_level = self::DETAILS_DEACTIVATED;
-	
-	protected $renderer; // [ilContainerRenderer]
+
+	/**
+	 * @var ilContainerRenderer
+	 */
+	protected $renderer;
 	
 	var $container_gui;
 	var $container_obj;
@@ -182,7 +185,7 @@ abstract class ilContainerContentGUI
 		switch ($ilCtrl->getNextClass())
 		{	
 			case "ilcolumngui":
-				$ilCtrl->setReturn($this->container_gui, "");
+				$this->container_gui->setSideColumnReturn();
 				$html = $this->__forwardToColumnGUI();
 				break;
 				
@@ -336,6 +339,9 @@ abstract class ilContainerContentGUI
 		$item_list_gui->enableNotes(true);
 		$item_list_gui->enableTags(true);
 		$item_list_gui->enableRating(true);
+		
+		// reset 
+		$item_list_gui->forceVisibleOnly(false);
 
 		// container specific modifications
 		$this->getContainerGUI()->modifyItemGUI($item_list_gui, $item_data, $a_show_path);
@@ -361,11 +367,11 @@ abstract class ilContainerContentGUI
 		}
 		
 		// determine item groups
-		while (eregi("\[(item-group-([0-9]*))\]", $a_container_page_html, $found))
+		while (preg_match('~\[(item-group-([0-9]*))\]~i', $a_container_page_html, $found))
 		{
 			$this->addEmbeddedBlock("itgr", (int) $found[2]);
 			
-			$a_container_page_html = eregi_replace("\[".$found[1]."\]", $html, $a_container_page_html);
+			$a_container_page_html = preg_replace('~\['.$found[1].'\]~i', $html, $a_container_page_html);
 		}
 	}
 	
@@ -457,13 +463,12 @@ abstract class ilContainerContentGUI
 	function renderItem($a_item_data,$a_position = 0,$a_force_icon = false, $a_pos_prefix = "")
 	{
 		global $ilSetting,$ilAccess,$ilCtrl;
-
+		
 		// Pass type, obj_id and tree to checkAccess method to improve performance
 		if(!$ilAccess->checkAccess('visible','',$a_item_data['ref_id'],$a_item_data['type'],$a_item_data['obj_id'],$a_item_data['tree']))
 		{
 			return '';
 		}
-		
 		$item_list_gui = $this->getItemGUI($a_item_data);
 		if ($ilSetting->get("icon_position_in_lists") == "item_rows" ||
 			$a_item_data["type"] == "sess" || $a_force_icon)
@@ -628,17 +633,17 @@ abstract class ilContainerContentGUI
 			// set template (overall or type specific)
 			if (is_int(strpos($a_output_html, "[list-".$type."]")))
 			{
-				$a_output_html = eregi_replace("\[list-".$type."\]",
+				$a_output_html = preg_replace('~\[list-'.$type.'\]~i',
 					$this->renderer->renderSingleTypeBlock($type), $a_output_html);
 			}
 		}
 		
 		// insert all item groups
-		while (eregi("\[(item-group-([0-9]*))\]", $a_output_html, $found))
+		while (preg_match('~\[(item-group-([0-9]*))\]~i', $a_output_html, $found))
 		{
 			$itgr_ref_id = (int) $found[2];
 			
-			$a_output_html = eregi_replace("\[".$found[1]."\]", 
+			$a_output_html = preg_replace('~\['.$found[1].'\]~i',
 				$this->renderer->renderSingleCustomBlock($itgr_ref_id), $a_output_html);
 		}
 
@@ -761,6 +766,9 @@ abstract class ilContainerContentGUI
 		
 		$items = ilContainerSorting::_getInstance(
 			$this->getContainerObject()->getId())->sortSubItems('itgr', $a_itgr['obj_id'], $items);
+		
+		// #18285
+		$items = ilContainer::getCompleteDescriptions($items);
 		
 		$position = 1;
 		foreach($items as $item)

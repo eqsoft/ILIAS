@@ -52,7 +52,9 @@ class ilStudyProgrammeProgressListGUI {
 	protected $only_relevant = false;
 
 	function __construct(ilStudyProgrammeUserProgress $a_progress) {
-		global $lng, $ilCtrl;
+		global $DIC;
+		$lng = $DIC['lng'];
+		$ilCtrl = $DIC['ilCtrl'];
 		$this->il_lng = $lng;
 		$this->il_lng->loadLanguageModule("prg");
 		$this->il_ctrl = $ilCtrl;
@@ -127,8 +129,10 @@ class ilStudyProgrammeProgressListGUI {
 	
 	protected function getTitleAndIconTarget(ilStudyProgrammeUserProgress $a_progress) {
 		$this->il_ctrl->setParameterByClass("ilPersonalDesktopGUI", "prg_progress_id", $a_progress->getId());
-		$link = $this->il_ctrl->getLinkTargetByClass("ilPersonalDesktopGUI", "jumpToStudyProgramme");
+		$this->il_ctrl->setParameterByClass("ilPersonalDesktopGUI", "expand", 1);
+		$link = $this->il_ctrl->getLinkTargetByClass("ilPersonalDesktopGUI", "jumpToSelectedItems");
 		$this->il_ctrl->setParameterByClass("ilPersonalDesktopGUI", "prg_progress_id", null);
+		$this->il_ctrl->setParameterByClass("ilPersonalDesktopGUI", "expand", null);
 		return $link;
 	}
 	

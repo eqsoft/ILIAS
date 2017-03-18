@@ -10,6 +10,11 @@
  */
 class ilImport
 {
+	/**
+	 * @var ilLogger
+	 */
+	protected $log;
+
 	protected $install_id = "";
 	protected $install_url = "";
 	protected $entities = "";
@@ -29,7 +34,8 @@ class ilImport
 	{
 		include_once("./Services/Export/classes/class.ilImportMapping.php");
 		$this->mapping = new ilImportMapping();
-		$this->mapping->setTagetId($a_target_id);
+		$this->mapping->setTargetId($a_target_id);
+		$this->log = ilLoggerFactory::getLogger('exp');
 	}
 
 	/**
@@ -174,17 +180,24 @@ class ilImport
 			ilUtil::moveUploadedFile($a_tmp_file, $a_filename, $tmpdir."/".$a_filename);
 		}
 
+		$this->log->debug("unzip: ".$tmpdir."/".$a_filename);
+
 		ilUtil::unzip($tmpdir."/".$a_filename);
 		$dir = $tmpdir."/".substr($a_filename, 0, strlen($a_filename) - 4);
 
 		$this->setTemporaryImportDir($dir);
 
-		$GLOBALS['ilLog']->write(__METHOD__.': do import with dir '.$dir);
-		$new_id = $this->doImportObject($dir, $a_type, $a_comp, $tmpdir);
+		$this->log->debug("dir: ".$dir);
+
+		$ret = $this->doImportObject($dir, $a_type, $a_comp, $tmpdir);
+		$new_id = null;
+		if(is_array($ret))
+		{
+			$new_id = $ret['new_id'];
+		}
 		
 		// delete temporary directory
 		ilUtil::delDir($tmpdir);
-		
 		return $new_id;
 	}
 
@@ -196,9 +209,13 @@ class ilImport
 	 */
 	function importFromDirectory($dir, $a_type, $a_comp)
 	{
-		$new_id = $this->doImportObject($dir, $a_type, $a_comp);
-		return $new_id;
-
+		$ret = $this->doImportObject($dir, $a_type, $a_comp);
+		
+		if(is_array($ret))
+		{
+			return $ret['new_id'];
+		}
+		return null;
 	}
 
 
@@ -228,22 +245,13 @@ class ilImport
 	 * @param	string		absolute filename of temporary upload file
 	 */
 	protected function doImportObject($dir, $a_type, $a_component = "", $a_tmpdir = "")
-	{
-		global $objDefinition, $tpl;
-
+	{		
 		if ($a_component == "")
 		{
-			$comp = $objDefinition->getComponentForType($a_type);
-			$class = $objDefinition->getClassName($a_type);
-		}
-		else
-		{
-			$comp = $a_component;
-			$c = explode("/", $comp);
-			$class = $c[count($c) - 1];
-		}
-
-		$this->comp = $comp;
+			include_once("./Services/Export/classes/class.ilImportExportFactory.php");
+			$a_component = ilImportExportFactory::getComponentForExport($a_type);		
+		}		
+		$this->comp = $a_component;
 
 		// get import class
 		$success = true;
@@ -277,14 +285,15 @@ class ilImport
 		$expfiles = $parser->getExportFiles();
 		
 		include_once("./Services/Export/classes/class.ilExportFileParser.php");
+		include_once("./Services/Export/classes/class.ilImportExportFactory.php");	
 		$all_importers = array();
 		foreach ($expfiles as $expfile)
-		{
+		{								
 			$comp = $expfile["component"];
-			$comp_arr = explode("/", $comp);
-			$import_class_file = "./".$comp."/classes/class.il".$comp_arr[1]."Importer.php";
-			$class = "il".$comp_arr[1]."Importer";
-			include_once($import_class_file);
+			$class = ilImportExportFactory::getImporterClass($comp);
+
+			$this->log->debug("create new class = $class");
+
 			$this->importer = new $class();
 			$this->importer->setImport($this);
 			$all_importers[] = $this->importer;
@@ -292,12 +301,12 @@ class ilImport
 			$this->importer->init();
 			$this->current_comp = $comp;
 			try {
+				$this->log->debug("Process file: ".$dir."/".$expfile["path"]);
 				$parser = new ilExportFileParser($dir."/".$expfile["path"],$this, "processItemXml");
 			}
 			catch(Exception $e)
 			{
-				$GLOBALS['ilLog']->write(__METHOD__.': Import failed with message: '.$e->getMessage());
-				#$GLOBALS['ilLog']->write(__METHOD__.': '.file_get_contents($dir.'/'.$expfile['path']));
+				$this->log->error("Import failed: ".$e->getMessage());
 				throw $e;
 			}
 		}
@@ -305,14 +314,17 @@ class ilImport
 		// final processing
 		foreach ($all_importers as $imp)
 		{
+			$this->log->debug("Call finalProcessing for: ".get_class($imp));
 			$imp->finalProcessing($this->mapping);
 		}
 
 		// we should only get on mapping here
 		$top_mapping = $this->mapping->getMappingsOfEntity($this->comp, $a_type);
 		$new_id = (int) current($top_mapping);
-
-		return $new_id;
+		return array(
+			'new_id' => $new_id,
+			'importers' => (array) $all_importers
+		);
 	}
 
 	/**
@@ -333,7 +345,7 @@ class ilImport
 		if($objDefinition->isRBACObject($a_entity) &&
 			$this->getMapping()->getMapping('Services/Container', 'imported', $a_id))
 		{
-			$GLOBALS['ilLog']->write(__METHOD__.': Ignoring referenced '.$a_entity.' with id '.$a_id);
+			$this->log->info('Ignoring referenced '.$a_entity.' with id '.$a_id);
 			return;
 		}
 		$this->importer->setInstallId($a_install_id);

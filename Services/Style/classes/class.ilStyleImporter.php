@@ -11,17 +11,28 @@ include_once("./Services/Export/classes/class.ilXmlImporter.php");
  * @ingroup ServicesStyle
  */
 class ilStyleImporter extends ilXmlImporter
-{	
+{
+	/**
+	 * @var ilLogger
+	 */
+	protected $log;
+
 	function init()
 	{
+		$this->log = ilLoggerFactory::getLogger('styl');
+
 		include_once("./Services/Style/classes/class.ilStyleDataSet.php");
 		$this->ds = new ilStyleDataSet();
 		$this->ds->setDSPrefix("ds");
 		$this->ds->setImportDirectory($this->getImportDirectory());
+
+		$this->log->debug("initialized");
 	}
 
 	function importXmlRepresentation($a_entity, $a_id, $a_xml, $a_mapping)
 	{
+		$this->log->debug("import xml ".$a_entity);
+
 		if (true)
 		{
 			include_once("./Services/DataSet/classes/class.ilDataSetImportParser.php");
@@ -42,7 +53,7 @@ class ilStyleImporter extends ilXmlImporter
 		$tmp_file = $this->getImportDirectory()."/sty_".$a_id.".xml";
 		file_put_contents($tmp_file, $a_xml);	
 				
-		include_once "./Services/Style/classes/class.ilObjStyleSheet.php";
+		include_once "./Services/Style/Content/classes/class.ilObjStyleSheet.php";
 		$style = new ilObjStyleSheet();
 		$style->createFromXMLFile($tmp_file);
 		$new_id = $style->getId();

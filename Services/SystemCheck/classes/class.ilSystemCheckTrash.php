@@ -148,14 +148,22 @@ class ilSystemCheckTrash
 		global $ilDB;
 		
 		$and_types = '';
-		if($this->getTypesLimit())
+		ilLoggerFactory::getLogger('sysc')->dump($this->getTypesLimit());
+		
+		$types = array();
+		foreach((array) $this->getTypesLimit() as $id => $type)
+		{
+			if($type)
+			{
+				$types[] = $type;
+			}
+		}
+		if(count($types))
 		{
 			$and_types = 'AND '.$ilDB->in('o.type', $this->getTypesLimit(),FALSE,'text').' ';
 		}
+		
 		$and_age = '';
-		
-		
-		
 		$age_limit = $this->getAgeLimit()->get(IL_CAL_UNIX);
 		if($age_limit > 0)
 		{
@@ -181,7 +189,7 @@ class ilSystemCheckTrash
 		
 		$deleted = array();
 		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$deleted[] = array(
 				'tree' => $row->tree,
@@ -220,7 +228,7 @@ class ilSystemCheckTrash
 		$res = $ilDB->query($query);
 		
 		$deleted = array();
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$deleted[] = array(
 				'tree' => $row->tree,

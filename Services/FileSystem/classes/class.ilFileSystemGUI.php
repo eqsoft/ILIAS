@@ -15,14 +15,24 @@ class ilFileSystemGUI
 
 	protected $use_upload_directory = false;
 
-	function ilFileSystemGUI($a_main_directory)
+	/**
+	 * @var array
+	 */
+	protected $allowed_suffixes = array();
+
+	/**
+	 * @var array
+	 */
+	protected $forbidden_suffixes = array();
+
+	function __construct($a_main_directory)
 	{
 		global $lng, $ilCtrl, $tpl, $ilias;
 
-		$this->ctrl =& $ilCtrl;
-		$this->lng =& $lng;
-		$this->ilias =& $ilias;
-		$this->tpl =& $tpl;
+		$this->ctrl = $ilCtrl;
+		$this->lng = $lng;
+		$this->ilias = $ilias;
+		$this->tpl = $tpl;
 		$this->main_dir = $a_main_directory;
 		$this->post_dir_path = false;
 		$this->commands = array(
@@ -66,6 +76,70 @@ class ilFileSystemGUI
 		$this->setAllowFileCreation(true);
 //echo "<br>main_dir:".$this->main_dir.":";
 	}
+
+	/**
+	 * Set allowed Suffixes.
+	 *
+	 * @param	array	$a_suffixes	allowed Suffixes
+	 */
+	function setAllowedSuffixes($a_suffixes)
+	{
+		$this->allowed_suffixes = $a_suffixes;
+	}
+
+	/**
+	 * Get allowed Suffixes.
+	 *
+	 * @return	array	allowed Suffixes
+	 */
+	function getAllowedSuffixes()
+	{
+		return $this->allowed_suffixes;
+	}
+
+	/**
+	 * Set forbidden Suffixes.
+	 *
+	 * @param	array	$a_suffixes	forbidden Suffixes
+	 */
+	function setForbiddenSuffixes($a_suffixes)
+	{
+		$this->forbidden_suffixes = $a_suffixes;
+	}
+
+	/**
+	 * Get Accepted Suffixes.
+	 *
+	 * @return	array	forbidden Suffixes
+	 */
+	function getForbiddenSuffixes()
+	{
+		return $this->forbidden_suffixes;
+	}
+
+	/**
+	 * Is suffix valid?
+	 *
+	 * @param string $a_suffix
+	 * @return bool
+	 */
+	function isValidSuffix($a_suffix)
+	{
+		if (is_array($this->getForbiddenSuffixes()) && in_array($a_suffix, $this->getForbiddenSuffixes()))
+		{
+			return false;
+		}
+		if (is_array($this->getAllowedSuffixes()) && in_array($a_suffix, $this->getAllowedSuffixes()))
+		{
+			return true;
+		}
+		if (!is_array($this->getAllowedSuffixes()) || count($this->getAllowedSuffixes()) == 0)
+		{
+			return true;
+		}
+		return false;
+	}
+
 
 	/**
 	 * Set allow directories
@@ -198,7 +272,7 @@ class ilFileSystemGUI
 	/**
 	* execute command
 	*/
-	function &executeCommand()
+	function executeCommand()
 	{
 		$next_class = $this->ctrl->getNextClass($this);
 		$cmd = $this->ctrl->getCmd("listFiles");
@@ -209,11 +283,11 @@ class ilFileSystemGUI
 			default:
 				if (substr($cmd, 0, 11) == "extCommand_")
 				{
-					$ret =& $this->extCommand(substr($cmd, 11, strlen($cmd) - 11));
+					$ret = $this->extCommand(substr($cmd, 11, strlen($cmd) - 11));
 				}
 				else
 				{
-					$ret =& $this->$cmd();
+					$ret = $this->$cmd();
 				}
 				break;
 		}
@@ -230,7 +304,7 @@ class ilFileSystemGUI
 	{
 		$i = count($this->commands);
 
-		$this->commands[$i]["object"] =& $a_obj;
+		$this->commands[$i]["object"] = $a_obj;
 		$this->commands[$i]["method"] = $a_func;
 		$this->commands[$i]["name"] = $a_name;
 		$this->commands[$i]["single"] = $a_single;
@@ -577,6 +651,14 @@ class ilFileSystemGUI
 			$this->ilias->raiseError($this->lng->txt("enter_new_name"),$this->ilias->error_obj->MESSAGE);
 		}
 
+		$pi = pathinfo($new_name);
+		$suffix = $pi["extension"];
+		if ($suffix != "" && !$this->isValidSuffix($suffix))
+		{
+			ilUtil::sendFailure($this->lng->txt("file_no_valid_file_type")." ($suffix)", true);
+			$this->ctrl->redirect($this, "listFiles");
+		}
+
 		$cur_subdir = str_replace(".", "", ilUtil::stripSlashes($_GET["cdir"]));
 		$dir = (!empty($cur_subdir))
 			? $this->main_dir."/".$cur_subdir."/"
@@ -655,7 +737,15 @@ class ilFileSystemGUI
 			: $this->main_dir;
 
 		$tgt_file = null;
-		
+
+		$pi = pathinfo($_FILES["new_file"]["name"]);
+		$suffix = $pi["extension"];
+		if (!$this->isValidSuffix($suffix))
+		{
+			ilUtil::sendFailure($this->lng->txt("file_no_valid_file_type")." ($suffix)", true);
+			$this->ctrl->redirect($this, "listFiles");
+		}
+
 		if (is_file($_FILES["new_file"]["tmp_name"]))
 		{
 			$tgt_file = $cur_dir."/".ilUtil::stripSlashes($_FILES["new_file"]["name"]);
@@ -759,7 +849,8 @@ class ilFileSystemGUI
 			$cur_dir = (!empty($cur_subdir))
 				? $this->main_dir."/".$cur_subdir
 				: $this->main_dir;
-			$file = $cur_dir."/".ilUtil::stripSlashes($post_file);
+			$pi = pathinfo($post_file);
+			$file = $cur_dir."/".ilUtil::stripSlashes($pi["basename"]);
 
 			if (@is_file($file))
 			{
@@ -811,7 +902,9 @@ class ilFileSystemGUI
 		
 		if (@is_file($a_file))
 		{
+			include_once("./Services/Utilities/classes/class.ilFileUtils.php");
 			$cur_files = array_keys(ilUtil::getDir($cur_dir));
+			$cur_files_r = iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cur_dir)));
 			
 			if ($this->getAllowDirectories())
 			{
@@ -823,8 +916,22 @@ class ilFileSystemGUI
 			}
 			
 			$new_files = array_keys(ilUtil::getDir($cur_dir));
-			
-			$diff = array_diff($new_files, $cur_files);					
+			$new_files_r = iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cur_dir)));
+
+			$diff = array_diff($new_files, $cur_files);
+			$diff_r = array_diff($new_files_r, $cur_files_r);
+
+			// unlink forbidden file types
+			foreach ($diff_r as $f => $d)
+			{
+				$pi = pathinfo($f);
+				if (!is_dir($f) && !$this->isValidSuffix(strtolower($pi["extension"])))
+				{
+					ilUtil::sendFailure($lng->txt("file_some_invalid_file_types_removed")." (".$pi["extension"].")", true);
+					unlink($f);
+				}
+			}
+
 			if(sizeof($diff))
 			{
 				if ($this->getAllowDirectories())

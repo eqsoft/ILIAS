@@ -24,9 +24,9 @@ class ilObjQuestionPoolListGUI extends ilObjectListGUI
 	* constructor
 	*
 	*/
-	function ilObjQuestionPoolListGUI()
+	public function __construct($a_context = self::CONTEXT_REPOSITORY)
 	{
-		$this->ilObjectListGUI();
+		parent::__construct($a_context);
 	}
 
 	/**
@@ -38,8 +38,7 @@ class ilObjQuestionPoolListGUI extends ilObjectListGUI
 		$this->cut_enabled = true;
 		$this->copy_enabled = true;
 		$this->subscribe_enabled = true;
-		$this->link_enabled = false;
-		$this->payment_enabled = false;
+		$this->link_enabled = true;
 		$this->info_screen_enabled = true;
 		$this->type = "qpl";
 		$this->gui_class_name = "ilobjquestionpoolgui";

@@ -35,7 +35,10 @@ class ilOrgUnitExportGUI extends ilExportGUI {
 	 */
 	function __construct(ilObjOrgUnitGUI $a_parent_gui, $a_main_obj = null)
 	{
-		global $ilToolbar, $lng, $ilCtrl;
+		global $DIC;
+		$ilToolbar = $DIC['ilToolbar'];
+		$lng = $DIC['lng'];
+		$ilCtrl = $DIC['ilCtrl'];
 
 		parent::__construct($a_parent_gui, $a_main_obj);
 
@@ -46,9 +49,17 @@ class ilOrgUnitExportGUI extends ilExportGUI {
 
 		if ($this->ilObjOrgUnit->getRefId() == ilObjOrgUnit::getRootOrgRefId()) {
 			//Simple XML and Simple XLS Export should only be available in the root orgunit folder as it always exports the whole tree
-				$this->extendExportGUI();
+			$this->extendExportGUI();
 		}
 	}
+
+
+	public function listExportFiles() {
+		if ($this->ilObjOrgUnit->getRefId() != ilObjOrgUnit::getRootOrgRefId()) {
+			parent::listExportFiles();
+		}
+	}
+
 
 	private function extendExportGUI() {
 		$this->toolbar->addButton($this->lng->txt("simple_xml"), $this->ctrl->getLinkTarget($this, "simpleExport"));

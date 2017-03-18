@@ -97,7 +97,7 @@ class ilContainerSorting
 		$query = "SELECT * FROM container_sorting WHERE ".
 			"obj_id = ".$ilDB->quote($a_obj_id,'integer');
 		$res = $ilDB->query($query);
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$sorted[$row->child_id] = $row->position;
 		}
@@ -127,7 +127,7 @@ class ilContainerSorting
 
 		$res = $ilDB->query($query);
 		
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 	 		if(!isset($mappings[$row->child_id]) or !$mappings[$row->child_id])
 	 		{
@@ -504,23 +504,12 @@ class ilContainerSorting
 			return true;
 	 	}
 		
-		$this->sorting_settings = ilContainerSortingSettings::getInstanceByObjId($this->obj_id);
-		if($this->getSortingSettings()->getSortMode() == ilContainer::SORT_INHERIT)
-		{
-			// lookup settings of parent course
-			$ref_ids = ilObject::_getAllReferences($this->obj_id);
-			$ref_id = end($ref_ids);
-			$crs_ref_id = $tree->checkForParentType($ref_id,'crs');
-			$crs_obj_id = ilObject::_lookupObjId($crs_ref_id);
-			
-			$crs_settings = ilContainerSortingSettings::getInstanceByObjId($crs_obj_id);
-			$this->sorting_settings = clone $crs_settings;
-			
-		}
+		$sorting_settings = ilContainerSortingSettings::getInstanceByObjId($this->obj_id);
+		$this->sorting_settings = $sorting_settings->loadEffectiveSettings();
 	 	$query = "SELECT * FROM container_sorting ".
 	 		"WHERE obj_id = ".$this->db->quote($this->obj_id ,'integer')." ORDER BY position";
 	 	$res = $this->db->query($query);
-	 	while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+	 	while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 	 	{
 	 		if($row->parent_id)
 	 		{

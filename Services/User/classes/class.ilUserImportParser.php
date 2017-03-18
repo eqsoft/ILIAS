@@ -173,10 +173,6 @@ class ilUserImportParser extends ilSaxParser
 	var $currPassword;
 
 	/**
-	 * @var The password salt
-	 */
-	protected $currPasswordSalt;
-	/**
 	 * The active state of the current user.
 	*/
 	var $currActive;
@@ -283,7 +279,7 @@ class ilUserImportParser extends ilSaxParser
 	*
 	* @access	public
 	*/
-	function ilUserImportParser($a_xml_file = '', $a_mode = IL_USER_IMPORT, $a_conflict_rule = IL_FAIL_ON_CONFLICT)
+	function __construct($a_xml_file = '', $a_mode = IL_USER_IMPORT, $a_conflict_rule = IL_FAIL_ON_CONFLICT)
 	{
 		global $lng, $tree, $ilias, $ilUser, $styleDefinition;
 
@@ -301,31 +297,26 @@ class ilUserImportParser extends ilSaxParser
 		
 		// get all active style  instead of only assigned ones -> cannot transfer all to another otherwise
 		$this->userStyles = array();
-		include_once("./Services/Style/classes/class.ilObjStyleSettings.php");
-		include_once './Services/Style/classes/class.ilStyleDefinition.php';
-		$templates = ilStyleDefinition::_getAllTemplates();
-		
-		if (is_array($templates))
+		include_once './Services/Style/System/classes/class.ilStyleDefinition.php';
+		$skins = ilStyleDefinition::getAllSkins();
+
+		if (is_array($skins))
 		{
-		
-			foreach($templates as $template)
+
+			foreach($skins as $skin)
 			{
-				// get styles information of template
-				$styleDef =& new ilStyleDefinition($template["id"]);
-				$styleDef->startParsing();
-				$styles = $styleDef->getStyles();
-				
-				foreach($styles as $style)
+				foreach($skin->getStyles() as $style)
 				{
-					if (!ilObjStyleSettings::_lookupActivatedStyle($template["id"],$style["id"]))
+					include_once("./Services/Style/System/classes/class.ilSystemStyleSettings.php");
+					if (!ilSystemStyleSettings::_lookupActivatedStyle($skin->getId(),$style->getId()))
 					{
 						continue;
 					}
-					$this->userStyles [] = $template["id"].":".$style["id"];
+					$this->userStyles [] = $skin->getId().":".$style->getId();
 				}
-			}			
+			}
 		}
-		
+
 		$settings = $ilias->getAllSettings();
 		if ($settings["usr_settings_hide_skin_style"] == 1)
 		{
@@ -348,7 +339,7 @@ class ilUserImportParser extends ilSaxParser
 		$this->acc_mail = new ilAccountMail();
 		$this->acc_mail->useLangVariablesAsFallback(true);
 
-		parent::ilSaxParser($a_xml_file);
+		parent::__construct($a_xml_file);
 	}
 
 	/**
@@ -508,7 +499,7 @@ class ilUserImportParser extends ilSaxParser
 				$this->style = "";
 				$this->personalPicture = null;
 				$this->userCount++;
-				$this->userObj = new ilObjUser(ilObjUser::_lookupId($a_attribs["Id"]));
+				$this->userObj = new ilObjUser();
 
 				// user defined fields
 				$this->udf_data = array();
@@ -535,27 +526,38 @@ class ilUserImportParser extends ilSaxParser
 				$this->userObj->setLanguage($a_attribs["Language"]);
 				$this->userObj->setImportId($a_attribs["Id"]);
 				$this->action = (is_null($a_attribs["Action"])) ? "Insert" : $a_attribs["Action"];
-				$this->currPassword         = null;
-				$this->currPasswordType     = null;
-				$this->currPasswordSalt     = null;
+				$this->currPassword     = null;
+				$this->currPasswordType = null;
 				$this->currActive = null;				
 				$this->multi_values = array();
 				break;
 
 			case 'Password':
-				$this->currPasswordType     = $a_attribs['Type'];
-				$this->currPasswordSalt     = $a_attribs['Salt'];
+				$this->currPasswordType = $a_attribs['Type'];
 				break;
 			case "AuthMode":
 				if (array_key_exists("type", $a_attribs))
 				{
-					// begin-patch ldap_multiple
-					// cast to int
-					switch ((int) $a_attribs["type"])
+					switch ($a_attribs["type"])
 					{
 						case "default":
 						case "local":
 						case "ldap":
+							
+							if(strcmp('ldap', $a_attribs['type']) === 0)
+							{
+								// no server id provided => use default server
+								include_once './Services/LDAP/classes/class.ilLDAPServer.php';
+								$list = ilLDAPServer::_getActiveServerList();
+								if(count($list) == 1)
+								{
+									$this->auth_mode_set = true;
+									$ldap_id = current($list);
+									$this->userObj->setAuthMode('ldap_'.$ldap_id);
+								}
+							}
+							break;
+							
 						case "radius":
 						case "shibboleth":
 						case "script":
@@ -642,7 +644,7 @@ class ilUserImportParser extends ilSaxParser
 
 			case "User":
 				$this->userCount++;
-				$this->userObj = new ilObjUser(ilObjUser::_lookupId($a_attribs["Id"]));
+				$this->userObj = new ilObjUser();
 				$this->userObj->setLanguage($a_attribs["Language"]);
 				$this->userObj->setImportId($a_attribs["Id"]);
 				$this->currentPrefKey = null;
@@ -668,23 +670,36 @@ class ilUserImportParser extends ilSaxParser
 				{
 					$this->logFailure($this->userObj->getImportId(), sprintf($lng->txt("usrimport_xml_attribute_value_illegal"),"User","Action",$a_attribs["Action"]));
 				}
-				$this->currPassword         = null;
-				$this->currPasswordType     = null;
-				$this->currPasswordSalt     = null;
+				$this->currPassword     = null;
+				$this->currPasswordType = null;
 				break;
 
 			case 'Password':
-				$this->currPasswordType     = $a_attribs['Type'];
-				$this->currPasswordSalt     = $a_attribs['Salt'];
+				$this->currPasswordType = $a_attribs['Type'];
 				break;
 			case "AuthMode":
 				if (array_key_exists("type", $a_attribs))
 				{
-					switch ($a_attribs["type"])
+					switch($a_attribs["type"])
 					{
 						case "default":
 						case "local":
 						case "ldap":
+							
+							if(strcmp('ldap', $a_attribs['type']) === 0)
+							{
+								// no server id provided
+								include_once './Services/LDAP/classes/class.ilLDAPServer.php';
+								$list = ilLDAPServer::_getActiveServerList();
+								if(count($list) != 1)
+								{
+									$this->logFailure(
+										$this->userObj->getImportId(), 
+										sprintf($lng->txt("usrimport_xml_attribute_value_illegal"),"AuthMode","type",$a_attribs['type']));
+								}
+							}
+							break;
+							
 						case "radius":
 						case "shibboleth":
 						case "script":
@@ -1086,28 +1101,21 @@ class ilUserImportParser extends ilSaxParser
 
 							if(!strlen($this->currPassword) == 0)
 							{
-								switch($this->currPasswordType)
+								switch(strtoupper($this->currPasswordType))
 								{
 									case "BCRYPT":
-										if(!strlen($this->currPasswordSalt))
-										{
-											$this->logFailure($this->userObj->getLogin(), $lng->txt("usrimport_xml_pw_bcrypt_missing_salt"));
-										}
 										$this->userObj->setPasswd($this->currPassword, IL_PASSWD_CRYPTED);
-										$this->userObj->setPasswordEncodingType('bcrypt');
-										$this->userObj->setPasswordSalt($this->currPasswordSalt);
-										break;
-
-									case "MD5":
-									case "ILIAS3":
-										$this->userObj->setPasswd($this->currPassword, IL_PASSWD_CRYPTED);
-										$this->userObj->setPasswordEncodingType('md5');
-										$this->userObj->setPasswordSalt('');
+										$this->userObj->setPasswordEncodingType('bcryptphp');
+										$this->userObj->setPasswordSalt(null);
 										break;
 
 									case "PLAIN":
 										$this->userObj->setPasswd($this->currPassword, IL_PASSWD_PLAIN);
 										$this->acc_mail->setUserPassword($this->currPassword);
+										break;
+
+									default:
+										$this->logFailure($this->userObj->getLogin(), sprintf($lng->txt("usrimport_xml_attribute_value_illegal"),"Type","Password",$this->currPasswordType));
 										break;
 
 								}
@@ -1177,7 +1185,16 @@ class ilUserImportParser extends ilSaxParser
 									}
 								}
 							}
-														
+
+							if(!is_array($this->prefs) || array_search('chat_osc_accept_msg', $this->prefs) === false)
+							{
+								$this->userObj->setPref('chat_osc_accept_msg', $ilSetting->get('chat_osc_accept_msg', 'n'));
+							}
+							if(!is_array($this->prefs) || array_search('bs_allow_to_contact_me', $this->prefs) === false)
+							{
+								$this->userObj->setPref('bs_allow_to_contact_me', $ilSetting->get('bs_allow_to_contact_me', 'n'));
+							}
+
 							$this->userObj->writePrefs();
 
 							// update mail preferences, to be extended
@@ -1240,28 +1257,21 @@ class ilUserImportParser extends ilSaxParser
 							$updateUser->readPrefs();
 							if ($this->currPassword != null)
 							{
-								switch ($this->currPasswordType)
+								switch(strtoupper($this->currPasswordType))
 								{
 									case "BCRYPT":
-										if(!strlen($this->currPasswordSalt))
-										{
-											$this->logFailure($this->userObj->getLogin(), $lng->txt("usrimport_xml_pw_bcrypt_missing_salt"));
-										}
 										$updateUser->setPasswd($this->currPassword, IL_PASSWD_CRYPTED);
-										$updateUser->setPasswordEncodingType('bcrypt');
-										$updateUser->setPasswordSalt($this->currPasswordSalt);
-										break;
-
-									case "MD5":
-									case "ILIAS3":
-										$updateUser->setPasswd($this->currPassword, IL_PASSWD_CRYPTED);
-										$updateUser->setPasswordEncodingType('md5');
-										$updateUser->setPasswordSalt('');
+										$updateUser->setPasswordEncodingType('bcryptphp');
+										$updateUser->setPasswordSalt(null);
 										break;
 
 									case "PLAIN":
 										$updateUser->setPasswd($this->currPassword, IL_PASSWD_PLAIN);
 										$this->acc_mail->setUserPassword($this->currPassword);
+										break;
+
+									default:
+										$this->logFailure($this->userObj->getLogin(), sprintf($lng->txt("usrimport_xml_attribute_value_illegal"),"Type","Password",$this->currPasswordType));
 										break;
 								}
 							}
@@ -1304,14 +1314,6 @@ class ilUserImportParser extends ilSaxParser
 							if($this->auth_mode_set)
 								$updateUser->setAuthMode($this->userObj->getAuthMode());
 							
-							if (! is_null($this->userObj->getInstantMessengerId("aim"))) $updateUser->setInstantMessengerId("aim", $this->userObj->getInstantMessengerId("aim"));
-							if (! is_null($this->userObj->getInstantMessengerId("msn"))) $updateUser->setInstantMessengerId("msn", $this->userObj->getInstantMessengerId("msn"));
-							if (! is_null($this->userObj->getInstantMessengerId("icq"))) $updateUser->setInstantMessengerId("icq", $this->userObj->getInstantMessengerId("icq"));
-							if (! is_null($this->userObj->getInstantMessengerId("yahoo"))) $updateUser->setInstantMessengerId("yahoo", $this->userObj->getInstantMessengerId("yahoo"));
-							if (! is_null($this->userObj->getInstantMessengerId("skype"))) $updateUser->setInstantMessengerId("skype", $this->userObj->getInstantMessengerId("skype"));
-							if (! is_null($this->userObj->getInstantMessengerId("jabber"))) $updateUser->setInstantMessengerId("jabber", $this->userObj->getInstantMessengerId("jabber"));
-							if (! is_null($this->userObj->getInstantMessengerId("voip"))) $updateUser->setInstantMessengerId("voip", $this->userObj->getInstantMessengerId("voip"));
-
 							// Special handlin since it defaults to 7 (USER_FOLDER_ID)
 							if($this->time_limit_owner_set)
 							{
@@ -1352,7 +1354,7 @@ class ilUserImportParser extends ilSaxParser
 							}
 							
 							$updateUser->setProfileIncomplete($this->checkProfileIncomplete($updateUser));
-
+							$updateUser->setFullname();
 							$updateUser->setTitle($updateUser->getFullname());
 							$updateUser->setDescription($updateUser->getEmail());
 							$updateUser->update();
@@ -1690,17 +1692,9 @@ class ilUserImportParser extends ilSaxParser
 				}
 				break;
 			case 'AccountInfo':
-				if ($this->current_messenger_type =="delicious")
-				{
-					$this->userObj->setDelicious($this->cdata);
-				}
-				elseif ($this->current_messenger_type =="external")
+				if($this->current_messenger_type =="external")
 				{
 					$this->userObj->setExternalAccount($this->cdata);
-				}
-				else
-				{
-					$this->userObj->setInstantMessengerId($this->current_messenger_type, $this->cdata);
 				}
 				break;
 			case 'Pref':
@@ -1839,20 +1833,9 @@ class ilUserImportParser extends ilSaxParser
 				switch ($this->currPasswordType)
 				{
 					case "BCRYPT":
-						if(!strlen($this->currPasswordSalt))
-						{
-							$this->logFailure($this->userObj->getLogin(), $lng->txt("usrimport_xml_pw_bcrypt_missing_salt"));
-						}
 						$this->userObj->setPasswd($this->cdata, IL_PASSWD_CRYPTED);
-						$this->userObj->setPasswordEncodingType('bcrypt');
-						$this->userObj->setPasswordSalt($this->currPasswordSalt);
-						break;
-
-					case "MD5":
-					case "ILIAS3":
-						$this->userObj->setPasswd($this->cdata, IL_PASSWD_CRYPTED);
-						$this->userObj->setPasswordEncodingType('md5');
-						$this->userObj->setPasswordSalt('');
+						$this->userObj->setPasswordEncodingType('bcryptphp');
+						$this->userObj->setPasswordSalt(null);
 						break;
 
 					case "PLAIN":
@@ -2434,6 +2417,12 @@ class ilUserImportParser extends ilSaxParser
 					$this->logFailure("---", "Wrong value '$value': Value 'y' or 'n' expected for preference $key.");				
 				break;
 			case 'bs_allow_to_contact_me':
+				if(!in_array($value, array('y', 'n')))
+				{
+					$this->logFailure("---", "Wrong value '$value': Value 'y' or 'n' expected for preference $key.");
+				}
+				break;
+			case 'chat_osc_accept_msg':
 				if(!in_array($value, array('y', 'n')))
 				{
 					$this->logFailure("---", "Wrong value '$value': Value 'y' or 'n' expected for preference $key.");

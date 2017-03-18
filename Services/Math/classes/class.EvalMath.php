@@ -99,8 +99,9 @@ class EvalMath {
         'cos','cosh','arccos','acos','arccosh','acosh',
         'tan','tanh','arctan','atan','arctanh','atanh',
         'sqrt','abs','ln','log');
-    
-    function EvalMath() {
+    // mjansen-patch: begin
+    function __construct() {
+    // mjansen-patch: end
         // make the variables a little more accurate
         $this->v['pi'] = pi();
         $this->v['exp'] = exp(1);
@@ -340,7 +341,12 @@ class EvalMath {
                 if (in_array($fnn, $this->fb)) { // built-in function:
                     if (is_null($op1 = $stack->pop())) return $this->trigger("internal error");
                     $fnn = preg_replace("/^arc/", "a", $fnn); // for the 'arc' trig synonyms
-                    if ($fnn == 'ln') $fnn = 'log';
+                    if ($fnn == 'log') {
+                    	$fnn = 'log10';
+                    } elseif ($fnn == 'ln') {
+                    	$fnn = 'log';
+                    }
+                    
                     $stack->push($fnn($op1)); // 'eval()' can be easily avoided here
                 } elseif (array_key_exists($fnn, $this->f)) { // user function
                     // get args
@@ -406,7 +412,12 @@ class EvalMathStack {
     }
     
     function last($n=1) {
-        return $this->stack[$this->count-$n];
+        // mjansen-patch: begin
+        if(isset($this->stack[$this->count-$n])) {
+            return $this->stack[$this->count - $n];
+        }
+        return null;
+        // mjansen-patch: end
     }
 }
 

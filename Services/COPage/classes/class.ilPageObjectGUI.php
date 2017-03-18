@@ -80,7 +80,7 @@ class ilPageObjectGUI
 	 * @param bool $a_prevent_get_id prevent getting id automatically from $_GET (e.g. set when concentInclude are included)
 	 * @param string $a_lang language ("" reads also $_GET["transl"], "-" forces master lang)
 	 */
-	function ilPageObjectGUI($a_parent_type, $a_id, $a_old_nr = 0,
+	function __construct($a_parent_type, $a_id, $a_old_nr = 0,
 		$a_prevent_get_id = false, $a_lang = "")
 	{
 		global $tpl, $lng, $ilCtrl,$ilTabs;
@@ -120,13 +120,14 @@ class ilPageObjectGUI
 		$this->output2template = true;
 		$this->question_xml = "";
 		$this->question_html = "";
-		$this->tabs_gui =& $ilTabs;
+		$this->tabs_gui = $ilTabs;
 
 		$this->template_output_var = "PAGE_CONTENT";
 		$this->citation = false;
 		$this->change_comments = false;
 		$this->page_back_title = $this->lng->txt("page");
 		$lng->loadLanguageModule("content");
+		$lng->loadLanguageModule("copg");
 		
 		$this->setTemplateOutput(false);
 		
@@ -432,12 +433,23 @@ class ilPageObjectGUI
 		return $this->template_output_var;
 	}
 
-	// @todo 1: can we get rid of this?
-	function setSourcecodeDownloadScript ($script_name) {
+	/**
+	 * Set sourcecode download script
+	 *
+	 * @param string $script_name
+	 */
+	function setSourcecodeDownloadScript ($script_name)
+	{
 		$this->sourcecode_download_script = $script_name;
 	}
 
-	function getSourcecodeDownloadScript () {
+	/**
+	 * Get sourcecode download script
+	 *
+	 * @return string
+	 */
+	function getSourcecodeDownloadScript ()
+	{
 		return $this->sourcecode_download_script;
 	}
 
@@ -453,7 +465,7 @@ class ilPageObjectGUI
 
 	function setLocator(&$a_locator)
 	{
-		$this->locator =& $a_locator;
+		$this->locator = $a_locator;
 	}
 
 	function setTabs($a_tabs)
@@ -466,23 +478,41 @@ class ilPageObjectGUI
 		$this->page_back_title = $a_title;
 	}
 
-	// @todo 1: can we get rid of this?
+	/**
+	 * Set file download link
+	 *
+	 * @param string $a_download_link download link
+	 */
 	function setFileDownloadLink($a_download_link)
 	{
 		$this->file_download_link = $a_download_link;
 	}
 
+	/**
+	 * Get file download link
+	 *
+	 * @return string
+	 */
 	function getFileDownloadLink()
 	{
 		return $this->file_download_link;
 	}
 
-	// @todo 1: can we get rid of this?
+	/**
+	 * Set fullscreen link
+	 *
+	 * @param string $a_download_link download link
+	 */
 	function setFullscreenLink($a_fullscreen_link)
 	{
 		$this->fullscreen_link = $a_fullscreen_link;
 	}
 
+	/**
+	 * Get fullscreen link
+	 *
+	 * @return string
+	 */
 	function getFullscreenLink()
 	{
 		return $this->fullscreen_link;
@@ -563,7 +593,7 @@ class ilPageObjectGUI
 
 	function setActivationListener(&$a_obj, $a_meth)
 	{
-		$this->act_obj =& $a_obj;
+		$this->act_obj = $a_obj;
 		$this->act_meth = $a_meth;
 	}
 
@@ -915,7 +945,7 @@ return;
 	/**
 	* execute command
 	*/
-	function &executeCommand()
+	function executeCommand()
 	{
 		global $ilCtrl, $ilTabs, $lng, $ilAccess, $tpl;
 
@@ -950,8 +980,8 @@ return;
 				//$this->ctrl->setReturn($this, "view");
 				$clip_gui = new ilEditClipboardGUI();
 				$clip_gui->setPageBackTitle($this->page_back_title);
-				//$ret =& $clip_gui->executeCommand();
-				$ret =& $this->ctrl->forwardCommand($clip_gui);
+				//$ret = $clip_gui->executeCommand();
+				$ret = $this->ctrl->forwardCommand($clip_gui);
 				break;
 				
 			// notes
@@ -983,7 +1013,7 @@ return;
 				$page_editor->setPageBackTitle($this->page_back_title);
 				$page_editor->setIntLinkReturn($this->int_link_return);
 				//$page_editor->executeCommand();
-				$ret =& $this->ctrl->forwardCommand($page_editor);
+				$ret = $this->ctrl->forwardCommand($page_editor);
 				break;
 
 			case 'ilnewsitemgui':
@@ -1228,7 +1258,7 @@ return;
 					ilModalGUI::initJS();
 					$lng->toJS("cont_error");
 
-					include_once './Services/Style/classes/class.ilObjStyleSheet.php';
+					include_once './Services/Style/Content/classes/class.ilObjStyleSheet.php';
 					$GLOBALS["tpl"]->addOnloadCode("var preloader = new Image();
 						preloader.src = './templates/default/images/loader.svg';
 						ilCOPage.setUser('".$ilUser->getLogin()."');
@@ -1237,6 +1267,11 @@ return;
 						", ".ilUtil::getStyleSheetLocation().
 						", ./Services/COPage/css/tiny_extra.css".
 						"')");
+					include_once("./Services/COPage/classes/class.ilPCParagraphGUI.php");
+					foreach (ilPCParagraphGUI::_getTextCharacteristics($this->getStyleId()) as $c)
+					{
+						$GLOBALS["tpl"]->addOnloadCode("ilCOPage.addTextFormat('".$c."');");
+					}
 
 					//$GLOBALS["tpl"]->addJavascript("Services/RTE/tiny_mce_3_3_9_2/il_tiny_mce_src.js");
 					$GLOBALS["tpl"]->addJavascript("Services/COPage/tiny/4_2_4/tinymce.js");
@@ -1464,16 +1499,8 @@ return;
 			if ($_GET["reloadTree"] == "y")
 			{
 				$tpl->setCurrentBlock("reload_tree");
-				if ($this->obj->getParentType() == "dbk")
-				{
-					$tpl->setVariable("LINK_TREE",
-						$this->ctrl->getLinkTargetByClass("ilobjdlbookgui", "explorer", "", false, false));
-				}
-				else
-				{
-					$tpl->setVariable("LINK_TREE",
-						$this->ctrl->getLinkTargetByClass("ilobjlearningmodulegui", "explorer", "", false, false));
-				}
+				$tpl->setVariable("LINK_TREE",
+					$this->ctrl->getLinkTargetByClass("ilobjlearningmodulegui", "explorer", "", false, false));
 				$tpl->parseCurrentBlock();
 			}
 //		}
@@ -1546,8 +1573,8 @@ return;
 			$this->obj->addFileSizes();
 		}
 
-//echo "<br>-".htmlentities($this->obj->getXMLContent())."-<br><br>";
-//echo "<br>-".htmlentities($this->getLinkXML())."-";
+//echo "<br>-".htmlentities($this->obj->getXMLContent())."-<br><br>"; exit;
+//echo "<br>-".htmlentities($this->getLinkXML())."-"; exit;
 
 		// set default link xml, if nothing was set yet
 		if (!$this->link_xml_set)
@@ -1564,7 +1591,7 @@ return;
 		{
 			if (ilObject::_lookupType($this->getStyleId()) == "sty")
 			{
-				include_once("./Services/Style/classes/class.ilObjStyleSheet.php");
+				include_once("./Services/Style/Content/classes/class.ilObjStyleSheet.php");
 				$style = new ilObjStyleSheet($this->getStyleId());
 				$template_xml = $style->getTemplateXML();
 				$disable_auto_margins = "n";
@@ -1627,15 +1654,13 @@ return;
 
 		// page splitting only for learning modules and
 		// digital books
-		$enable_split_new = ($this->obj->getParentType() == "lm" ||
-			$this->obj->getParentType() == "dbk")
+		$enable_split_new = ($this->obj->getParentType() == "lm")
 			? "y"
 			: "n";
 
 		// page splitting to next page only for learning modules and
 		// digital books if next page exists in tree
-		if (($this->obj->getParentType() == "lm" ||
-			$this->obj->getParentType() == "dbk") &&
+		if (($this->obj->getParentType() == "lm") &&
 			ilObjContentObject::hasSuccessorPage($this->obj->getParentId(),
 				$this->obj->getId()))
 		{
@@ -1681,6 +1706,7 @@ return;
 		$cfg = $this->getPageConfig();
 
 		$current_ts = time();
+		include_once("./Services/MediaObjects/classes/class.ilObjMediaObject.php");
 
 		// added UTF-8 encoding otherwise umlaute are converted too
 		include_once("./Services/Maps/classes/class.ilMapUtil.php");
@@ -1730,8 +1756,9 @@ return;
 						 'enable_consultation_hours' =>  $cfg->getEnablePCType("ConsultationHours") ? "y" : "n",
 						 'enable_my_courses' =>  $cfg->getEnablePCType("MyCourses") ? "y" : "n",
 						 'enable_amd_page_list' =>  $cfg->getEnablePCType("AMDPageList") ? "y" : "n",
-						 'flv_video_player' => $flv_video_player,
-						 'current_ts' => $current_ts
+						 'current_ts' => $current_ts,
+			 			 'enable_html_mob' =>  ilObjMediaObject::isTypeAllowed("html") ? "y" : "n",
+						 'flv_video_player' => $flv_video_player
 						);
 		if($this->link_frame != "")		// todo other link types
 			$params["pg_frame"] = $this->link_frame;
@@ -1770,6 +1797,11 @@ return;
 		{
 			$xsl = file_get_contents("./Services/COPage/xsl/page.xsl");
 
+			$this->log->debug("Calling XSLT, content: ".$content);
+			//echo $content; exit;
+			//$content = '<dummy><PageObject></PageObject><MediaObject Id="il__mob_350071"><MediaItem Purpose="Standard"><Location Type="LocalFile">01_Course_Kick_off500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /><MapArea Shape="WholePicture" Coords="" ><ExtLink Href="" Title="">https://lms.skyguide.corp/goto.php?target=fold_323629&client_id=skyguide</ExtLink></MapArea></MediaItem></MediaObject><MediaObject Id="il__mob_350072"><MediaItem Purpose="Standard"><Location Type="LocalFile">02_Feasibility500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350073"><MediaItem Purpose="Standard"><Location Type="LocalFile">03_Preparation500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350074"><MediaItem Purpose="Standard"><Location Type="LocalFile">05_Planning500pix.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350076"><MediaItem Purpose="Standard"><Location Type="LocalFile">06_SIM_Kick_off500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350077"><MediaItem Purpose="Standard"><Location Type="LocalFile">07_TVAL500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="70" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350078"><MediaItem Purpose="Standard"><Location Type="LocalFile">08_PVAL500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="70" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350079"><MediaItem Purpose="Standard"><Location Type="LocalFile">09_OVAL500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350080"><MediaItem Purpose="Standard"><Location Type="LocalFile">10_Course500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350081"><MediaItem Purpose="Standard"><Location Type="LocalFile">11_Evaluation500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="71" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350082"><MediaItem Purpose="Standard"><Location Type="LocalFile">100_Accountable500pix_100_0.png</Location><Format>image/png</Format><Layout Width="100" Height="69" HorizontalAlign="Left" /></MediaItem></MediaObject><MediaObject Id="il__mob_350241"><MediaItem Purpose="Standard"><Location Type="LocalFile">Picture30LINK_450_0.PNG</Location><Format>image/png</Format><Layout Width="450" Height="24" HorizontalAlign="Left" /><MapArea Shape="WholePicture" Coords="" ><ExtLink Href="http://lms.skyguide.corp/goto.php?target=file_323721_download&amp;client_id=skyguide" Title=""></ExtLink></MapArea></MediaItem></MediaObject></dummy>';
+
+
 			$args = array( '/_xml' => $content, '/_xsl' => $xsl );
 			$xh = xslt_create();
 			//		echo "<b>XSLT</b>:".htmlentities($xsl).":<br>";
@@ -1801,10 +1833,11 @@ return;
 		}
 		$output = str_replace("&amp;", "&", $output);
 		
-		$output = ilUtil::insertLatexImages($output);
+		include_once './Services/MathJax/classes/class.ilMathJax.php';
+		$output = ilMathJax::getInstance()->insertLatexImages($output);
 
 		// insert page snippets
-		$output = $this->insertContentIncludes($output);
+		//$output = $this->insertContentIncludes($output);
 
 		// insert resource blocks
 		$output = $this->insertResources($output);
@@ -1843,7 +1876,10 @@ return;
 			ilCOPagePCDef::requirePCClassByName($def["name"]);
 			$pc_class = $def["pc_class"];
 			$pc_obj = new $pc_class($this->getPageObject());
-			
+			$pc_obj->setSourcecodeDownloadScript($this->determineSourcecodeDownloadScript());
+			$pc_obj->setFileDownloadLink($this->determineFileDownloadLink());
+			$pc_obj->setFullscreenLink($this->determineFullscreenLink());
+
 			// post xsl page content modification by pc elements
 			$output = $pc_obj->modifyPageContentPostXsl($output, $this->getOutputMode());
 			
@@ -2380,7 +2416,8 @@ return;
 		$btpl->setVariable("TXT_SAVING", $lng->txt("cont_saving"));
 		
 		include_once("./Services/COPage/classes/class.ilPCParagraphGUI.php");
-		$btpl->setVariable("CHAR_STYLE_SELECTOR", ilPCParagraphGUI::getCharStyleSelector($a_par_type));
+
+		$btpl->setVariable("CHAR_STYLE_SELECTOR", ilPCParagraphGUI::getCharStyleSelector($a_par_type, true, $a_style_id));
 		ilTooltipGUI::addTooltip("ilAdvSelListAnchorElement_char_style_selection",
 			$lng->txt("cont_more_character_styles"), "iltinymenu_bd");
 
@@ -2440,6 +2477,10 @@ return;
 						{
 							$href = "./goto.php?target=st_".$target_id;
 						}
+						if ($lm_id == "")
+						{
+							$href = "";
+						}
 						break;
 
 					case "GlossaryItem":
@@ -2489,9 +2530,12 @@ return;
 						break;
 
 				}
-				$anc_par = 'Anchor="'.$anc.'"';
-				$link_info.="<IntLinkInfo Target=\"$target\" Type=\"$type\" ".$anc_par." ".
-					"TargetFrame=\"$targetframe\" LinkHref=\"$href\" LinkTarget=\"$ltarget\" LinkContent=\"$lcontent\" />";
+				if ($href != "")
+				{
+					$anc_par = 'Anchor="' . $anc . '"';
+					$link_info .= "<IntLinkInfo Target=\"$target\" Type=\"$type\" " . $anc_par . " " .
+						"TargetFrame=\"$targetframe\" LinkHref=\"$href\" LinkTarget=\"$ltarget\" LinkContent=\"$lcontent\" />";
+				}
 			}
 		}
 		$link_info.= "</IntLinkInfos>";
@@ -2517,7 +2561,7 @@ return;
 		{
 			exit;
 		}
-		$fileObj =& new ilObjFile($file_id, false);
+		$fileObj = new ilObjFile($file_id, false);
 		$fileObj->sendFile();
 		exit;
 	}
@@ -2592,6 +2636,7 @@ return;
 		xslt_free($xh);
 
 		// unmask user html
+		require_once('./Services/Style/Content/classes/class.ilObjStyleSheet.php');
 		$tpl->setVariable("LOCATION_CONTENT_STYLESHEET",
 				ilObjStyleSheet::getContentStylePath(0));
 		$tpl->setVariable("LOCATION_STYLESHEET", ilUtil::getStyleSheetLocation());
@@ -2614,76 +2659,6 @@ return;
 	{
 		$pg_obj = $this->getPageObject();
 		$pg_obj->send_paragraph($_GET["par_id"], $_GET["downloadtitle"]);
-	}
-
-	/**
-	 * Insert content includes
-	 */
-	function insertContentIncludes($a_html)
-	{
-		global $ilCtrl, $lng;
-		
-		$c_pos = 0;
-		$start = strpos($a_html, "{{{{{ContentInclude;");
-		if (is_int($start))
-		{
-			$end = strpos($a_html, "}}}}}", $start);
-		}
-		$i = 1;
-		while ($end > 0)
-		{
-			$param = substr($a_html, $start + 20, $end - $start - 20);
-			$param = explode(";", $param);
-
-			if ($param[0] == "mep" && is_numeric($param[1]))
-			{
-				include_once("./Modules/MediaPool/classes/class.ilMediaPoolPageGUI.php");
-
-				if (($param[2] <= 0 || $param[2] == IL_INST_ID) && ilMediaPoolPage::_exists($param[1]))
-				{
-					$page_gui = new ilMediaPoolPageGUI($param[1], 0, true, $this->getLanguage());
-					if ($this->getOutputMode() != "offline")
-					{
-						$page_gui->setFileDownloadLink($this->determineFileDownloadLink());
-						$page_gui->setFullscreenLink($this->determineFullscreenLink());
-						$page_gui->setSourceCodeDownloadScript($this->determineSourcecodeDownloadScript());
-					}
-					else
-					{
-						$page_gui->setOutputMode(IL_PAGE_OFFLINE);
-					}
-		
-					$html = $page_gui->getRawContent();
-				}
-				else
-				{
-					if ($this->getOutputMode() == "edit")
-					{
-						if ($param[2] <= 0)
-						{
-							$html = "// ".$lng->txt("cont_missing_snippet")." //";
-						}
-						else
-						{
-							$html = "// ".$lng->txt("cont_snippet_from_another_installation")." //";
-						}
-					}
-				}
-				$h2 = substr($a_html, 0, $start).
-					$html.
-					substr($a_html, $end + 5);
-				$a_html = $h2;
-				$i++;
-			}
-
-			$start = strpos($a_html, "{{{{{ContentInclude;", $start + 5);
-			$end = 0;
-			if (is_int($start))
-			{
-				$end = strpos($a_html, "}}}}}", $start);
-			}
-		}
-		return $a_html;
 	}
 
 	/**
@@ -3074,7 +3049,7 @@ return;
 		$this->tpl->setCurrentBlock("ilMedia");
 
 		require_once("./Services/MediaObjects/classes/class.ilObjMediaObject.php");
-		$media_obj =& new ilObjMediaObject($_GET["mob_id"]);
+		$media_obj = new ilObjMediaObject($_GET["mob_id"]);
 		if (!empty ($_GET["pg_id"]))
 		{
 			include_once("./Services/COPage/classes/class.ilPageObjectFactory.php");
@@ -3444,9 +3419,11 @@ return;
 		$rad_op3 = new ilRadioOption($lng->txt("cont_scheduled_activation"), "scheduled");
 		
 			$dt_prop = new ilDateTimeInputGUI($lng->txt("cont_start"), "start");
+			$dt_prop->setRequired(true);
 			$dt_prop->setShowTime(true);
 			$rad_op3->addSubItem($dt_prop);
 			$dt_prop2 = new ilDateTimeInputGUI($lng->txt("cont_end"), "end");
+			$dt_prop2->setRequired(true);
 			$dt_prop2->setShowTime(true);
 			$rad_op3->addSubItem($dt_prop2);
 			
@@ -3467,32 +3444,30 @@ return;
 	* Get values for activation form
 	*/
 	function getActivationFormValues()
-	{
-		$values = array();
-		$values["activation"] = "deactivated";
+	{		
+		$activation = "deactivated";
 		if ($this->getPageObject()->getActive())
 		{
-			$values["activation"] = "activated";
+			$activation = "activated";
 		}
 		
 		$dt_prop = $this->form->getItemByPostVar("start");
 		if ($this->getPageObject()->getActivationStart() != "")
 		{
-			$values["activation"] = "scheduled";
+			$activation = "scheduled";
 			$dt_prop->setDate(new ilDateTime($this->getPageObject()->getActivationStart(),
 				IL_CAL_DATETIME));
 		}
 		$dt_prop = $this->form->getItemByPostVar("end");
 		if ($this->getPageObject()->getActivationEnd() != "")
 		{
-			$values["activation"] = "scheduled";
+			$activation = "scheduled";
 			$dt_prop->setDate(new ilDateTime($this->getPageObject()->getActivationEnd(),
 				IL_CAL_DATETIME));
 		}
 		
-		$values["show_activation_info"] = $this->getPageObject()->getShowActivationInfo();
-		
-		$this->form->setValuesByArray($values);
+		$this->form->getItemByPostVar("activation")->setValue($activation);		
+		$this->form->getItemByPostVar("show_activation_info")->setChecked($this->getPageObject()->getShowActivationInfo());		
 	}
 	
 	/**
@@ -3526,7 +3501,7 @@ return;
 			ilUtil::sendSuccess($lng->txt("msg_obj_modified"), true);
 			$ilCtrl->redirect($this, "editActivation");
 		}
-		$this->form->getValuesByPost();
+		$this->form->setValuesByPost();
 		$tpl->setContent($this->form->getHTML());
 	}
 

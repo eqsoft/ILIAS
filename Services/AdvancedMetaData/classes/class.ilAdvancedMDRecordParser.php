@@ -34,7 +34,7 @@
 include_once('Services/AdvancedMetaData/classes/class.ilAdvancedMDRecord.php');
 include_once('Services/AdvancedMetaData/classes/class.ilAdvancedMDFieldDefinition.php');
 
-class ilAdvancedMDRecordParser extends ilSAXParser
+class ilAdvancedMDRecordParser extends ilSaxParser
 {
 	const MODE_UPDATE = 1;
 	const MODE_INSERT = 2;
@@ -49,7 +49,12 @@ class ilAdvancedMDRecordParser extends ilSAXParser
 	private $error_msg = array();
 	
 	protected $context; // [array]
-	
+
+	/**
+	 * @var ilLogger
+	 */
+	protected $log;
+
 	/**
 	 * Constructor
 	 *
@@ -60,6 +65,7 @@ class ilAdvancedMDRecordParser extends ilSAXParser
 	public function __construct($a_file)
 	{
 	 	parent::__construct($a_file,true);
+		$this->log = ilLoggerFactory::getLogger('amet');
 	}
 	
 	/**
@@ -387,6 +393,8 @@ class ilAdvancedMDRecordParser extends ilSAXParser
 					$field->save();
 					
 					// see getRecordMap()
+					$this->log->debug("add to record map, rec id: ".$this->getCurrentRecord()->getRecordId().
+						", import id: ".$field->getImportId().", field id:".$field->getFieldId());
 					$this->rec_map[$this->getCurrentRecord()->getRecordId()][$field->getImportId()] = $field->getFieldId();
 					break;
 			}			

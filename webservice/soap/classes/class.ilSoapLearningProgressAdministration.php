@@ -207,7 +207,7 @@ class ilSoapLearningProgressAdministration extends ilSoapAdministration
 		
 		// check lp available
 		include_once './Services/Tracking/classes/class.ilLPObjSettings.php';
-		$mode = ilLPObjSettings::_lookupMode($obj->getId());
+		$mode = ilLPObjSettings::_lookupDBMode($obj->getId());
 		if($mode == LP_MODE_UNDEFINED)
 		{
 			return $this->__raiseError('Error '.self::SOAP_LP_ERROR_LP_NOT_AVAILABLE.': Learning progress not available for objects of type '.
@@ -420,7 +420,7 @@ class ilSoapLearningProgressAdministration extends ilSoapAdministration
 		$res = $ilDB->query($query);
 		
 		$scos = array();
-		while($row = $res->fetchRow(DB_FETCHMODE_OBJECT))
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$scos[] = $row->cp_node_id;
 		}

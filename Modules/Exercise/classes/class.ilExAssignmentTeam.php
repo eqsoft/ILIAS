@@ -46,6 +46,7 @@ class ilExAssignmentTeam
 		{
 			$team = new self();
 			$team->id = $team_id;
+			$team->assignment_id = $a_assignment_id;		
 			$team->members = $members;
 			$res[$team_id] = $team;
 		}
@@ -61,6 +62,9 @@ class ilExAssignmentTeam
 	protected function read($a_id)
 	{
 		global $ilDB;
+		
+		// #18094
+		$this->members = array();
 		
 		$sql = "SELECT * FROM il_exc_team".
 			" WHERE id = ".$ilDB->quote($a_id, "integer");
@@ -304,15 +308,27 @@ class ilExAssignmentTeam
 	{
 		global $ilDB;
 		
-		$set = $ilDB->query("SELECT DISTINCT(log.team_id)".
-			" FROM il_exc_team_log log".
-			" LEFT JOIN il_exc_team team ON (team.id = log.team_id)".
-			" WHERE team.id IS NULL");
+		// #18179
+		
+		$teams = array();
+		$set = $ilDB->query("SELECT DISTINCT(id)".
+			" FROM il_exc_team");
 		while($row = $ilDB->fetchAssoc($set))
 		{
-			$ilDB->manipulate("DELETE FROM il_exc_team_log".
-				" WHERE team_id = ".$ilDB->quote($row["team_id"], "integer"));
+			$teams[] = $row["id"]; 
 		}
+		
+		$set = $ilDB->query("SELECT DISTINCT(team_id)".
+			" FROM il_exc_team_log");
+		while($row = $ilDB->fetchAssoc($set))		
+		{
+			$team_id = $row["team_id"];
+			if(!in_array($team_id, $teams))
+			{
+				$ilDB->manipulate("DELETE FROM il_exc_team_log".
+					" WHERE team_id = ".$ilDB->quote($team_id, "integer"));
+			}
+		}		
 	}
 	
 	/**

@@ -20,6 +20,11 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 	protected $allow_deletion;
 	
 	static protected $check_wsp_quota;
+
+	/**
+	 * @var array
+	 */
+	protected $forbidden_suffixes = array();
 	
 	/**
 	* Constructor
@@ -131,7 +136,27 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 	{
 		return $this->suffixes;
 	}
-	
+
+	/**
+	 * Set forbidden Suffixes.
+	 *
+	 * @param	array	$a_suffixes	forbidden Suffixes
+	 */
+	function setForbiddenSuffixes($a_suffixes)
+	{
+		$this->forbidden_suffixes = $a_suffixes;
+	}
+
+	/**
+	 * Get Accepted Suffixes.
+	 *
+	 * @return	array	forbidden Suffixes
+	 */
+	function getForbiddenSuffixes()
+	{
+		return $this->forbidden_suffixes;
+	}
+
 	/**
 	 * Set pending filename value 
 	 *  
@@ -216,6 +241,20 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 	function checkInput()
 	{
 		global $lng;
+		
+		// #18756
+		if($this->getDisabled())
+		{
+			return true;
+		}
+
+		// if no information is received, something went wrong
+		// this is e.g. the case, if the post_max_size has been exceeded
+		if (!is_array($_FILES[$this->getPostVar()]))
+		{
+			$this->setAlert($lng->txt("form_msg_file_size_exceeds"));
+			return false;
+		}
 
 		$_FILES[$this->getPostVar()]["name"] = ilUtil::stripSlashes($_FILES[$this->getPostVar()]["name"]);
 
@@ -223,10 +262,7 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 		$_FILES[$this->getPostVar()]["name"] = ilStr::normalizeUtf8String($_FILES[$this->getPostVar()]["name"]);
 
 		// remove trailing '/'
-		while (substr($_FILES[$this->getPostVar()]["name"],-1) == '/')
-		{
-			$_FILES[$this->getPostVar()]["name"] = substr($_FILES[$this->getPostVar()]["name"],0,-1);
-		}
+		$_FILES[$this->getPostVar()]["name"] = rtrim($_FILES[$this->getPostVar()]["name"], '/');
 
 		$filename = $_FILES[$this->getPostVar()]["name"];
 		$filename_arr = pathinfo($_FILES[$this->getPostVar()]["name"]);
@@ -237,14 +273,6 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 		$error = $_FILES[$this->getPostVar()]["error"];
 		$_POST[$this->getPostVar()] = $_FILES[$this->getPostVar()];
 		
-		// if no information is received, something went wrong
-		// this is e.g. the case, if the post_max_size has been exceeded
-		if (!is_array($_FILES[$this->getPostVar()]))
-		{
-			$this->setAlert($lng->txt("form_msg_file_size_exceeds"));
-			return false;
-		}
-
 		// error handling
 		if ($error > 0)
 		{
@@ -294,13 +322,20 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 		}
 		
 		// check suffixes
-		if ($_FILES[$this->getPostVar()]["tmp_name"] != "" &&
-			is_array($this->getSuffixes()) && count($this->getSuffixes()) > 0)
+		if ($_FILES[$this->getPostVar()]["tmp_name"] != "")
 		{
-			if (!in_array(strtolower($suffix), $this->getSuffixes()))
+			if (is_array($this->forbidden_suffixes) && in_array(strtolower($suffix), $this->forbidden_suffixes))
 			{
-				$this->setAlert($lng->txt("form_msg_file_wrong_file_type"));
+				$this->setAlert($lng->txt("form_msg_file_type_is_not_allowed")." (".$suffix.")");
 				return false;
+			}
+			if (is_array($this->getSuffixes()) && count($this->getSuffixes()) > 0)
+			{
+				if (!in_array(strtolower($suffix), $this->getSuffixes()))
+				{
+					$this->setAlert($lng->txt("form_msg_file_wrong_file_type"));
+					return false;
+				}
 			}
 		}
 		
@@ -420,6 +455,11 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 		$f_tpl->setVariable("ID", $this->getFieldId());
 		$f_tpl->setVariable("SIZE", $this->getSize());
 		
+		
+		/* experimental: bootstrap'ed file upload */
+		$f_tpl->setVariable("TXT_BROWSE", $lng->txt("select_file"));
+		
+		
 		return $f_tpl->get();
 	}
 	
@@ -428,7 +468,7 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 	*
 	* @return	int	Size
 	*/
-	function insert(&$a_tpl)
+	function insert($a_tpl)
 	{
 		$html = $this->render();
 
@@ -505,7 +545,7 @@ class ilFileInputGUI extends ilSubEnabledFormPropertyGUI implements ilToolbarIte
 		return $html;
 	}	
 	
-	function setPersonalWorkspaceQuotaCheck($a_value)
+	static function setPersonalWorkspaceQuotaCheck($a_value)
 	{
 		if((bool)$a_value)
 		{

@@ -81,6 +81,13 @@ class ilScormMailTemplateLPContext extends ilMailTemplateContext
 			'label'			=> $lng->txt('trac_mark')
 		);
 		
+		// #17969
+		$lng->loadLanguageModule('content');
+		$placeholders['sahs_score'] = array(
+			'placeholder'	=> 'SCORM_SCORE',
+			'label'			=> $lng->txt('cont_score')
+		);
+		
 		if($tracking->hasExtendedData(ilObjUserTracking::EXTENDED_DATA_SPENT_SECONDS))
 		{
 			$placeholders['sahs_time_spent'] = array(
@@ -112,24 +119,25 @@ class ilScormMailTemplateLPContext extends ilMailTemplateContext
 	}
 
 	/**
-	 * @param string    $placeholder_id
-	 * @param array     $context_parameters
-	 * @param ilObjUser $recipient
-	 * @param bool      $html_markup
-	 * @return string
+	 * {@inheritdoc}
 	 */
-	public function resolveSpecificPlaceholder($placeholder_id, array $context_parameters, ilObjUser $recipient, $html_markup = false)
+	public function resolveSpecificPlaceholder($placeholder_id, array $context_parameters, ilObjUser $recipient = null, $html_markup = false)
 	{
 		/**
 		 * @var $ilObjDataCache ilObjectDataCache
 		 */
 		global $ilObjDataCache;
-		
+
+		if(!in_array($placeholder_id, array('sahs_title', 'sahs_link')))
+		{
+			return '';
+		}
+
 		$obj_id = $ilObjDataCache->lookupObjId($context_parameters['ref_id']);
 		
 		include_once 'Services/Tracking/classes/class.ilObjUserTracking.php';
 		$tracking = new ilObjUserTracking();
-		
+
 		switch($placeholder_id)
 		{
 			case 'sahs_title':
@@ -140,6 +148,11 @@ class ilScormMailTemplateLPContext extends ilMailTemplateContext
 				return ilLink::_getLink($context_parameters['ref_id'], 'sahs');	
 			
 			case 'sahs_status':
+				if($recipient === null)
+				{
+					return '';
+				}
+
 				include_once './Services/Tracking/classes/class.ilLPStatus.php';			
 				include_once './Services/Tracking/classes/class.ilLearningProgressBaseGUI.php';
 				$status = ilLPStatus::_lookupStatus($obj_id, $recipient->getId());	
@@ -149,25 +162,62 @@ class ilScormMailTemplateLPContext extends ilMailTemplateContext
 				}
 				return ilLearningProgressBaseGUI::_getStatusText($status, $this->getLanguage());								
 				
-			case 'sahs_mark':				
+			case 'sahs_mark':
+				if($recipient === null)
+				{
+					return '';
+				}
+
 				include_once './Services/Tracking/classes/class.ilLPMarks.php';
 				$mark = ilLPMarks::_lookupMark($recipient->getId(), $obj_id);
 				return strlen(trim($mark)) ? $mark : '-';
 				
-			case 'sahs_time_spent':		
+			case 'sahs_score':
+				if($recipient === null)
+				{
+					return '';
+				}
+
+				$scores = array();														
+				$obj_id = ilObject::_lookupObjId($context_parameters['ref_id']);							
+				include_once 'Modules/ScormAicc/classes/class.ilScormLP.php';
+				$coll = ilScormLP::getInstance($obj_id)->getCollectionInstance();																
+				if($coll->getItems())
+				{				
+					include_once 'Services/Tracking/classes/class.ilTrQuery.php';		
+					//changed static call into dynamic one//ukohnle
+					//foreach(ilTrQuery::getSCOsStatusForUser($recipient->getId(), $obj_id, $coll->getItems()) as $item)
+					$SCOStatusForUser = (new ilTrQuery)->getSCOsStatusForUser($recipient->getId(), $obj_id, $coll->getItems());
+					foreach($SCOStatusForUser as $item)
+					{
+						$scores[] = $item['title'].': '.$item['score'];
+					}	
+				}
+				return implode("\n", $scores);	
+				
+			case 'sahs_time_spent':
+				if($recipient === null)
+				{
+					return '';
+				}
+
 				if($tracking->hasExtendedData(ilObjUserTracking::EXTENDED_DATA_SPENT_SECONDS))
 				{
 					include_once './Services/Tracking/classes/class.ilLearningProgress.php';
 					$progress = ilLearningProgress::_getProgress($recipient->getId(), $obj_id);
 					if(isset($progress['spent_seconds']))
 					{
-						include_once './Services/Utilities/classes/class.ilFormat.php';
-						return ilFormat::_secondsToString($progress['spent_seconds'], false, $this->getLanguage());
+						return ilDatePresentation::secondsToString($progress['spent_seconds'], false, $this->getLanguage());
 					}
 				}
 				break;
 				
-			case 'sahs_first_access':		
+			case 'sahs_first_access':
+				if($recipient === null)
+				{
+					return '';
+				}
+
 				if($tracking->hasExtendedData(ilObjUserTracking::EXTENDED_DATA_LAST_ACCESS))
 				{
 					include_once './Services/Tracking/classes/class.ilLearningProgress.php';
@@ -179,7 +229,12 @@ class ilScormMailTemplateLPContext extends ilMailTemplateContext
 				}
 				break;
 				
-			case 'sahs_last_access':		
+			case 'sahs_last_access':
+				if($recipient === null)
+				{
+					return '';
+				}
+
 				if($tracking->hasExtendedData(ilObjUserTracking::EXTENDED_DATA_LAST_ACCESS))
 				{
 					include_once './Services/Tracking/classes/class.ilLearningProgress.php';

@@ -34,7 +34,7 @@ include_once("Services/Table/classes/class.ilTable2GUI.php");
 class ilWikiContributorsTableGUI extends ilTable2GUI
 {
 
-	function ilWikiContributorsTableGUI($a_parent_obj, $a_parent_cmd = "",
+	function __construct($a_parent_obj, $a_parent_cmd = "",
 		$a_wiki_id)
 	{
 		global $ilCtrl, $lng;
@@ -67,7 +67,7 @@ class ilWikiContributorsTableGUI extends ilTable2GUI
 	function getContributors()
 	{
 		include_once("./Modules/Wiki/classes/class.ilWikiPage.php");
-		$contributors = ilWikiPage::getParentObjectContributors($this->wiki_id);
+		$contributors = ilWikiPage::getWikiContributors($this->wiki_id);
 		$this->setDefaultOrderField("lastname");
 		$this->setDefaultOrderDirection("asc");
 		$this->setData($contributors);
@@ -114,7 +114,7 @@ class ilWikiContributorsTableGUI extends ilTable2GUI
 			$img = ilObjUser::_getPersonalPicturePath($a_set["user_id"], "xsmall");
 			$this->tpl->setVariable("IMG_USER", $img);
 			$this->tpl->setVariable("TXT_NAME",
-				$a_set["lastname"].", ".$a_set["firstname"]);
+				htmlspecialchars($a_set["lastname"].", ".$a_set["firstname"]));
 			$this->tpl->setVariable("USER_ID", $a_set["user_id"]);
 				
 			// comment for learner

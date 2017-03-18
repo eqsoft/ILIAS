@@ -76,7 +76,12 @@ class ilMailGUI
 
 		if ($_GET["type"] == "new")
 		{
-			$_SESSION['rcp_to'] = $_GET['rcp_to'];			
+			$_SESSION['rcp_to'] = $_GET['rcp_to'];
+			if(!strlen($_SESSION['rcp_to']) && ($recipients = ilMailFormCall::getRecipients()))
+			{
+				$_SESSION['rcp_to'] = implode(',', $recipients);
+				ilMailFormCall::setRecipients(array());
+			}
 			$_SESSION['rcp_cc'] = $_GET['rcp_cc'];
 			$_SESSION['rcp_bcc'] = $_GET['rcp_bcc'];
 
@@ -147,19 +152,12 @@ class ilMailGUI
 		$this->forwardClass = $this->ctrl->getNextClass($this);
 		
 		$this->showHeader();
-		
+
 		if('tree' == ilSession::get(self::VIEWMODE_SESSION_KEY) &&
 			$this->ctrl->getCmd() != "showExplorer")
 		{
 			$this->showExplorer();
 		}
-
-		include_once "Services/jQuery/classes/class.iljQueryUtil.php";
-		iljQueryUtil::initjQuery();
-
-		// always load ui framework
-		include_once("./Services/UICore/classes/class.ilUIFramework.php");
-		ilUIFramework::init();
 
 		switch($this->forwardClass)
 		{			
@@ -237,11 +235,10 @@ class ilMailGUI
 
 		$ilMainMenu->setActive("mail");
 
-//		$this->tpl->getStandardTemplate();
-		$this->tpl->addBlockFile("CONTENT", "content", "tpl.adm_content.html");
-		$this->tpl->addBlockFile("STATUSLINE", "statusline", "tpl.statusline.html");
+		$this->tpl->getStandardTemplate();
+
 		$this->tpl->setTitleIcon(ilUtil::getImagePath("icon_mail.svg"));
-		
+
 		// display infopanel if something happened
 		ilUtil::infoPanel();
 		

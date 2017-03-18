@@ -50,7 +50,7 @@ class ilPortfolioHTMLExport
 		ilUtil::makeDir($this->export_dir);
 		
 		// system style html exporter
-		include_once("./Services/Style/classes/class.ilSystemStyleHTMLExport.php");
+		include_once("./Services/Style/System/classes/class.ilSystemStyleHTMLExport.php");
 		$this->sys_style_html_export = new ilSystemStyleHTMLExport($this->export_dir);
 	    // $this->sys_style_html_export->addImage("icon_prtf.svg");
 		$this->sys_style_html_export->export();
@@ -144,7 +144,7 @@ class ilPortfolioHTMLExport
 		global $tpl, $ilBench, $ilLocator;
 
 		require_once "Modules/Portfolio/classes/class.ilPortfolioPage.php";
-		$pages = ilPortfolioPage::getAllPages($this->object->getId());
+		$pages = ilPortfolioPage::getAllPortfolioPages($this->object->getId());
 			
 		$this->tabs = array();
 		foreach($pages as $page)
@@ -186,12 +186,15 @@ class ilPortfolioHTMLExport
 					$this->co_page_html_export->collectPageElements("prtf:pg", $page["id"]);
 				}
 				
-				 if(!$has_index)
-				 {
-					 copy($this->export_dir."/prtf_".$page["id"].".html", 
-						$this->export_dir."/index.html");
-					 $has_index = true;
-				 }
+				if(!$has_index)
+				{
+				 	if (is_file($this->export_dir."/prtf_".$page["id"].".html"))	// #20144
+					{
+						copy($this->export_dir . "/prtf_" . $page["id"] . ".html",
+							$this->export_dir . "/index.html");
+						$has_index = true;
+					}
+				}
 			}
 		}
 		$this->co_page_html_export->exportPageElements();

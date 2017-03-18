@@ -50,18 +50,27 @@ class ilSession
 	const SESSION_CLOSE_INACTIVE = 11; // inactive account
 	const SESSION_CLOSE_CAPTCHA  = 12; // invalid captcha
 	
-	private static $closing_context = null;	
+	private static $closing_context = null;
 
 	/**
-	* Get session data from table
-	*
-	* @param	string		session id
-	* @return	string		session data
-	*/
+	 * @var bool
+	 */
+	protected static $enable_web_access_without_session = false;
+
+	/**
+	 * Get session data from table
+	 * 
+	 * According to https://bugs.php.net/bug.php?id=70520 read data must return a string.
+	 * Otherwise session_regenerate_id might fail with php 7.
+	 * 
+	 * @param	string		session id
+	 * @return	string		session data
+	 */
 	static function _getData($a_session_id)
 	{
 		if(!$a_session_id) {
-			return NULL;
+			// fix for php #70520
+			return '';
 		}
 		global $ilDB;
 		
@@ -70,9 +79,31 @@ class ilSession
 		$set = $ilDB->query($q);
 		$rec = $ilDB->fetchAssoc($set);
 	
-		return $rec["data"];
+		// fix for php #70520
+		return (string) $rec["data"];
 	}
 	
+	/**
+	 * Lookup expire time for a specific session
+	 * @global ilDB $ilDB
+	 * @param string $a_session_id
+	 * @return int expired unix timestamp
+	 */
+	public static function lookupExpireTime($a_session_id)
+	{
+		global $ilDB;
+		
+		$query = 'SELECT expires FROM usr_session WHERE session_id = '.
+			$ilDB->quote($a_session_id, 'text');
+		$res = $ilDB->query($query);
+		while($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
+		{
+			return (int) $row->expires;
+		}
+		return 0;
+	}
+
+
 	/**
 	* Write session data
 	*
@@ -83,19 +114,19 @@ class ilSession
 	{
 		global $ilDB, $ilClientIniFile;
 		
-		if ($GLOBALS['WEB_ACCESS_WITHOUT_SESSION'])
+		if (self::isWebAccessWithoutSessionEnabled())
 		{
 			// Prevent session data written for web access checker
 			// when no cookie was sent (e.g. for pdf files linking others).
 			// This would result in new session records for each request.
-			return false;
+			return true;
 		}
 
 		$now = time();
 
 		// prepare session data
 		$fields = array(
-			"user_id" => array("integer", (int) $_SESSION["AccountId"]),
+			"user_id" => array("integer", (int) $_SESSION['_authsession_user_id']),
 			"expires" => array("integer", self::getExpireValue()),
 			"data" => array("clob", $a_data),
 			"ctime" => array("integer", $now),
@@ -289,7 +320,7 @@ class ilSession
 		if( $fixedMode || $ilSetting->get('session_handling_type', self::SESSION_HANDLING_FIXED) == self::SESSION_HANDLING_FIXED )
 		{
 			// fixed session
-			return time() + ini_get('session.gc_maxlifetime');
+			return time() + self::getIdleValue($fixedMode);
 		}
 		else if( $ilSetting->get('session_handling_type', self::SESSION_HANDLING_FIXED) == self::SESSION_HANDLING_LOAD_DEPENDENT )
 		{
@@ -412,6 +443,24 @@ class ilSession
 	public static function getClosingContext()
 	{
 		return self::$closing_context;
+	}
+	
+	
+		
+	/**
+	 * @return boolean
+	 */
+	public static function isWebAccessWithoutSessionEnabled()
+	{
+		return (bool)self::$enable_web_access_without_session;
+	}
+
+	/**
+	 * @param boolean $enable_web_access_without_session
+	 */
+	public static function enableWebAccessWithoutSession($enable_web_access_without_session)
+	{
+		self::$enable_web_access_without_session = (bool)$enable_web_access_without_session;
 	}
 }
 

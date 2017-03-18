@@ -8,7 +8,7 @@
 * @version	$Id$
 *
 */
-class ilValidator extends PEAR
+class ilValidator
 {
 	protected $media_pool_ids = null;
 	
@@ -113,17 +113,14 @@ class ilValidator extends PEAR
 	* @access	public
 	* @param	integer	mode
 	*/
-	function ilValidator($a_log = false)
+	function __construct($a_log = false)
 	{
 		global $objDefinition, $ilDB;
 		
-		$this->PEAR();
 		$this->db =& $ilDB;
 		$this->rbac_object_types = "'".implode("','",$objDefinition->getAllRBACObjects())."'";
 		$this->rbac_object_types = $objDefinition->getAllRBACObjects();
 
-        $this->setErrorHandling(PEAR_ERROR_CALLBACK,array(&$this, 'handleErr'));
-		
 		if ($a_log === true)
 		{
 			$this->logging = true;
@@ -583,7 +580,7 @@ class ilValidator extends PEAR
 			 ")";
 		$r = $this->db->query($q);
 		
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			#if (!in_array($row->type,$this->object_types_exclude))
 			if(!$this->isExcludedFromRecovery($row->type,$row->obj_id))
@@ -648,7 +645,7 @@ class ilValidator extends PEAR
 			 "AND object_data.type='rolf'";
 		$r = $this->db->query($q);
 		
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$this->invalid_rolefolders[] = array(
 												"obj_id"		=> $row->obj_id,
@@ -671,7 +668,7 @@ class ilValidator extends PEAR
 			 "AND object_data.type='rolf'";
 		$r = $this->db->query($q);
 		
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$this->invalid_rolefolders[] = array(
 												"obj_id"		=> $row->obj_id,
@@ -729,7 +726,7 @@ class ilValidator extends PEAR
 			 "AND object_data.type='rolf'";
 		$r = $this->db->query($q);
 		
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$this->invalid_rolefolders[] = array(
 												"obj_id"		=> $row->obj_id,
@@ -752,7 +749,7 @@ class ilValidator extends PEAR
 			 "AND object_data.type='rolf'";
 		$r = $this->db->query($q);
 		
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$this->invalid_rolefolders[] = array(
 												"obj_id"		=> $row->obj_id,
@@ -826,7 +823,7 @@ class ilValidator extends PEAR
 			 "OR ".$ilDB->in('object_data.type',$this->rbac_object_types,true,'text');
 		$r = $this->db->query($q);
 
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$this->invalid_references[] = array(
 											"ref_id"	=> $row->ref_id,
@@ -889,7 +886,7 @@ class ilValidator extends PEAR
 			 "LEFT JOIN object_data ON object_reference.obj_id = object_data.obj_id ".
 			 "WHERE object_reference.ref_id IS NULL or object_data.obj_id IS NULL";
 		$r = $this->db->query($q);
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$this->invalid_childs[] = array(
 											"child"		=> $row->child,
@@ -953,7 +950,7 @@ class ilValidator extends PEAR
 			 "WHERE (T2.tree!=1 OR T2.tree IS NULL) AND T1.parent!=0";
 		$r = $this->db->query($q);
 		
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			// exclude deleted nodes
 			if ($row->deleted === NULL)
@@ -1012,7 +1009,7 @@ class ilValidator extends PEAR
 		$r = $this->db->query($query);
 		
 		include_once './Services/Calendar/classes/class.ilDateTime.php';
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$tmp_date = new ilDateTime($row->deleted,IL_CAL_DATETIME);
 			
@@ -2071,7 +2068,7 @@ restore starts here
 		$q = 'SELECT child FROM tree GROUP BY child HAVING COUNT(*) > 1';
 		$r = $this->db->query($q);
 		$duplicateNodes = array();
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			$duplicateNodes[] = $row->child;
 		}
@@ -2108,7 +2105,7 @@ restore starts here
 		
 		$this->initWorkspaceObjects();
 		
-		while ($row = $r->fetchRow(DB_FETCHMODE_OBJECT))
+		while ($row = $r->fetchRow(ilDBConstants::FETCHMODE_OBJECT))
 		{
 			// workspace objects are not to be processed
 			if($this->workspace_object_ids && 

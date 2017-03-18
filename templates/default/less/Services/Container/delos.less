@@ -55,11 +55,12 @@ input[name^="position[blocks]"] {
 
 div.ilListItemSection {
 	clear:both;
+    max-width: calc(~"100% - 40px");
 }
 
 div.ilContainerListItemOuterHighlight {
 	padding: 15px;
-	background-color: #FFFFD9;
+	background-color: #ffffd9;
 	zoom: 1;
 }
 
@@ -97,14 +98,15 @@ div.ilContainerListItemIcon a {
 }
 
 div.ilContainerListItemIconCB {
-	margin-left:25px;
+	margin-left: 25px;
 }
 
 [dir="rtl"] div.ilContainerListItemIconCB {
 	margin-left: 0;
-	margin-right:25px;
+	margin-right: 25px;
 }
 
+div[class^="il_editarea"] .ilContainerListItemOuter img,
 img.ilListItemIcon {
 	width: 35px;
 	height: 35px;
@@ -145,7 +147,7 @@ div.il_ContainerListItem {
 
 .ilContainerBlockHeader {
 	font-weight: 400;
-	padding: 2px;
+	padding: 5px 10px;
 	text-align: left;
 	vertical-align: middle;
 }

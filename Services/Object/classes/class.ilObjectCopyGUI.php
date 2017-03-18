@@ -75,7 +75,6 @@ class ilObjectCopyGUI
 
 		$next_class = $ilCtrl->getNextClass($this);
 		$cmd = $ilCtrl->getCmd();
-		
 
 		switch($next_class)
 		{
@@ -232,7 +231,7 @@ class ilObjectCopyGUI
 	protected function initTargetSelection()
 	{
 		global $ilCtrl, $tree;
-		
+		$ilCtrl->setParameter($this, 'selectMode', self::TARGET_SELECTION);
 		// empty session on init
 		$_SESSION['paste_copy_repexpand'] = array();
 		
@@ -444,7 +443,7 @@ class ilObjectCopyGUI
 	 */
 	protected function saveTarget()
 	{
-		global $objDefinition, $tree;
+		global $objDefinition, $tree, $ilCtrl;
 
 
 		// begin-patch mc
@@ -462,6 +461,7 @@ class ilObjectCopyGUI
 		// end-patch multi copy
 		else
 		{
+			$ilCtrl->setParameter($this, 'selectMode', self::TARGET_SELECTION);
 			ilUtil::sendFailure($this->lng->txt('select_one'));
 			$this->showTargetSelectionTree();
 			return false;	
@@ -749,7 +749,6 @@ class ilObjectCopyGUI
 			ilUtil::sendFailure($this->lng->txt('search_no_match'),true);
 			$ilCtrl->returnToParent($this);
 		}
-		
 		
 	
 		include_once './Services/Object/classes/class.ilObjectCopySearchResultTableGUI.php';

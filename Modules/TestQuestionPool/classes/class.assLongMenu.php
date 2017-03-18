@@ -11,12 +11,12 @@ require_once './Modules/TestQuestionPool/classes/class.ilUserQuestionResult.php'
 class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 {
 	private $answerType, $long_menu_text, $answers, $correct_answers, $json_structure, $ilDB;
-	private $specificFeedbackSetting;
+	private $specificFeedbackSetting, $minAutoComplete;
 	
 	const ANSWER_TYPE_SELECT_VAL	= 0;
 	const ANSWER_TYPE_TEXT_VAL		= 1;
 	const GAP_PLACEHOLDER			= 'Longmenu';
-	const MIN_LENGTH_AUTOCOMPLETE 	= 1;
+	const MIN_LENGTH_AUTOCOMPLETE 	= 3;
 	const MAX_INPUT_FIELDS 			= 500;
 
 	function __construct(
@@ -29,9 +29,9 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 	{
 		require_once 'Modules/TestQuestionPool/classes/feedback/class.ilAssConfigurableMultiOptionQuestionFeedback.php';
 		$this->specificFeedbackSetting = ilAssConfigurableMultiOptionQuestionFeedback::FEEDBACK_SETTING_ALL;
+		$this->minAutoComplete = self::MIN_LENGTH_AUTOCOMPLETE;
 		parent::__construct($title, $comment, $author, $owner, $question);
-		global $ilDB;
-		$this->ilDB = $ilDB;
+		$this->ilDB = $GLOBALS['DIC']['ilDB'];
 	}
 	
 	/**
@@ -130,6 +130,16 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 	public function getSpecificFeedbackSetting()
 	{
 		return $this->specificFeedbackSetting;
+	}
+
+	public function setMinAutoComplete($minAutoComplete)
+	{
+		$this->minAutoComplete = $minAutoComplete;
+	}
+
+	public function getMinAutoComplete()
+	{
+		return $this->minAutoComplete ? $this->minAutoComplete  : self::MIN_LENGTH_AUTOCOMPLETE;
 	}
 	
 	public function isComplete()
@@ -239,12 +249,13 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 			array( $this->getId() )
 		);
 		$this->ilDB->manipulateF( "INSERT INTO " . $this->getAdditionalTableName(
-			) . " (question_fi, long_menu_text, feedback_setting) VALUES (%s, %s, %s)",
-			array( "integer", "text", "integer"),
+			) . " (question_fi, long_menu_text, feedback_setting, min_auto_complete) VALUES (%s, %s, %s, %s)",
+			array( "integer", "text", "integer", "integer"),
 			array(
 				$this->getId(),
 				$this->getLongMenuTextValue(),
-				(int)$this->getSpecificFeedbackSetting()
+				(int)$this->getSpecificFeedbackSetting(),
+				(int)$this->getMinAutoComplete()
 			)
 		);
 		$this->createFileFromArray();
@@ -309,8 +320,16 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 
 	private function createArrayFromFile()
 	{
+		$files = glob( $this->buildFolderName() . '*.txt' );
+		
+		if($files === false)
+		{
+			$files = array();
+		}
+		
 		$answers = array();
-		foreach( glob( $this->buildFolderName() . '*.txt' ) as $file) 
+
+		foreach( $files as $file)
 		{
 			$gap					= str_replace('.txt', '', basename($file));
 			$answers[(int) $gap] 	= explode('\n', file_get_contents($file));
@@ -365,6 +384,7 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 			$this->setEstimatedWorkingTime(substr($data["working_time"], 0, 2), substr($data["working_time"], 3, 2), substr($data["working_time"], 6, 2));
 			$this->setLongMenuTextValue(ilRTE::_replaceMediaObjectImageSrc($data['long_menu_text'], 1));
 			$this->loadCorrectAnswerData($question_id);
+			$this->setMinAutoComplete($data["min_auto_complete"]);
 			if( isset($data['feedback_setting']) )
 			{
 				$this->setSpecificFeedbackSetting((int)$data['feedback_setting']);
@@ -645,28 +665,31 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 			include_once "./Modules/Test/classes/class.ilObjTest.php";
 			$pass = ilObjTest::_getPass($active_id);
 		}
-		$this->getProcessLocker()->requestUserSolutionUpdateLock();
-
-		$entered_values = 0;
-		$this->removeCurrentSolution($active_id, $pass, $authorized);
-
-		foreach($this->getSolutionSubmit() as $val1 => $val2)
-		{
-			$value = ilUtil::stripSlashes($val2, FALSE);
-			if (strlen($value))
-			{
-				$this->saveCurrentSolution($active_id,$pass, $val1, $value, $authorized);
-				$entered_values++;
-			}
-		}
-		$this->getProcessLocker()->releaseUserSolutionUpdateLock();
 		
+		$entered_values = 0;
+
+		$this->getProcessLocker()->executeUserSolutionUpdateLockOperation(function() use (&$entered_values, $active_id, $pass, $authorized) {
+
+			$this->removeCurrentSolution($active_id, $pass, $authorized);
+
+			foreach($this->getSolutionSubmit() as $val1 => $val2)
+			{
+				$value = ilUtil::stripSlashes($val2, FALSE);
+				if(strlen($value))
+				{
+					$this->saveCurrentSolution($active_id, $pass, $val1, $value, $authorized);
+					$entered_values++;
+				}
+			}
+
+		});
+
 		if ($entered_values)
 		{
 			include_once ("./Modules/Test/classes/class.ilObjAssessmentFolder.php");
 			if (ilObjAssessmentFolder::_enabledAssessmentLogging())
 			{
-				$this->logAction($this->lng->txtlng("assessment", "log_user_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
+				assQuestion::logAction($this->lng->txtlng("assessment", "log_user_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
 			}
 		}
 		else
@@ -674,11 +697,53 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 			include_once ("./Modules/Test/classes/class.ilObjAssessmentFolder.php");
 			if (ilObjAssessmentFolder::_enabledAssessmentLogging())
 			{
-				$this->logAction($this->lng->txtlng("assessment", "log_user_not_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
+				assQuestion::logAction($this->lng->txtlng("assessment", "log_user_not_entered_values", ilObjAssessmentFolder::_getLogLanguage()), $active_id, $this->getId());
 			}
 		}
 		return true;
 	}
+
+	// fau: testNav - overridden function lookupForExistingSolutions (specific for long menu question: ignore unselected values)
+	/**
+	 * Lookup if an authorized or intermediate solution exists
+	 * @param 	int 		$activeId
+	 * @param 	int 		$pass
+	 * @return 	array		['authorized' => bool, 'intermediate' => bool]
+	 */
+	public function lookupForExistingSolutions($activeId, $pass)
+	{
+		global $ilDB;
+
+		$return = array(
+			'authorized' => false,
+			'intermediate' => false
+		);
+
+		$query = "
+			SELECT authorized, COUNT(*) cnt
+			FROM tst_solutions
+			WHERE active_fi = " . $ilDB->quote($activeId, 'integer') ."
+			AND question_fi = ". $ilDB->quote($this->getId(), 'integer') ."
+			AND pass = " .$ilDB->quote($pass, 'integer') ."
+			AND value2 <> '-1'
+			GROUP BY authorized
+		";
+		$result = $ilDB->query($query);
+
+		while ($row = $ilDB->fetchAssoc($result))
+		{
+			if ($row['authorized']) {
+				$return['authorized'] = $row['cnt'] > 0;
+			}
+			else
+			{
+				$return['intermediate'] = $row['cnt'] > 0;
+			}
+		}
+		return $return;
+	}
+// fau.
+
 
 	public function getSolutionSubmit()
 	{
@@ -706,13 +771,9 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 	}
 
 	/**
-	 * Reworks the allready saved working data if neccessary
-	 *
-	 * @param integer $active_id
-	 * @param integer $pass
-	 * @param boolean $obligationsAnswered
+	 * {@inheritdoc}
 	 */
-	protected function reworkWorkingData($active_id, $pass, $obligationsAnswered)
+	protected function reworkWorkingData($active_id, $pass, $obligationsAnswered, $authorized)
 	{
 		// nothing to rework!
 	}
@@ -745,28 +806,21 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 	{
 		return parent::getRTETextWithMediaObjects() . $this->getLongMenuTextValue();
 	}
+
 	/**
-	 * Creates an Excel worksheet for the detailed cumulated results of this question
-	 *
-	 * @param object $worksheet    Reference to the parent excel worksheet
-	 * @param object $startrow     Startrow of the output in the excel worksheet
-	 * @param object $active_id    Active id of the participant
-	 * @param object $pass         Test pass
-	 * @param object $format_title Excel title format
-	 * @param object $format_bold  Excel bold format
-	 *
-	 * @return object
+	 * {@inheritdoc}
 	 */
-	public function setExportDetailsXLS(&$worksheet, $startrow, $active_id, $pass, &$format_title, &$format_bold)
+	public function setExportDetailsXLS($worksheet, $startrow, $active_id, $pass)
 	{
-		include_once ("./Services/Excel/classes/class.ilExcelUtils.php");
+		parent::setExportDetailsXLS($worksheet, $startrow, $active_id, $pass);
+
 		$solution = $this->getSolutionValues($active_id, $pass);
-		$worksheet->writeString($startrow, 0, ilExcelUtils::_convert_text($this->lng->txt($this->getQuestionType())), $format_title);
-		$worksheet->writeString($startrow, 1, ilExcelUtils::_convert_text($this->getTitle()), $format_title);
+
 		$i = 1;
 		foreach ($this->getCorrectAnswers() as $gap_index => $gap)
 		{
-			$worksheet->writeString($startrow + $i, 0, ilExcelUtils::_convert_text($this->lng->txt('assLongMenu') . " $i"), $format_bold);
+			$worksheet->setCell($startrow + $i, 0, $this->lng->txt('assLongMenu') . " $i");
+			$worksheet->setBold($worksheet->getColumnCoord(0) . ($startrow + $i));
 			foreach ($solution as $solutionvalue)
 			{
 				if ($gap_index == $solutionvalue["value1"])
@@ -779,16 +833,17 @@ class assLongMenu extends assQuestion implements ilObjQuestionScoringAdjustable
 							{
 								$value = '';
 							}
-							$worksheet->writeString($startrow + $i, 1, $value);
+							$worksheet->setCell($startrow + $i, 1, $value);
 							break;
 						case self::ANSWER_TYPE_TEXT_VAL:
-							$worksheet->writeString($startrow + $i, 1, $solutionvalue["value2"]);
+							$worksheet->setCell($startrow + $i, 1, $solutionvalue["value2"]);
 							break;
 					}
 				}
 			}
 			$i++;
 		}
+
 		return $startrow + $i + 1;
 	}
 	
