@@ -1,1 +1,2 @@
 .gitignore merge=ours
+.htaccess merge=ours
