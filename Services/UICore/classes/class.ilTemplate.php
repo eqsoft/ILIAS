@@ -41,7 +41,7 @@ class ilTemplate extends HTML_Template_ITX
 	private $addFooter; // creates an output of the ILIAS footer
 
 	protected static $il_cache = array();
-	protected $message = "";
+	protected $message = array();
 	
 	protected $title_desc = "";	
 	protected $title_url = "";
@@ -71,7 +71,7 @@ class ilTemplate extends HTML_Template_ITX
 	* @access	public
 	*/
 	function __construct($file,$flag1,$flag2,$in_module = false, $vars = "DEFAULT",
-		$plugin = false, $a_use_cache = false)
+		$plugin = false, $a_use_cache = true)
 	{
 		global $ilias;
 //echo "<br>-".$file."-";
