@@ -38,18 +38,19 @@ class ilSCORMOfflineMode2
 		$this->obj_id = ilObject::_lookupObjectId($_GET['ref_id']);
 		include_once "./Modules/ScormAicc/classes/class.ilObjSAHSLearningModule.php";
 		$this->type = ilObjSAHSLearningModule::_lookupSubType($this->obj_id);
+		$this->offlineMode = 'online';
 		$this->read();
 	}
 	
 	private function read() {
-		global $ilDB,$ilUser;
+		global $ilDB, $ilUser, $log;
 		$res = $ilDB->queryF('SELECT offline_mode FROM sahs_user WHERE obj_id=%s AND user_id=%s',
 			array('integer','integer'),
 			array($this->obj_id,$ilUser->getId())
 		);
 		while($row = $ilDB->fetchAssoc($res))
 		{
-			if ($row['offline_mode'] != null) {
+			if ($row['offline_mode'] != null && $row['offline_mode'] != '') {
 				$this->offlineMode = $row['offline_mode'];
 			} else {
 				$this->offlineMode = "online";
@@ -106,7 +107,7 @@ class ilSCORMOfflineMode2
 		$this->lm_sop2_index = $this->lm_dir.'/sop2_index.html';
 		$this->lm_sop2_appcache = $this->lm_dir.'/sop2.appcache';
 		if (file_exists($this->lm_sop2_index) && file_exists($this->lm_sop2_appcache)) {
-			$log->write("sop2_index.html and sop2.appcache already exists, nothing to to.");
+			$log->write("sop2_index.html and sop2.appcache already exists, nothing to do.");
 			return true;
 		}
 		$this->lm_imsmanifest_xml = $this->lm_dir.'/imsmanifest.xml';
