@@ -13579,6 +13579,7 @@ sop#:#sop_text_start_som#:#SCORM-Offline-Manager starten
 sop#:#sop_start_som#:#SOM Starten
 sop#:#sop_text_push_tracking#:#Lernstandsdaten nach ILIAS importieren und wieder in den Online-Modus wechseln  
 sop#:#sop_push_tracking#:#Lernstandsdaten importieren
+sop#:#sop_purge_cache#:#Offline Cache des Lernmoduls löschen
 common#:#obj_wiks#:#Wiki
 common#:#obj_wiks_desc#:#Globale Wiki-Einstellungen
 sop#:#sop_msg_lm_not_exists#:#Das Lernmodul existiert nicht im SCORM-Offline-Manager.
@@ -15955,4 +15956,3 @@ exc#:#exc_settings_feedback_file_info#:#Tutoren laden ihre Datei hoch. Der jewei
 exc#:#exc_settings_feedback_text_info#:#Tutoren geben ihre Rückmeldungen in ein Textfeld ein. Der jeweilige Teilnehmer erhält eine Benachrichtigung und der Text wird ihm in der Übungseinheiten-Übersicht angezeigt.
 rbac#:#file_read_learning_progress#:#Benutzer kann Lernfortschritt anderer Benutzer einsehen
 rbac#:#file_edit_learning_progress#:#Benutzer kann Lernfortschrittseinstellungen bearbeiten
-
