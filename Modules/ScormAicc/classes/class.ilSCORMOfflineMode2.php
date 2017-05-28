@@ -1,5 +1,4 @@
 <?php
-
 /* Copyright (c) 1998-2011 ILIAS open source, Extended GPL, see docs/LICENSE */
 //require_once "./Services/Object/classes/class.ilObject.php";
 
@@ -89,7 +88,7 @@ class ilSCORMOfflineMode2
 	}
 	
 	
-	function getPurgeIndexHtml() { // Quick and dirty
+	function getPurgeIndexHtml() { // Quick and dirty. obsolet?
 		global $log;
 		$log->write("getPurgeIndexHtml");
 		return str_replace("cmd=offlineMode2_appcache","offlineMode2_purgeCache",file_get_contents(ilUtil::getWebspaceDir("filesystem").'/lm_data/lm_'.$this->lmId.'/sop2_index.html'));
