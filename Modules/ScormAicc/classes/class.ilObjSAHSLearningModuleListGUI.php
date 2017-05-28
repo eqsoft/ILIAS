@@ -91,7 +91,9 @@ class ilObjSAHSLearningModuleListGUI extends ilObjectListGUI
 			case "offlineModeView":
 				$cmd_link = "ilias.php?baseClass=ilSAHSPresentationGUI&amp;ref_id=".$this->ref_id."&amp;cmd=offlineModeView";
 				break;
-
+			case "offlineMode2View":
+				$cmd_link = "ilias.php?baseClass=ilSAHSPresentationGUI&amp;ref_id=".$this->ref_id."&amp;cmd=offlineMode2View";
+				break;
 			case "editContent":
 				$cmd_link = "ilias.php?baseClass=ilSAHSEditGUI&amp;ref_id=".$this->ref_id."&amp;cmd=editContent";
 				break;
