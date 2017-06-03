@@ -32,3 +32,17 @@ virtual-data
 /dicto/results/*
 !/dicto/results/README.md
 override.php
+
+# custom
+ilias.sh
+sop2.ini.php
+sop2.sh
+jmeter.log
+kiosk.ini.php
+kiosk.sh
+readme.txt
+trunk.ini.php
+trunk.sh
+sophtml5.ini.php
+sophtml5.sh
+.gitignore
