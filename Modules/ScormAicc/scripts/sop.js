@@ -204,7 +204,7 @@ $( document ).ready( function() {
 		
 		var sopAppCacheError = function(evt) {
 			log("sop appcache on error: " + evt);
-			msg(sop_download_failed,true,true);
+			msg("sop appcache on error: ",true,true);
 			outProgress();
 		};
 		
@@ -299,7 +299,7 @@ $( document ).ready( function() {
 		var lmAppCacheError = function(evt) {
 			log("lm appcache on error: " + evt);
 			outProgress();
-			msg(sop_lm_download_failed,true);
+			msg("lm appcache on error: ",true,true);
 		};
 		
 		var createSopAppCacheEventHandler = function(iframe) {
