@@ -13578,7 +13578,8 @@ sop#:#sop_text_start_offline#:#Lernmodul im Offline-Modus starten
 sop#:#sop_start_offline#:#Lernmodul offline starten
 sop#:#sop_text_start_som#:#SCORM-Offline-Manager starten
 sop#:#sop_start_som#:#SOM Starten
-sop#:#sop_text_push_tracking#:#Lernstandsdaten nach ILIAS importieren und wieder in den Online-Modus wechseln  
+sop#:#sop_text_push_tracking#:#Lernstandsdaten nach ILIAS importieren und wieder in den Online-Modus wechseln
+sop#:#sop_purge_cache#:#Offline Cache des Lernmoduls löschen
 sop#:#sop_push_tracking#:#Lernstandsdaten importieren
 common#:#obj_wiks#:#Wiki
 common#:#obj_wiks_desc#:#Globale Wiki-Einstellungen
