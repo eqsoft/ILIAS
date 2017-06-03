@@ -38,3 +38,10 @@ ilias.sh
 sop2.ini.php
 sop2.sh
 xyz
+/src/UI/*
+jmeter.log
+kiosk.ini.php
+kiosk.sh
+readme.txt
+trunk.ini.php
+trunk.sh
