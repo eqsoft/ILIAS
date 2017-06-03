@@ -184,7 +184,7 @@ function message(s_send){
 
 function warning(s_send){
 	s_send = 'lm_'+iv.objId+': '+s_send;
-	sendRequest ('./ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='+iv.refId+'&cmd=logWarning', s_send);
+	//sendRequest ('./ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='+iv.refId+'&cmd=logWarning', s_send);
 }
 
 // avoid sessionTimeOut
@@ -221,7 +221,7 @@ function IliasLaunch(i_l){
 		b_launched=false;
 		setTimeout("API.IliasAbortSco("+iv.launchId+")",5000);
 		iv.launchId=i_l;
-		frames.sahs_content.document.location.replace('./Modules/ScormAicc/templates/default/dummy.html');
+		//frames.sahs_content.document.location.replace('./Modules/ScormAicc/templates/default/dummy.html'); // Uwe ist Schuld
 	}
 	status4tree(iv.launchId,'running');
 }
