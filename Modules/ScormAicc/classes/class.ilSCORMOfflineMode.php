@@ -170,8 +170,10 @@ class ilSCORMOfflineMode
 		}
 		$xpath = new DOMXpath($this->imsmanifest);
 		$hrefs = $xpath->query("//*[@href]/@href");
-		$index_url = ILIAS_HTTP_PATH . '/ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_il2sop'; 
-		$appcache_url = ILIAS_HTTP_PATH . '/ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_appcache';
+		//$index_url =    ILIAS_HTTP_PATH . '/ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_il2sop'; 
+		//$appcache_url = ILIAS_HTTP_PATH . '/ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_appcache';
+		//$index_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_il2sop'; 
+		$appcache_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_appcache';
 		
 		if (!is_null($hrefs) && !file_exists($this->lm_sop_appcache)) {
 			$manifest_file = fopen($this->lm_sop_appcache, "w");
