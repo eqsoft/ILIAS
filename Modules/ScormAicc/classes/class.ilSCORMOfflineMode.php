@@ -21,8 +21,8 @@ class ilSCORMOfflineMode
 	var $sop_index;
 	var $sop_appcache;
 	var $lm_dir;
-	var $lm_sop_index;
-	var $lm_sop_appcache;
+	var $lm_index;
+	var $lm_appcache;
 	var $lm_imsmanifest_xml;
 	var $imsmanifest;
 	
@@ -149,9 +149,9 @@ class ilSCORMOfflineMode
 			$log->write("could not find " . $this->lm_dir);
 			return false;
 		}
-		$this->lm_sop_index = $this->lm_dir.'/sop_index.html';
-		$this->lm_sop_appcache = $this->lm_dir.'/sop.appcache';
-		if (file_exists($this->lm_sop_index) && file_exists($this->lm_sop_appcache)) {
+		$this->lm_index = $this->lm_dir.'/lm_index.html';
+		$this->lm_appcache = $this->lm_dir.'/lm.appcache';
+		if (file_exists($this->lm_index) && file_exists($this->lm_appcache)) {
 			$log->write("sop_index.html and sop.appcache already exists, nothing to do.");
 			return true;
 		}
@@ -175,8 +175,8 @@ class ilSCORMOfflineMode
 		//$index_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_il2sop'; 
 		$appcache_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_appcache';
 		
-		if (!is_null($hrefs) && !file_exists($this->lm_sop_appcache)) {
-			$manifest_file = fopen($this->lm_sop_appcache, "w");
+		if (!is_null($hrefs) && !file_exists($this->lm_appcache)) {
+			$manifest_file = fopen($this->lm_appcache, "w");
 			if (!$manifest_file) {
 				$log->write("Unable to open file!");
 				return false;
@@ -207,13 +207,13 @@ class ilSCORMOfflineMode
 		}
 		
 		//sop_index.html
-		if (file_exists($this->lm_sop_index)) {
+		if (file_exists($this->lm_index)) {
 			$log->write("sop_index.html already exists.");
 			return true;
 		}
 		// ToDo: template file?
-		$index_string = '<html manifest="' . $appcache_url . '"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"><title>sop_index.html</title></head><body></body></html>'; 
-		$index_file = fopen($this->lm_sop_index, "w");
+		$index_string = '<html manifest="' . $appcache_url . '"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"><title>lm_index.html</title></head><body></body></html>'; 
+		$index_file = fopen($this->lm_index, "w");
 		if (!$index_file) {
 			$log->write("Unable to open file!");
 			return false;
