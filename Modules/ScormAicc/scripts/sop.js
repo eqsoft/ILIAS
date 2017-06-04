@@ -107,6 +107,8 @@ $( document ).ready( function() {
 					//var d = JSON.stringify(data);
 					//log(d);
 					//transformTrackingData(data);
+					//log(JSON.stringify(data));
+					
 					localStorage.setItem(sopGlobals.lmId, JSON.stringify(transformTrackingData(data)));
 					$('#iliasOfflineManager').after(lmFrame); // trigger appcache download
 				}
@@ -350,7 +352,7 @@ $( document ).ready( function() {
 				ret[0].last_visited = ret[0].init_data.launchId.toString();
 				ret[0].title = d.lm[0];
 				ret[0].client = sopGlobals.ilClient;
-				//log(JSON.stringify(ret[0]));
+				log(JSON.stringify(ret[0]));
 				return ret;
 		};
 		

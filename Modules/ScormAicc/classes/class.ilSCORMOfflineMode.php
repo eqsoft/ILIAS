@@ -17,6 +17,9 @@ class ilSCORMOfflineMode
 	var $type;
 	var $obj_id;
 	var $offlineMode;
+	var $sop_dir;
+	var $sop_index;
+	var $sop_appcache;
 	var $lm_dir;
 	var $lm_sop_index;
 	var $lm_sop_appcache;
@@ -38,6 +41,9 @@ class ilSCORMOfflineMode
 		include_once "./Modules/ScormAicc/classes/class.ilObjSAHSLearningModule.php";
 		$this->type = ilObjSAHSLearningModule::_lookupSubType($this->obj_id);
 		$this->offlineMode = 'online';
+		$this->sop_index = './Modules/ScormAicc/sop/sop_index.html';
+		$this->sop_appcache = './Modules/ScormAicc/sop/sop.appcache';
+		$this->sop_dir = './Modules/ScormAicc/sop/';
 		$this->read();
 	}
 	
@@ -71,20 +77,60 @@ class ilSCORMOfflineMode
 		return $this->offlineMode;
 	}
 	
-	function createSopManifestFileIfNotExists() { // ToDo: create manifest content, currently created manually by "cli_create_sop_manifest.php"
+	function createSopIndexFileIfNotExists() {
+		global $log;
+		$log->write("createSopIndexFileIfNotExists");
+		if (file_exists($this->sop_index)) {
+			return true;
+		}
+		//?baseClass=ilSAHSPresentationGUI&client_id=forkSopHtml5&cmd=offlineMode_manifest
+		$appcache_url = './ilias.php?baseClass=ilSAHSPresentationGUI&client_id='.CLIENT_ID.'&cmd=offlineMode_manifest';
+		// ToDo: template file?
+		$index_string = '<html manifest="' . $appcache_url . '"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"><title>sop_index.html</title></head><body></body></html>'; 
+		$index_file = fopen($this->sop_index, "w");
+		if (!$index_file) {
+			$log->write("Unable to open file!");
+			return false;
+		}
+		fwrite($index_file,$index_string);
+		fclose($index_file);
+		return true;
+	}
+	
+	function createSopManifestFileIfNotExists() {
 		global $log;
 		$log->write("createSopManifestFileIfNotExists");
-		$this->sop2_appcache = "./Modules/ScormAicc/sop/sop.appcache";
-		if (!file_exists($this->sop_appcache)) {
-			$manifest_file = fopen($this->sop_appcache, "w");
-			if (!$manifest_file) {
-				$log->write("Unable to open file!");
-				return false;
-			}
-			$manifest_string = "CACHE MANIFEST\n\nCACHE:\n";
-			fwrite($manifest_string);
-			fclose($manifest_file);
+		if (file_exists($this->sop_appcache)) {
+			return true;
 		}
+		$manifest_string = "CACHE MANIFEST\n\nCACHE:\n";
+		$manifest_file = fopen($this->sop_appcache,'w');
+		if (!$manifest_file) {
+			$log->write("Unable to open file!");
+			return false;
+		}
+		$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->sop_dir));
+		foreach($objects as $name => $object) {
+			
+			if (preg_match('/\/\.+/',$name)) {
+				continue;
+			}
+			
+			if (preg_match('/sop\.appcache/',$name)) {
+				continue;
+			}
+			
+			if (preg_match('/sop_index\.html/',$name)) {
+				continue;
+			}
+			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
+			$manifest_string .= $name . "\n";
+		}
+		$manifest_string .= "\nNETWORK:\n*\n";
+		$manifest_string .= "\n#".date("Y-m-d H:i:s");
+		fwrite($manifest_file, $manifest_string);
+		fclose($manifest_file);
+		return true;
 	}
 	
 	
@@ -163,6 +209,7 @@ class ilSCORMOfflineMode
 			$log->write("sop_index.html already exists.");
 			return true;
 		}
+		// ToDo: template file?
 		$index_string = '<html manifest="' . $appcache_url . '"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"><title>sop_index.html</title></head><body></body></html>'; 
 		$index_file = fopen($this->lm_sop_index, "w");
 		if (!$index_file) {
