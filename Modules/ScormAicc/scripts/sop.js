@@ -106,11 +106,14 @@ $( document ).ready( function() {
 				if (typeof data == 'object') {
 					//var d = JSON.stringify(data);
 					//log(d);
-					//transformTrackingData(data);
 					//log(JSON.stringify(data));
+					// var ok = tracking2sop(data);
+
+					if (tracking2sop(data) != false) {
 					
-					localStorage.setItem(sopGlobals.lmId, JSON.stringify(transformTrackingData(data)));
-					$('#iliasOfflineManager').after(lmFrame); // trigger appcache download
+						localStorage.setItem(sopGlobals.lmId, JSON.stringify(transformTrackingData(data)));
+						$('#iliasOfflineManager').after(lmFrame); // trigger appcache download
+					}
 				}
 				else {
 					log('fetching trackingdata failed!');
@@ -333,6 +336,207 @@ $( document ).ready( function() {
 		/**
 		 * utils
 		 */
+		var removeTrackingData = function () {
+			var db = new PouchDB('lm',{auto_compaction:true, revs_limit: 1});
+			var remoteCouch = false;
+			var id = ""+sopGlobals.ilClient+'_'+sopGlobals.lmId;
+			db.bulkDocs([{_id: id, _deleted:true}]).then(function (result) {
+				console.log('Successfully deleted a lm!');
+				db.close();
+				return true;
+			}).catch(function (err) {
+				console.log(err);
+				db.close();
+				return false;
+			});
+		}
+		
+		var tracking2sop = function(d) {
+			
+			var usrid = d.user_data[6];
+
+			var tracking2sopclient = function(client_data) {
+				var db = new PouchDB('client_data',{auto_compaction:true, revs_limit: 1});
+				var remoteCouch = false;
+				db.bulkDocs([{
+					_id: sopGlobals.ilClient,
+					support_mail: client_data[0]
+				}]).then(function (result) {
+					console.log('Successfully posted to client_data!');
+					db.close();
+					return true;
+				}).catch(function (err) {
+					console.log(err);
+					db.close();
+					return false;
+				});
+			}
+
+			var tracking2sopuser = function(user_data) {
+				var db = new PouchDB('user_data',{auto_compaction:true, revs_limit: 1});
+				var remoteCouch = false;
+				db.bulkDocs([{
+					_id: ""+sopGlobals.ilClient+user_data[6],
+					client: sopGlobals.ilClient,
+					user_id: user_data[6],
+					login: user_data[0],
+					passwd: "",
+					firstname: user_data[2],
+					lastname: user_data[3],
+					title: user_data[4],
+					gender: user_data[5]
+				}]).then(function (result) {
+					console.log('Successfully posted to user_data!');
+					db.close();
+					return true;
+				}).catch(function (err) {
+					console.log(err);
+					db.close();
+					return false;
+				});
+			}
+
+			var tracking2soplm = function(lm) {
+				var db = new PouchDB('lm',{auto_compaction:true, revs_limit: 1});
+				var remoteCouch = false;
+				var id = ""+sopGlobals.ilClient+'_'+sopGlobals.lmId;
+				db.bulkDocs([{
+					_id: id,
+					client: sopGlobals.ilClient,
+					obj_id: sopGlobals.lmId,
+					title: lm[0],
+					description: lm[1],
+					scorm_version: ""+lm[2],
+					active: lm[3],
+					init_data: JSON.parse(lm[4]),
+					resources: lm[5],
+					scorm_tree: lm[6],
+					last_visited: (JSON.parse(lm[4])).launchId.toString(),
+					module_version: lm[7],
+					offline_zip_created: lm[8],
+					learning_progress_enabled: lm[9],
+					certificate_enabled: lm[10],
+					max_attempt: 0,
+					adlact_data: "null",
+					ilias_version: lm[13]
+				}]).then(function (result) {
+					console.log('Successfully posted to lm!');
+					db.close();
+					return true;
+				}).catch(function (err) {
+					console.log(err);
+					db.close();
+					return false;
+				});
+			}
+			
+			var tracking2sopsahs = function(sahs_user) {
+				var db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
+				var remoteCouch = false;
+				var id = ""+sopGlobals.ilClient+'_'+sopGlobals.lmId+'_'+usrid;
+				db.bulkDocs([{
+					_id: id,
+					client: sopGlobals.ilClient,
+					obj_id: sopGlobals.lmId,
+					user_id: usrid,
+					package_attempts: sahs_user[0],
+					module_version: sahs_user[1],
+					last_visited: sahs_user[2],
+					first_access: sahs_user[3],
+					last_access: sahs_user[4],
+					last_status_change: "",
+					total_time_sec: sahs_user[5],
+					sco_total_time_sec: sahs_user[6],
+					status: sahs_user[7],
+					percentage_completed: sahs_user[8],
+					user_data: ""
+				}]).then(function (result) {
+					console.log('Successfully posted to sahs_user!');
+					db.close();
+					return true;
+				}).catch(function (err) {
+					console.log(err);
+					db.close();
+					return false;
+				});
+			}
+			//cmi
+
+			var tracking2sopcmi = function(cmi) {
+				var db = new PouchDB(
+					'scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId+'_'+usrid,
+					{auto_compaction:true, revs_limit: 1}
+				);
+				var remoteCouch = false;
+				dat = [];
+				for (var i=0; i<cmi.length; i++) {
+					dat[i]={_id: cmi[i][0]+'_'+cmi[i][1], rvalue: cmi[i][2]};
+				}
+				db.bulkDocs(dat).then(function (result) {
+					console.log('Successfully posted to scorm_tracking!');
+					db.close();
+					return true;
+				}).catch(function (err) {
+					console.log(err);
+					db.close();
+					return false;
+				});
+				
+			}
+
+			if (removeTrackingData() != false) {
+				if (tracking2sopclient(d.client_data) != false) {
+					if (tracking2sopuser(d.user_data) != false) {
+						if (tracking2soplm(d.lm) != false) {
+							if (tracking2sopsahs(d.sahs_user) != false) {
+								return tracking2sopcmi(d.cmi);
+							}
+						}
+					}
+				}
+			}
+			// return tracking2soplm(d.lm);
+			// var ok=removeTrackingData();
+			// var ok=false;
+		
+			// var db = new PouchDB('lm',{auto_compaction:true, revs_limit: 1});
+			// var remoteCouch = false;
+			// var id = ""+sopGlobals.ilClient+'_'+sopGlobals.lmId;
+
+			// var lm = {
+				// _id: id,
+				// client: sopGlobals.ilClient,
+				// obj_id: sopGlobals.lmId,
+				// title: d.lm[0],
+				// description: d.lm[1],
+				// scorm_version: ""+d.lm[2],
+				// active: d.lm[3],
+				// init_data: JSON.parse(d.lm[4]),
+				// resources: d.lm[5],
+				// scorm_tree: d.lm[6],
+				// last_visited: (JSON.parse(d.lm[4])).launchId.toString(),
+				// module_version: d.lm[7],
+				// offline_zip_created: d.lm[8],
+				// learning_progress_enabled: d.lm[9],
+				// certificate_enabled: d.lm[10],
+				// max_attempt: 0,
+				// adlact_data: "null",
+				// ilias_version: d.lm[13]
+			// };
+			// db.bulkDocs([lm]).then(function (result) {
+				// console.log('Successfully posted a lm!');
+				// db.close();
+				// return true;
+			// }).catch(function (err) {
+				// console.log(err);
+				// db.close();
+				// return false;
+			// });
+			
+			// return ok;
+		}
+
+
 		
 		var transformTrackingData = function (d) {
 				var ret = [{
@@ -352,8 +556,46 @@ $( document ).ready( function() {
 				ret[0].last_visited = ret[0].init_data.launchId.toString();
 				ret[0].title = d.lm[0];
 				ret[0].client = sopGlobals.ilClient;
-				log(JSON.stringify(ret[0]));
+				
 				return ret;
+					
+				// try {
+					// var response = await db.put(lm);
+					// log('Successfully posted a lm!');
+					// return ret;
+				// } catch (err) {
+					// log('NOT successfully posted a lm!');
+					// log(JSON.stringify(ret[0]));
+				// }
+				// db.get(id).then(function(doc){
+					// lm._rev = doc._rev;
+				// });
+
+				// db.put(lm,{_deleted: true}).then(function (response) { //,{_deleted: true}
+					// console.log('Successfully posted a lm!');
+					// db.close();
+					// return ret;
+				// }).catch(function (err) {
+						// console.log(err);
+						// db.close();
+						// return false;
+				// });
+				// db.bulkDocs([lm]).then(function (result) {
+					// console.log('Successfully posted a lm!');
+					// ok=ret;
+				// }).catch(function (err) {
+					// console.log(err);
+					// db.close();
+					// ok = false;
+				// });
+				// db.close();
+				
+				// return ok;
+				
+				
+
+				// log(JSON.stringify(ret[0]));
+				// return ret;
 		};
 		
 		var removeCookie = function removeCookie(sKey, sPath, sDomain) {

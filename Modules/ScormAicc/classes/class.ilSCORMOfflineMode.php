@@ -276,6 +276,7 @@ class ilSCORMOfflineMode
 			$cmi = json_decode(ilObjSCORMInitData::getIliasScormData($this->obj_id));
 			$max_attempt = ilObjSCORMInitData::get_max_attempts($this->obj_id);
 		}
+		//UK max_attempt weg!
 		if ($max_attempt == null) $max_attempt = 0;
 		$result = array(
 			'client_data' => array(
