@@ -110,8 +110,9 @@ $( document ).ready( function() {
 					// var ok = tracking2sop(data);
 
 					if (tracking2sop(data) != false) {
+
 					
-						localStorage.setItem(sopGlobals.lmId, JSON.stringify(transformTrackingData(data)));
+						// localStorage.setItem(sopGlobals.lmId, JSON.stringify(transformTrackingData(data)));
 						$('#iliasOfflineManager').after(lmFrame); // trigger appcache download
 					}
 				}

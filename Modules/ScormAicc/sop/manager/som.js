@@ -1,7 +1,7 @@
 var lms = {};
 //{"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ_327":{"client":"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ","obj_id":327,"title":"SCORM Diagnostic SCO multi 20110926","description":"","scorm_version":"1.2","active":1,"learning_progress_enabled":1,"certificate_enabled":null,"offline_zip_created":null,"max_attempt":null,"package_attempts":5,"first_access":1496481715000,"last_access":1496651913851,"total_time_sec":null,"sco_total_time_sec":0,"status":1,"percentage_completed":0},"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ_328":{"client":"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ","obj_id":328,"title":"TitreConsultationEval","description":"","scorm_version":"1.2","active":1,"learning_progress_enabled":1,"certificate_enabled":null,"offline_zip_created":null,"max_attempt":null,"package_attempts":null,"first_access":"","last_access":"","total_time_sec":null,"sco_total_time_sec":0,"status":0,"percentage_completed":0}};
 
-var dummy_lm = {"client":"XXX","obj_id":000,"title":"XXX","description":"","scorm_version":"1.2","active":1,"learning_progress_enabled":1,"certificate_enabled":null,"offline_zip_created":null,"max_attempt":null,"package_attempts":5,"first_access":1496481715000,"last_access":1496651913851,"total_time_sec":2987,"sco_total_time_sec":345,"status":1,"percentage_completed":0};
+// var dummy_lm = {"client":"XXX","obj_id":000,"title":"XXX","description":"","scorm_version":"1.2","active":1,"learning_progress_enabled":1,"certificate_enabled":null,"offline_zip_created":null,"max_attempt":null,"package_attempts":5,"first_access":1496481715000,"last_access":1496651913851,"total_time_sec":2987,"sco_total_time_sec":345,"status":1,"percentage_completed":0};
 
 var lmstatus = {
 	0 : "not_attempted",
@@ -40,33 +40,60 @@ $( document ).ready( function() {
 		
 		var init = function() {
 			log("som init");
+			
 			getLms();
-			log(JSON.stringify(lms));
-			renderAllLm();
+			
+				// log(JSON.stringify(lms));
+			setTimeout(function(){som.renderAllLm()}, 2000);
+			
 		};
 		
 		var getLms = function() {
 			log("getLms");
 			lms = {};
-			for (var k in localStorage) {
-				var lm_id = k;
-				var client = JSON.parse(localStorage[k])[0].client;
-				var title = JSON.parse(localStorage[k])[0].title;
-				var lm = JSON.parse(JSON.stringify(dummy_lm));
-				lm['obj_id'] = lm_id;
-				lm['client'] = client;
-				lm['title'] = title;
-				log(JSON.stringify(lm));
-				lms[lm_id] = lm;
-				//console.log(a, ' = ', localStorage[k]);
-				//var $a = $( "<div class='lm' id='" + k +"' onclick='som.openLm(this.id)'>"+JSON.parse(localStorage[k])[0].title+"</div>");
-				//$('#lmList').append($a);
-			}
+
+			var db = new PouchDB('lm',{auto_compaction:true, revs_limit: 1});
+			var remoteCouch = false;
+			db.allDocs({include_docs: true, descending: true}, function(err, doc) {
+				for (var i=0; i<doc.total_rows; i++) {
+					// console.log("lmrow"+i+": "+doc.rows[i].doc.title);
+					var lm_id = doc.rows[i].doc._id;
+					var lm={};
+					lm['obj_id'] = lm_id;
+					lm['client'] = doc.rows[i].doc.client;
+					lm['title'] = doc.rows[i].doc.title;
+					lm['description'] = doc.rows[i].doc.description;
+					lm['scorm_version'] = doc.rows[i].doc.scorm_version;
+					log(JSON.stringify(lm));
+					lms[doc.rows[i].doc.client+'_'+lm_id] = lm;
+				}
+			});
+			db.close();
+
+			db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
+			db.allDocs({include_docs: true, descending: true}, function(err, doc) {
+				for (var i=0; i<doc.total_rows; i++) {
+					for (var z=0; z<lms.length; z++){
+						if (lms[z].client_id == doc.rows[i].doc.client_id && lms[z].obj_id == doc.rows[i].doc.obj_id) {
+							lms[z]['first_access'] = doc.rows[i].doc.first_access;
+							lms[z]['last_access'] = doc.rows[i].doc.last_access;
+							lms[z]['total_time_sec'] = doc.rows[i].doc.total_time_sec;
+							lms[z]['sco_total_time_sec'] = doc.rows[i].doc.sco_total_time_sec;
+							lms[z]['status'] = doc.rows[i].doc.status;
+						}
+					}
+				}
+			});
+			db.close();
+			
+			return true;
+
 		};
 		
 		var openLm = function(lm) {
+			lmtmp = lm.split('_');
 			log("openLm: "+lm);
-			open("../player/player12.html","client="+JSON.parse(localStorage[lm])[0].client+"&obj_id="+lm);
+			open("../player/player12.html","client="+JSON.parse(lmtmp[0]+"&obj_id="+lmtmp[1]));
 		};
 		
 		var renderAllLm = function () {
@@ -75,8 +102,8 @@ $( document ).ready( function() {
 			
 			for (var _lm in lms) {
 				var lm = lms[_lm];
-				//// var id = lm.client + "_" + lm.obj_id; 
-				var id = lm.obj_id;
+				var id = lm.client + "_" + lm.obj_id; 
+				// var id = lm.obj_id;
 				
 				// var player = (lm.scorm_version == "1.2") ? "player12.html" : "player2004.html"
 				// var url = "http://localhost:50012/" + player + "?client=" + lm.client + "&obj_id=" + lm.obj_id;
@@ -169,6 +196,7 @@ $( document ).ready( function() {
 		return {
 			init : init,
 			openLm : openLm,
+			renderAllLm : renderAllLm,
 			log : log
 		};
 	}());
