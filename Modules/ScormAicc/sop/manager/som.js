@@ -40,11 +40,12 @@ $( document ).ready( function() {
 		
 		var init = function() {
 			log("som init");
-			
 			getLms();
 			
-				// log(JSON.stringify(lms));
-			setTimeout(function(){som.renderAllLm()}, 2000);
+			setTimeout(function(){
+				som.log(JSON.stringify(lms));
+				som.renderAllLm();
+			}, 2000);
 			
 		};
 		
@@ -57,43 +58,45 @@ $( document ).ready( function() {
 			db.allDocs({include_docs: true, descending: true}, function(err, doc) {
 				for (var i=0; i<doc.total_rows; i++) {
 					// console.log("lmrow"+i+": "+doc.rows[i].doc.title);
-					var lm_id = doc.rows[i].doc._id;
-					var lm={};
-					lm['obj_id'] = lm_id;
-					lm['client'] = doc.rows[i].doc.client;
-					lm['title'] = doc.rows[i].doc.title;
-					lm['description'] = doc.rows[i].doc.description;
-					lm['scorm_version'] = doc.rows[i].doc.scorm_version;
+					// var lm_id = doc.rows[i].doc._id;
+					var lm = {};
+					var row = doc.rows[i].doc;
+					var lm_id = row.client+'_'+doc.rows[i].doc.obj_id;
+					lm['obj_id'] = row.obj_id;
+					lm['client'] = row.client;
+					lm['title'] = row.title;
+					lm['description'] = row.description;
+					lm['scorm_version'] = row.scorm_version;
 					log(JSON.stringify(lm));
-					lms[doc.rows[i].doc.client+'_'+lm_id] = lm;
+					lms[lm_id] = lm;
 				}
-			});
-			db.close();
-
-			db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
-			db.allDocs({include_docs: true, descending: true}, function(err, doc) {
-				for (var i=0; i<doc.total_rows; i++) {
-					for (var z=0; z<lms.length; z++){
-						if (lms[z].client_id == doc.rows[i].doc.client_id && lms[z].obj_id == doc.rows[i].doc.obj_id) {
-							lms[z]['first_access'] = doc.rows[i].doc.first_access;
-							lms[z]['last_access'] = doc.rows[i].doc.last_access;
-							lms[z]['total_time_sec'] = doc.rows[i].doc.total_time_sec;
-							lms[z]['sco_total_time_sec'] = doc.rows[i].doc.sco_total_time_sec;
-							lms[z]['status'] = doc.rows[i].doc.status;
-						}
+			}).then( function(response) {
+				db.close();
+				db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
+				db.allDocs({include_docs: true, descending: true}, function(err, doc) {
+					for (var i=0; i<doc.total_rows; i++) {
+						var checkid = doc.rows[i].doc.client+"_"+doc.rows[i].doc.obj_id;
+						lms[checkid]['first_access'] = doc.rows[i].doc.first_access;
+						lms[checkid]['last_access'] = doc.rows[i].doc.last_access;
+						lms[checkid]['total_time_sec'] = doc.rows[i].doc.total_time_sec;
+						lms[checkid]['sco_total_time_sec'] = doc.rows[i].doc.sco_total_time_sec;
+						lms[checkid]['status'] = doc.rows[i].doc.status;
 					}
-				}
+				}).then(function(response){
+					db.close();
+				});
+				
 			});
-			db.close();
 			
 			return true;
 
 		};
 		
+		
 		var openLm = function(lm) {
 			lmtmp = lm.split('_');
 			log("openLm: "+lm);
-			open("../player/player12.html","client="+JSON.parse(lmtmp[0]+"&obj_id="+lmtmp[1]));
+			open("../player/player12.html","client="+lmtmp[0]+"&obj_id="+lmtmp[1]);
 		};
 		
 		var renderAllLm = function () {
@@ -108,15 +111,12 @@ $( document ).ready( function() {
 				// var player = (lm.scorm_version == "1.2") ? "player12.html" : "player2004.html"
 				// var url = "http://localhost:50012/" + player + "?client=" + lm.client + "&obj_id=" + lm.obj_id;
 				
-				var stat = (undefined===lm.status || lm.status===null || lm.status == "") ? 0 : lm.status;
+				var stat = 1;//(undefined===lm.status || lm.status===null || lm.status == "") ? 0 : lm.status;
 				var st = lmstatus[stat];
-				var showlp = (lm.learning_progress_enabled == 1) ? "inline" : "none"; 
+				var showlp = "inline";//(lm.learning_progress_enabled == 1) ? "inline" : "none"; 
 				//utils.log(JSON.stringify(lm));
 				
-				//// var link = som.getOfflineUrl(id);
-				var link = "sdfsfsdfsdf";
 				var data = {
-					LINK 		: link,
 					CRSID 		: id,
 					SHOWLP		: showlp,
 					TITLE 		: lm.title,
@@ -132,15 +132,16 @@ $( document ).ready( function() {
 			if (str == "") {
 				str = _("no_data");
 			}
+			log(str);
 			$('#acLm').html(str);
 		};
 		
 		var renderLm = function renderLm(id,str=false) {
-			
 			var lm = lms[id];
 			var tmp = mts.lm;
-			var time = secondsToTime(lm.sco_total_time_sec);
-			var attempts = (lm.status == 0) ? "" : lm.package_attempts;
+			var time = "345345345";//secondsToTime(lm.sco_total_time_sec);
+			//var attempts = (lm.status == 0) ? "" : lm.package_attempts;
+			var attempts = 3;
 			var firstaccess = lm.first_access;
 			var lastaccess =  lm.last_access;
 			if (typeof firstaccess == "number") {
@@ -152,16 +153,20 @@ $( document ).ready( function() {
 				lastaccess = dl.toLocaleString(); // ToDo: Safari Compat
 			}
 			
-			var status = _(lmstatus[lm.status]);
+			//var status = _(lmstatus[lm.status]);
+			//PERCENTAGECOMPLETED		: lm.percentage_completed+"%",
+			var status = _(lmstatus[0]);
+			var status = "not_attempted";
 			var data = {
 				TOTALTIME 			: time + " (hh:mm:ss)",
 				ATTEMPTS			: attempts,
 				FIRSTACCESS			: firstaccess,
 				LASTACCESS			: lastaccess,
-				PERCENTAGECOMPLETED		: lm.percentage_completed+"%",
+				PERCENTAGECOMPLETED		: "50%",
 				STATUS				: status
 			};
 			tmp = getTemplateContent(tmp,data);
+			log()
 			if (str) { // comming from renderAllLm
 				data = { LM : tmp };
 				return getTemplateContent(str,data);
