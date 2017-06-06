@@ -1,7 +1,4 @@
 var lms = {};
-//{"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ_327":{"client":"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ","obj_id":327,"title":"SCORM Diagnostic SCO multi 20110926","description":"","scorm_version":"1.2","active":1,"learning_progress_enabled":1,"certificate_enabled":null,"offline_zip_created":null,"max_attempt":null,"package_attempts":5,"first_access":1496481715000,"last_access":1496651913851,"total_time_sec":null,"sco_total_time_sec":0,"status":1,"percentage_completed":0},"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ_328":{"client":"L3d3dy5zaW1wbGUub3JnOjk0NDMvaWxpYXNfbHRpO2xlaWZvc0x0aQ","obj_id":328,"title":"TitreConsultationEval","description":"","scorm_version":"1.2","active":1,"learning_progress_enabled":1,"certificate_enabled":null,"offline_zip_created":null,"max_attempt":null,"package_attempts":null,"first_access":"","last_access":"","total_time_sec":null,"sco_total_time_sec":0,"status":0,"percentage_completed":0}};
-
-// var dummy_lm = {"client":"XXX","obj_id":000,"title":"XXX","description":"","scorm_version":"1.2","active":1,"learning_progress_enabled":1,"certificate_enabled":null,"offline_zip_created":null,"max_attempt":null,"package_attempts":5,"first_access":1496481715000,"last_access":1496651913851,"total_time_sec":2987,"sco_total_time_sec":345,"status":1,"percentage_completed":0};
 
 var lmstatus = {
 	0 : "not_attempted",
@@ -41,27 +38,24 @@ $( document ).ready( function() {
 		var init = function() {
 			log("som init");
 			getLms();
-			
-			setTimeout(function(){
-				som.log(JSON.stringify(lms));
-				som.renderAllLm();
-			}, 2000);
-			
 		};
 		
 		var getLms = function() {
 			log("getLms");
 			lms = {};
 
-			var db = new PouchDB('lm',{auto_compaction:true, revs_limit: 1});
+			var lmDb = new PouchDB('lm',{auto_compaction:true, revs_limit: 1});
+			var sahsUserDb = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
 			var remoteCouch = false;
-			db.allDocs({include_docs: true, descending: true}, function(err, doc) {
-				for (var i=0; i<doc.total_rows; i++) {
+			lmDb.allDocs({include_docs: true, descending: true}).then( function(doc) 
+			{
+				for (var i=0; i<doc.total_rows; i++) 
+				{
 					// console.log("lmrow"+i+": "+doc.rows[i].doc.title);
 					// var lm_id = doc.rows[i].doc._id;
 					var lm = {};
 					var row = doc.rows[i].doc;
-					var lm_id = row.client+'_'+doc.rows[i].doc.obj_id;
+					var lm_id = row.client+'_'+row.obj_id;
 					lm['obj_id'] = row.obj_id;
 					lm['client'] = row.client;
 					lm['title'] = row.title;
@@ -70,22 +64,33 @@ $( document ).ready( function() {
 					log(JSON.stringify(lm));
 					lms[lm_id] = lm;
 				}
-			}).then( function(response) {
-				db.close();
-				db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
-				db.allDocs({include_docs: true, descending: true}, function(err, doc) {
+			}).then( function() 
+			{
+				lmDb.close();
+				sahsUserDb.allDocs({include_docs: true, descending: true}, function(err, doc) {
 					for (var i=0; i<doc.total_rows; i++) {
-						var checkid = doc.rows[i].doc.client+"_"+doc.rows[i].doc.obj_id;
-						lms[checkid]['first_access'] = doc.rows[i].doc.first_access;
-						lms[checkid]['last_access'] = doc.rows[i].doc.last_access;
-						lms[checkid]['total_time_sec'] = doc.rows[i].doc.total_time_sec;
-						lms[checkid]['sco_total_time_sec'] = doc.rows[i].doc.sco_total_time_sec;
-						lms[checkid]['status'] = doc.rows[i].doc.status;
+						var row = doc.rows[i].doc;
+						var checkid = row.client+"_"+row.obj_id;
+						lms[checkid]['first_access'] = row.first_access;
+						lms[checkid]['last_access'] = row.last_access;
+						lms[checkid]['total_time_sec'] = row.total_time_sec;
+						lms[checkid]['sco_total_time_sec'] = row.sco_total_time_sec;
+						lms[checkid]['status'] = row.status;
+						lms[checkid]['package_attempts'] = row.package_attempts;
+						lms[checkid]['percentage_completed'] = row.percentage_completed;
 					}
-				}).then(function(response){
-					db.close();
+				}).then(function(response) {
+					sahsUserDb.close();
+					log(JSON.stringify(lms));
+					return renderAllLm();
+				}).catch( function(err) 
+				{
+					console.error(err);
 				});
-				
+					
+			}).catch( function(err) 
+			{
+				console.error(err);
 			});
 			
 			return true;
@@ -96,7 +101,8 @@ $( document ).ready( function() {
 		var openLm = function(lm) {
 			lmtmp = lm.split('_');
 			log("openLm: "+lm);
-			open("../player/player12.html","client="+lmtmp[0]+"&obj_id="+lmtmp[1]);
+			var player = (lms[lm].scorm_version == "1.2") ? "player12.html" : "player2004.html"
+			open("../player/"+player,"client="+lmtmp[0]+"&obj_id="+lmtmp[1]);
 		};
 		
 		var renderAllLm = function () {
@@ -105,43 +111,43 @@ $( document ).ready( function() {
 			
 			for (var _lm in lms) {
 				var lm = lms[_lm];
-				var id = lm.client + "_" + lm.obj_id; 
+				var lm_id = lm.client + "_" + lm.obj_id; 
 				// var id = lm.obj_id;
 				
 				// var player = (lm.scorm_version == "1.2") ? "player12.html" : "player2004.html"
 				// var url = "http://localhost:50012/" + player + "?client=" + lm.client + "&obj_id=" + lm.obj_id;
 				
-				var stat = 1;//(undefined===lm.status || lm.status===null || lm.status == "") ? 0 : lm.status;
-				var st = lmstatus[stat];
+				var stat = (undefined === lm.status || lm.status===null || lm.status == "") ? 0 : lm.status;
+				var st = (undefined !== lmstatus[stat]) ? lmstatus[stat] :  lmstatus[1];
 				var showlp = "inline";//(lm.learning_progress_enabled == 1) ? "inline" : "none"; 
 				//utils.log(JSON.stringify(lm));
 				
 				var data = {
-					CRSID 		: id,
+					CRSID 		: lm_id,
 					SHOWLP		: showlp,
 					TITLE 		: lm.title,
 					DESCRIPTION	: lm.description,
-					CRSDETAILS 	: "detail_" + lm.client + "_" + lm.obj_id,
+					CRSDETAILS 	: "detail_" + lm_id,
 					STATUSICON	: "images/" + st + ".png",
 					STATUSTITLE	: st
 				}
 				str += getTemplateContent(tmp,data);
-				str = renderLm(id,str);
+				str = renderLm(lm_id,str);
 			}
 			
 			if (str == "") {
 				str = _("no_data");
 			}
-			log(str);
+			//log(str);
 			$('#acLm').html(str);
+			return true;
 		};
 		
 		var renderLm = function renderLm(id,str=false) {
 			var lm = lms[id];
 			var tmp = mts.lm;
-			var time = "345345345";//secondsToTime(lm.sco_total_time_sec);
-			//var attempts = (lm.status == 0) ? "" : lm.package_attempts;
-			var attempts = 3;
+			var time = (lm.sco_total_time_sec > 0) ? secondsToTime(lm.sco_total_time_sec) : "not set";
+			var attempts = (lm.status == 0) ? "" : lm.package_attempts;
 			var firstaccess = lm.first_access;
 			var lastaccess =  lm.last_access;
 			if (typeof firstaccess == "number") {
@@ -153,16 +159,13 @@ $( document ).ready( function() {
 				lastaccess = dl.toLocaleString(); // ToDo: Safari Compat
 			}
 			
-			//var status = _(lmstatus[lm.status]);
-			//PERCENTAGECOMPLETED		: lm.percentage_completed+"%",
-			var status = _(lmstatus[0]);
-			var status = "not_attempted";
+			var status = (undefined !== lmstatus[lm.status]) ? _(lmstatus[lm.status]) : _(lmstatus[1]);
 			var data = {
 				TOTALTIME 			: time + " (hh:mm:ss)",
 				ATTEMPTS			: attempts,
 				FIRSTACCESS			: firstaccess,
 				LASTACCESS			: lastaccess,
-				PERCENTAGECOMPLETED		: "50%",
+				PERCENTAGECOMPLETED		: lm.percentage_completed+"%",
 				STATUS				: status
 			};
 			tmp = getTemplateContent(tmp,data);
