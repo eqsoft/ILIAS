@@ -70,6 +70,7 @@ $( document ).ready( function() {
 				sahsUserDb.allDocs({include_docs: true, descending: true}, function(err, doc) {
 					for (var i=0; i<doc.total_rows; i++) {
 						var row = doc.rows[i].doc;
+						console.log(JSON.stringify(row));
 						var checkid = row.client+"_"+row.obj_id;
 						lms[checkid]['first_access'] = row.first_access;
 						lms[checkid]['last_access'] = row.last_access;

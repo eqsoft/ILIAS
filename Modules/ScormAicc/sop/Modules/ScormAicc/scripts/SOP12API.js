@@ -224,7 +224,7 @@ function IliasLaunch(i_l){
 		b_launched=false;
 		setTimeout("API.IliasAbortSco("+iv.launchId+")",5000);
 		iv.launchId=i_l;
-		//frames.sahs_content.document.location.replace('./Modules/ScormAicc/templates/default/dummy.html'); // Uwe ist Schuld
+		frames.sahs_content.document.location.replace('./Modules/ScormAicc/templates/default/dummy.html');
 	}
 	status4tree(iv.launchId,'running');
 }
@@ -341,7 +341,11 @@ function IliasCommit() {
 		else {
 		//	s_s=JSON.stringify(o_data);
 			s_s=toJSONString(o_data);
-			ret=sendRequest ("./Modules/ScormAicc/sahs_server.php?cmd=storeJsApi&ref_id="+iv.refId, s_s);
+			if(typeof iv.b_sessionDeactivated!="undefined" && iv.b_sessionDeactivated==true) {
+				ret=sendRequest ("./storeScorm.php?package_id="+iv.objId+"&ref_id="+iv.refId+"&client_id="+iv.clientId+"&do=store", s_s);
+			} else {
+				ret=sendRequest ("./Modules/ScormAicc/sahs_server.php?cmd=storeJsApi&package_id="+iv.objId+"&ref_id="+iv.refId, s_s);
+			}
 		}
 		if (ret!="ok") return false;
 		return true;
@@ -451,7 +455,10 @@ function basisInit() {
 		if(ipar[3]!=null) setValueIntern(ipar[0],"cmi.student_data.max_time_allowed",ipar[3],false,true);
 		if(ipar[4]!=null) setValueIntern(ipar[0],"cmi.student_data.time_limit_action",ipar[4],false,true);
 		if(ipar[5]!=null) setValueIntern(ipar[0],"cmi.launch_data",ipar[5],false,true);
-		if(ipar[6]!=null) setValueIntern(ipar[0],"cmi.student_data.mastery_score",ipar[6],false,true);
+		if(ipar[6]!=null) {
+			if(iv.i_lessonMasteryScore!="") ipar[6]=iv.i_lessonMasteryScore;
+			setValueIntern(ipar[0],"cmi.student_data.mastery_score",ipar[6],false,true);
+		}
 	}
 	if (s_w != "") warning('Failure read previous data:'+s_w.substr(1));
 	if (typeof SOP!="undefined" && SOP==true && ir.length>1) tree();
@@ -483,7 +490,11 @@ function onWindowUnload () {
 	} else {
 		var s_unload="";
 		if (iv.b_autoLastVisited==true) s_unload="last_visited="+iv.launchId;
-		sendRequest ("./Modules/ScormAicc/sahs_server.php?cmd=scorm12PlayerUnload&ref_id="+iv.refId, s_unload);
+		if(typeof iv.b_sessionDeactivated!="undefined" && iv.b_sessionDeactivated==true) {
+			sendRequest ("./storeScorm.php?package_id="+iv.objId+"&ref_id="+iv.refId+"&client_id="+iv.clientId+"&hash="+iv.status.hash+"&p="+iv.status.p+"&do=unload", s_unload);
+		} else {
+			sendRequest ("./Modules/ScormAicc/sahs_server.php?cmd=scorm12PlayerUnload&package_id="+iv.objId+"&ref_id="+iv.refId+"&p="+iv.status.p, s_unload);
+		}
 	}
 }
 
@@ -532,6 +543,10 @@ var model = {
 			_children:{
 				ac: 'r',
 				dv: 'core,suspend_data,launch_data,comments,objectives,student_data,student_preference,interactions'
+			},
+			_version:{
+				ac: 'r',
+				dv: '3.4'
 			},
 			core:{
 				_children:{
@@ -872,7 +887,7 @@ function LMSInitialize(param){
 	var mode=iv.lesson_mode;
 	if (iv.b_autoReview==true) {
 		var st=getValueIntern(sco_id,'cmi.core.lesson_status');
-		if (st=="completed" || st=="passed" || st=="failed") {
+		if (st=="completed" || st=="passed" || getValueIntern(sco_id,'cmi.core.lesson_mode')=="review") {
 			mode='review';
 			entryAtInitialize=""; //specs 3-26
 			setValueIntern(sco_id,'cmi.core.entry',"",true);
@@ -935,9 +950,17 @@ function LMSFinish(param){
 	}
 	if (param!=="") return setreturn(201, "param must be empty string");
 	if (!Initialized) return setreturn(301,"");
-//	if (getValueIntern(sco_id,'cmi.core.exit') == null && getValueIntern(sco_id,'cmi.core.entry') != 'resume') {
-//		setValueIntern(sco_id,'cmi.core.entry',"",true);
-//	}
+	// rte3-25
+	if (getValueIntern(sco_id,'cmi.core.lesson_status')==null || getValueIntern(sco_id,'cmi.core.lesson_status')=="not attempted")
+		b_result=setValueIntern(sco_id,'cmi.core.lesson_status','completed',true,true);
+	if (getValueIntern(sco_id,'cmi.core.lesson_status')=='completed' && getValueIntern(sco_id,'cmi.student_data.mastery_score')!=null && getValueIntern(sco_id,'cmi.core.score.raw')!=null) {
+		if (parseFloat(getValueIntern(sco_id,'cmi.core.score.raw')) < parseFloat(getValueIntern(sco_id,'cmi.student_data.mastery_score'))) {
+			b_result=setValueIntern(sco_id,'cmi.core.lesson_status','failed',true,true);
+		}
+		if (parseFloat(getValueIntern(sco_id,'cmi.core.score.raw')) >= parseFloat(getValueIntern(sco_id,'cmi.student_data.mastery_score'))) {
+			b_result=setValueIntern(sco_id,'cmi.core.lesson_status','passed',true,true);
+		}
+	}
 	if (IliasCommit()==false) return setreturn(101,"LMSFinish was not successful because of failure with implicit LMSCommit");
 	Initialized=false;
 	IliasLaunchAfterFinish(sco_id);
@@ -1056,12 +1079,7 @@ function LMSSetValue(s_el,value){
 	}
 	//store
 	var b_storeDB=true;
-	if (iv.b_storeInteractions==false && s_el.indexOf("cmi.interactions")>-1) b_storeDB=false;
-	else if (iv.b_storeObjectives==false && s_el.indexOf("cmi.objectives")>-1) b_storeDB=false;
-	if (b_scoCredit==false && (s_el.indexOf("score")>-1 || s_el.indexOf("status")>-1)) b_storeDB=false;
-
-	var b_result=setValueIntern(sco_id,s_el,value,b_storeDB);
-	if (b_result==false) return setreturn(201,"out of order");
+	var b_result=true;
 	if (s_el=='cmi.core.session_time' && iv.c_storeSessionTime=="s"){
 		var ttime = addTime(totalTimeAtInitialize, value);
 		b_result=setValueIntern(sco_id,'cmi.core.total_time',ttime,true);
@@ -1070,6 +1088,17 @@ function LMSSetValue(s_el,value){
 		if (value=='suspend') b_result=setValueIntern(sco_id,'cmi.core.entry',"resume",true);
 		else b_result=setValueIntern(sco_id,'cmi.core.entry',"",true);
 	}
+	//since 5.2
+	if (iv.lesson_mode == 'browse'){
+		b_storeDB=false;
+	} else {
+		if (b_scoCredit==false && (s_el.indexOf("score")>-1 || s_el.indexOf("status")>-1)) return setreturn(0,"");
+	}
+
+	if (iv.b_storeInteractions==false && s_el.indexOf("cmi.interactions")>-1) b_storeDB=false;
+	else if (iv.b_storeObjectives==false && s_el.indexOf("cmi.objectives")>-1) b_storeDB=false;
+	b_result=setValueIntern(sco_id,s_el,value,b_storeDB);
+	if (b_result==false) return setreturn(201,"out of order");
 	return setreturn(0,"");
 }
 

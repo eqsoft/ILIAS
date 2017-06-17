@@ -363,6 +363,72 @@ class ilSCORMOfflineMode
 		return array($package_attempts, $module_version, $last_visited, $first_access, $last_access, $last_status_change, $total_time_sec, $sco_total_time_sec, $status, $percentage_completed, $user_data);
 	}
 	
+	function sop2il() {
+//		sleep(5);
+		global $ilDB,$ilUser;
+		$in = file_get_contents("php://input");
+		$GLOBALS['ilLog']->write($in);
+		$ret = array('msg'=>array(),'err'=>array());
+		
+		if (!$in || $in == "") {
+			$ret['err'][] = "no post data recieved";
+			print(json_encode($ret));
+			exit;
+		}
+		$userId=$ilUser->getID();
+		$result=true;
+
+		if ($this->type == 'scorm2004') {
+			$lm_set = $ilDB->queryF('SELECT default_lesson_mode, interactions, objectives, comments, time_from_lms FROM sahs_lm WHERE id = %s', array('integer'),array($this->obj_id));
+			while($lm_rec = $ilDB->fetchAssoc($lm_set))
+			{
+				$defaultLessonMode=($lm_rec["default_lesson_mode"]);
+				$interactions=(ilUtil::yn2tf($lm_rec["interactions"]));
+				$objectives=(ilUtil::yn2tf($lm_rec["objectives"]));
+				$comments=(ilUtil::yn2tf($lm_rec["comments"]));
+				$time_from_lms=(ilUtil::yn2tf($lm_rec["time_from_lms"]));
+			}
+			include_once './Modules/Scorm2004/classes/class.ilSCORM2004StoreData.php';
+			$data = json_decode($in);
+			$GLOBALS['ilLog']->write('cmi_count='.count($data->cmi));
+			for ($i=0; $i<count($data->cmi); $i++) {
+				if($result==true) {
+					//$a_r=array();
+					$cdata=$data->cmi[$i];
+					$a_r = ilSCORM2004StoreData::setCMIData(
+						$userId, 
+						$this->obj_id, 
+						$data->cmi[$i],//json_decode($data->cmi[$i]), 
+						$comments,
+						$interactions,
+						$objectives
+						);
+					if (!is_array($a_r)) $result=false; 
+				}
+			}
+			if ($result==true) {
+				$result=ilSCORM2004StoreData::syncGlobalStatus($userId, $this->obj_id, $data, $data->now_global_status, $time_from_lms);
+			}
+		} else {
+			include_once "./Modules/ScormAicc/classes/SCORM/class.ilObjSCORMTracking.php";
+			$data = json_decode($in);
+			$result=ilObjSCORMTracking::storeJsApiCmi($userId,$this->obj_id,$data);
+			if ($result==true) {
+				$result=ilObjSCORMTracking::syncGlobalStatus($userId, $this->obj_id, $data, $data->now_global_status);
+			}
+		}
+		if ($result==true) {
+			$result=self::scormPlayerUnloadForSOP2il($data);
+		}
+
+		if ($result==false) {
+			$ret['err'][] = "invalid post data recieved";
+		} else {
+			$ret['msg'][]  = "post data recieved";
+		}
+		header('Content-Type: text/plain; charset=UTF-8');
+		print json_encode($ret);
+	}
 	public static function checkIfAnyoneIsInOfflineMode($obj_id) {
 		global $ilDB;
 		$res = $ilDB->queryF("SELECT count(*) cnt FROM sahs_user WHERE obj_id=%s AND offline_mode = 'offline'",
