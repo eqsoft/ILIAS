@@ -323,7 +323,7 @@ function IliasCommit() {
 		o_data.percentageCompleted=Math.round(i_numCompleted*100/iv.status.scos.length);
 	}
 	for (var i=0; i<ir.length; i++) {
-		o_data.totalTimeCentisec+=timestr2hsec(getValueIntern(ir[i][1],"cmi.core.total_time",false));
+		// o_data.totalTimeCentisec+=timestr2hsec(getValueIntern(ir[i][1],"cmi.core.total_time",false));
 	}
 	for (var i=0; i<a_toStore.length; i++){
 		a_tmp=a_toStore[i].split(';');

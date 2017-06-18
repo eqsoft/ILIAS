@@ -81,17 +81,12 @@ body{
 		function initPlayer() { //ToDo: check offline access! Not allow online access: look into in offline storage first
 			params = gui.getPlayerParams(window);
 			gui.getData("lmGetAllByClientAndObjIdAtInitOfPlayer",[params.client,params.obj_id]);
-			setTimeout("startAPI()",2000);
-		}
-		function startAPI(){
-			API=new iliasApi();
 		}
 		function saveRequest(data){
 			var dbResult = gui.setData("setSCORM12data",[params.client, params.obj_id, data]);
 			return dbResult;
 		}
 		function scormPlayerUnload(data) {
-			//gui.log("scormPlayerUnload");
 			if(data.last!="") var dbResult = gui.setData("scormPlayerUnload",[params.client, params.obj_id, data.last]);
 		}
 	</script>

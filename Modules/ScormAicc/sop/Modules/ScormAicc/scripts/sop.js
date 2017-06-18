@@ -55,7 +55,7 @@ $( document ).ready( function() {
 			var ret = false, rec = null;
 			ret = dbData(statement, params);
 			if (ret) {
-				return (asJSONObject) ? rec : JSON.stringify(rec);
+				return (asJSONObject) ? ret : JSON.stringify(ret);
 			}
 			// utils.err("db error: " + dbHandler.getLastErrorId() + ": " + dbHandler.getLastError()); // ToDo: get db error
 			return false;
@@ -128,7 +128,7 @@ $( document ).ready( function() {
 								IliasScormTree = result.scorm_tree;
 								IliasScormData = result.cmi;
 								//IliasScormData = JSON.parse(gui.getData("getScormTracking",[params.client,params.obj_id],false));
-								// API=new iliasApi();
+								API=new iliasApi();
 								return true;
 							});
 						});
@@ -140,51 +140,49 @@ $( document ).ready( function() {
 				break;
 
 				case "setSCORM12data" :
+
+					function retryUntilWritten(doc) {
+						return dbtr.get(doc._id).then(function (origDoc) {
+							doc._rev = origDoc._rev;
+							return dbtr.put(doc);
+						}).catch(function (err) {
+							if (err.status === 409) {
+								return retryUntilWritten(doc);
+							} else { // new doc
+								return dbtr.put(doc);
+							}
+						});
+					}
+
 					var this_id = params[0] + '_' + params[1]; //client + obj_id
-					var $data=JSON.parse(params[2]);
+					var data=JSON.parse(params[2]);
 					var d_now = new Date();
 					var remoteCouch = false;
 					//set data for tracking
-					var a_d=[];
-					var db = new PouchDB('scorm_tracking_'+this_id,{auto_compaction:true, revs_limit: 1});
-					for(var i=0; i<$data.cmi.length; i++) {
-						a_d=$data.cmi[i];
-						var t_id = a_d[0]+'_'+a_d[1];
-						db.get(t_id).then(function(doc) {
-							db.put({
-								_id:t_id,
-								_rev:doc._rev,
-								rvalue:a_d[2]
-							});
-							// console.log(doc._rev);
-						}).catch(function (err) {
-							db.put({
-								_id:t_id,
-								rvalue:a_d[2]
-							});
-							// console.log('error writing scorm_tracking for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' + err);
-						});
+					var dbtr = new PouchDB('scorm_tracking_'+this_id,{auto_compaction:true, revs_limit: 1, cache : false});
+					for(var i=0; i<data.cmi.length; i++) {
+						var a_d=data.cmi[i];
+						var tmp = retryUntilWritten({_id:a_d[0]+'_'+a_d[1], rvalue:a_d[2]});
 					}
 					
-					db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
+					var db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
 					db.get(this_id).then(function(res){
 						//update data for sahs_user
-						if ($data.now_global_status != $data.saved_global_status) {
+						if (data.now_global_status != data.saved_global_status) {
 							res.last_status_change = d_now.getTime();
 						}
-						if (typeof $data.percentageCompleted == "number") {
-							res.percentage_completed = Math.round($data.percentageCompleted);
+						if (typeof data.percentageCompleted == "number") {
+							res.percentage_completed = Math.round(data.percentageCompleted);
 						}
-						if (typeof $data.totalTimeCentisec == "number") {
-							res.sco_total_time_sec = Math.round($data.totalTimeCentisec/100);
+						if (typeof data.totalTimeCentisec == "number") {
+							res.sco_total_time_sec = Math.round(data.totalTimeCentisec/100);
 						} else {
 							res.sco_total_time_sec = null;
 						}
 						res.last_access = d_now.getTime();
-						res.status = $data.now_global_status;
+						res.status = data.now_global_status;
 						db.put(res).then(function(response) {
 							db.close();
-							console.log("ok");
 						});
 					}).catch(function (err) {
 						db.close();
