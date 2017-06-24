@@ -26,6 +26,7 @@ $( document ).ready( function() {
 		 */ 
 		var init = function () {
 			log("sop: init");
+			//removeAllTables();
 			msgs = [];
 			progress = false;
 			iliasPhp = document.URL.substring(0,document.URL.indexOf('?'));
@@ -129,16 +130,29 @@ $( document ).ready( function() {
 		var pushTracking = function () {
 			log("sop: pushTracking");
 			msg("push tracking data", true);
-			var purgeCache = $('#chkPurgeCache').is(':checked');
-			inProgress();
-			if (sop2il() != false) {
+			//var purgeCache = $('#chkPurgeCache').is(':checked');
+			//inProgress();
+			sop2il(); 
+
+			/*
+			if (sop2il() != false) { // return value from async function?
+				
 				var timer = 0;
 				var dummyInterval = setInterval(dummy,1000);
+				if (purgeCache) {
+					purgeAppCache();
+				}
+				else {
+					outProgress();
+					loadOnlineMode();
+				}
 			} else {
 				//Fehlermeldung
 				outProgress();
 			}
-			function dummy() {
+			*/
+			/*
+			function dummy() { // deprecated simulation of async data processing
 				timer += 1000;
 				if (timer > 3000) {
 					clearInterval(dummyInterval);
@@ -152,11 +166,12 @@ $( document ).ready( function() {
 					}
 				}
 			}
+			*/ 
 		};
 		
 		var purgeAppCache = function () {
 			msg("purge application cache for slm",true);
-			inProgress();
+			//inProgress();
 			log("add " + sopGlobals.sop_purge_cookie_1);
 			document.cookie = sopGlobals.sop_purge_cookie_1;
 			log("cookies: " + document.cookie);
@@ -270,14 +285,24 @@ $( document ).ready( function() {
 			log("lm appcache on updateready...");
 			if (sopGlobals.mode == "online") {
 				outProgress();
-				lmAppCache.swapCache();
+				try {
+					lmAppCache.swapCache();
+				}
+				catch(e) {
+					//
+				}
 				loadOfflineMode();
 			}
 			else { 
 				if (isPurgeCookieRegEx.test(document.cookie)) { //purge
 					log("updateready purge");
 					outProgress();
-					lmAppCache.swapCache(); // don't think its nessessary because a new site is loaded
+					try {
+						lmAppCache.swapCache(); // don't think its nessessary because a new site is loaded
+					}
+					catch(e) {
+						//
+					}
 					//log("remove purgeCookie");
 					//removeCookie("purgeCookie");
 					//log("cookies: " + document.cookie);
@@ -290,7 +315,12 @@ $( document ).ready( function() {
 					log("updateready initial");
 					outProgress();
 					lmAppCache = document.getElementById('lmAppCacheDownloadFrame').contentWindow.applicationCache;
-					lmAppCache.swapCache();
+					try {
+						lmAppCache.swapCache(); // don't think its nessessary because a new site is loaded
+					}
+					catch(e) {
+						//
+					}
 					_showOfflineForm();
 				}
 			}
@@ -309,6 +339,15 @@ $( document ).ready( function() {
 		var createSopAppCacheEventHandler = function(iframe) {
 			log("sop: createSopAppCacheEventHandler: " + iframe);
 			sopAppCache = iframe.contentWindow.applicationCache;
+			sopAppCache.addEventListener('checking', sopAppCacheChecking, false);
+			sopAppCache.addEventListener('noupdate', sopAppCacheNoupdate, false);
+			sopAppCache.addEventListener('downloading', sopAppCacheDownloading, false);
+			sopAppCache.addEventListener('progress', sopAppCacheProgress, false);
+			sopAppCache.addEventListener('cached', sopAppCacheCached, false);
+			sopAppCache.addEventListener('updateready', sopAppCacheUpdateready, false);
+			sopAppCache.addEventListener('obsolete', sopAppCacheObsolete, false);
+			sopAppCache.addEventListener('error', sopAppCacheError, false);
+			/*
 			$(sopAppCache).on('checking', sopAppCacheChecking);
 			$(sopAppCache).on('noupdate', sopAppCacheNoupdate);
 			$(sopAppCache).on('downloading', sopAppCacheDownloading);
@@ -317,11 +356,21 @@ $( document ).ready( function() {
 			$(sopAppCache).on('updateready', sopAppCacheUpdateready);
 			$(sopAppCache).on('obsolete', sopAppCacheObsolete);
 			$(sopAppCache).on('error', sopAppCacheError);
+			*/ 
 		};
 		
 		var createLmAppCacheEventHandler = function(iframe) {
 			log("sop: createLmAppCacheEventHandler: " + iframe);
 			lmAppCache = iframe.contentWindow.applicationCache;
+			lmAppCache.addEventListener('checking', lmAppCacheChecking, false);
+			lmAppCache.addEventListener('noupdate', lmAppCacheNoupdate, false);
+			lmAppCache.addEventListener('downloading', lmAppCacheDownloading, false);
+			lmAppCache.addEventListener('progress', lmAppCacheProgress, false);
+			lmAppCache.addEventListener('cached', lmAppCacheCached, false);
+			lmAppCache.addEventListener('updateready', lmAppCacheUpdateready, false);
+			lmAppCache.addEventListener('obsolete', lmAppCacheObsolete, false);
+			lmAppCache.addEventListener('error', lmAppCacheError, false);
+			/*
 			$(lmAppCache).on('checking', lmAppCacheChecking);
 			$(lmAppCache).on('noupdate', lmAppCacheNoupdate);
 			$(lmAppCache).on('downloading', lmAppCacheDownloading);
@@ -330,6 +379,7 @@ $( document ).ready( function() {
 			$(lmAppCache).on('updateready', lmAppCacheUpdateready);
 			$(lmAppCache).on('obsolete', lmAppCacheObsolete);
 			$(lmAppCache).on('error', lmAppCacheError);
+			*/ 
 		};
 		
 		/**
@@ -429,11 +479,13 @@ $( document ).ready( function() {
 		}
 		
 		var sop2il = function() {
-
+			inProgress();
 			var remoteCouch = false;
 			var cmi = [];
 			var sop2il_data = {};
 			var db = new PouchDB('sahs_user');
+			//var purgeCache = $('#chkPurgeCache').is(':checked'); // default remove appcache assets, checkbox is hidden by display: none 
+			var purgeCache = true; 
 			db.get(sopGlobals.ilClient+'_'+sopGlobals.lmId).then(function(res){
 				sop2il_data = {
 					"cmi":[],
@@ -470,15 +522,21 @@ $( document ).ready( function() {
 						removeTableRow('sahs_user', ""+sopGlobals.ilClient+'_'+sopGlobals.lmId);
 						removeTableRow('lm', ""+sopGlobals.ilClient+'_'+sopGlobals.lmId);
 					}
+					if (purgeCache) {
+						purgeAppCache();
+					}
+					else { // deprecated
+						outProgress();
+						loadOnlineMode();
+					}
 					
-					
-					
-					return true;
+					//return true;
 				});
 			}).catch(function (err) {
 				db.close();
 				console.log(err);
-				return false;
+				outProgress();
+				//return false;
 			});
 		}
 		
