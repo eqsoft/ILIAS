@@ -429,6 +429,32 @@ class ilSCORMOfflineMode
 		header('Content-Type: text/plain; charset=UTF-8');
 		print json_encode($ret);
 	}
+	
+	function scormPlayerUnloadForSop2il($data) {
+		global $ilDB,$ilUser;
+		$first_access=null;
+		if($data->first_access != null) $first_access=date('Y-m-d H:i:s',round($data->first_access/1000));
+		$last_access=null;
+		$i_last_access=null;
+		if($data->last_access != null) {
+			$i_last_access = round($data->last_access/1000);
+			$last_access=date('Y-m-d H:i:s',$i_last_access);
+			include_once("./Services/Tracking/classes/class.ilChangeEvent.php");
+			ilChangeEvent::_updateAccessForScormOfflinePlayer($this->obj_id,$ilUser->getId(), $i_last_access, $first_access);
+		}
+		$last_status_change=null;
+		if($data->last_status_change != null) $last_status_change=date('Y-m-d H:i:s',round($data->last_status_change/1000));
+		$GLOBALS['ilLog']->write('first_access='.$first_access);
+		$res = $ilDB->queryF('UPDATE sahs_user SET first_access=%s, last_access=%s, last_status_change=%s, last_visited=%s, module_version=%s WHERE obj_id=%s AND user_id=%s',
+			array('timestamp','timestamp','timestamp','text','integer','integer','integer'),
+			array($first_access,$last_access,$last_status_change,$data->last_visited,$data->module_version, $this->obj_id,$ilUser->getId())
+		);
+
+		//populate last_status_change
+		return true;
+	}
+
+	
 	public static function checkIfAnyoneIsInOfflineMode($obj_id) {
 		global $ilDB;
 		$res = $ilDB->queryF("SELECT count(*) cnt FROM sahs_user WHERE obj_id=%s AND offline_mode = 'offline'",

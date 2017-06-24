@@ -323,7 +323,7 @@ function IliasCommit() {
 		o_data.percentageCompleted=Math.round(i_numCompleted*100/iv.status.scos.length);
 	}
 	for (var i=0; i<ir.length; i++) {
-		// o_data.totalTimeCentisec+=timestr2hsec(getValueIntern(ir[i][1],"cmi.core.total_time",false));
+		o_data.totalTimeCentisec+=timestr2hsec(getValueIntern(ir[i][1],"cmi.core.total_time",false));
 	}
 	for (var i=0; i<a_toStore.length; i++){
 		a_tmp=a_toStore[i].split(';');
@@ -964,6 +964,13 @@ function LMSFinish(param){
 	if (IliasCommit()==false) return setreturn(101,"LMSFinish was not successful because of failure with implicit LMSCommit");
 	Initialized=false;
 	IliasLaunchAfterFinish(sco_id);
+
+	//With Fix for InternetExplorer to avoid searching API in a non-available opener after closing tab
+	var windowOpenerLoc;
+	try{windowOpenerLoc=window.opener.location;}catch(e){}
+	window.opener=null;
+	try{windowOpenerLoc.reload();} catch(e){}
+
 	return setreturn(0,"");
 }
 

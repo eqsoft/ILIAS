@@ -176,8 +176,6 @@ $( document ).ready( function() {
 						}
 						if (typeof data.totalTimeCentisec == "number") {
 							res.sco_total_time_sec = Math.round(data.totalTimeCentisec/100);
-						} else {
-							res.sco_total_time_sec = null;
 						}
 						res.last_access = d_now.getTime();
 						res.status = data.now_global_status;
@@ -208,7 +206,6 @@ $( document ).ready( function() {
 						log('error writing sahs_user for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' + err);
 					});
 					return "ok";
-					// utils.log("scormPlayerUnload last_visited: "+params[2]);
 				break;
 
 				default :

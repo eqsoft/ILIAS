@@ -354,6 +354,19 @@ $( document ).ready( function() {
 			removeTable('lm');
 			removeTable('sahs_user');
 		}
+
+		var removeTableRow = function(table,id) {
+			var dbrt = new PouchDB(table,{auto_compaction:true, revs_limit: 1});
+			var remoteCouch = false;
+			dbrt.get(id).then(function(doc){
+				dbrt.remove(doc._id, doc._rev);
+			}).then(function (result) {
+				dbrt.close();
+			}).catch(function (err) {
+				dbrt.close();
+			});
+		}
+
 		var removeTrackingData = function () {
 		
 			var removerow = function(table,id,rev) {
@@ -416,20 +429,30 @@ $( document ).ready( function() {
 		}
 		
 		var sop2il = function() {
-			
+
 			var remoteCouch = false;
 			var cmi = [];
+			var sop2il_data = {};
 			var db = new PouchDB('sahs_user');
 			db.get(sopGlobals.ilClient+'_'+sopGlobals.lmId).then(function(res){
-				var o_data={
+				sop2il_data = {
 					"cmi":[],
-					"saved_global_status":0,//iv.status.saved_global_status,aus init_data
+					"adl_seq_utilities":{},
+					"changed_seq_utilities":0,
+					"saved_global_status":0,
 					"now_global_status":res.status,
 					"percentageCompleted":res.percentage_completed,
-					// "lp_mode":6,
-					"hash":"",
+					"lp_mode":6,
+					"hash":0,
 					"p":res.user_id,
-					"totalTimeCentisec":(res.sco_total_time_sec*100)
+					"totalTimeCentisec":(res.sco_total_time_sec*100),
+					"packageAttempts":res.package_attempts,
+					"first_access":res.first_access,
+					"last_access":res.last_access,
+					"last_status_change":res.last_status_change,
+					"last_visited":res.last_visited,
+					"total_time_sec":null,
+					"module_version":res.module_version
 				};
 				db = new PouchDB('scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId);
 				db.allDocs({include_docs: true, descending: true}).then(function(result){
@@ -438,11 +461,18 @@ $( document ).ready( function() {
 						var ileft = left.indexOf('_');
 						cmi[i] = [ left.substr(0,ileft) , left.substr(ileft+1) , result.rows[i].doc.rvalue ];
 					}
-					o_data.cmi = cmi;
-					// console.log('o_data: '+JSON.stringify(o_data));
-					s_s=toJSONString(o_data);
-					sendRequest ("./Modules/ScormAicc/sahs_server.php?cmd=storeJsApi&package_id="+sopGlobals.lmId+"&ref_id="+sopGlobals.refId, s_s);
-					db.close();
+					sop2il_data.cmi = cmi;
+					s_s=toJSONString(sop2il_data);
+					var cmdUrl = document.URL.substring(0,document.URL.indexOf('?'))+'?baseClass=ilSAHSPresentationGUI&ref_id='+sopGlobals.refId+'&client_id='+sopGlobals.ilClient+'&cmd=';
+					var ret = JSON.parse(sendRequest(cmdUrl+"offlineMode_sop2ilpush", s_s));
+					if (ret.msg[0] == "post data recieved") {
+						db.destroy();
+						removeTableRow('sahs_user', ""+sopGlobals.ilClient+'_'+sopGlobals.lmId);
+						removeTableRow('lm', ""+sopGlobals.ilClient+'_'+sopGlobals.lmId);
+					}
+					
+					
+					
 					return true;
 				});
 			}).catch(function (err) {
