@@ -110,7 +110,7 @@ $( document ).ready( function() {
 								result.cmi = cmi;
 								
 								console.log('data for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' +JSON.stringify(result));
-								db.close();
+								//db.close();
 								IliasScormVars=result.init_data;
 								IliasScormVars.launchId=result.last_visited;
 								IliasScormVars.status.saved_global_status=result.status;
@@ -133,7 +133,7 @@ $( document ).ready( function() {
 							});
 						});
 					}).catch(function (err) {
-						db.close();
+						//db.close();
 						log('error for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' + err);
 						return false;
 					});
@@ -180,10 +180,10 @@ $( document ).ready( function() {
 						res.last_access = d_now.getTime();
 						res.status = data.now_global_status;
 						db.put(res).then(function(response) {
-							db.close();
+							//db.close();
 						});
 					}).catch(function (err) {
-						db.close();
+						//db.close();
 						log('error writing sahs_user for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' + err);
 					});
 					return "ok";
@@ -199,10 +199,10 @@ $( document ).ready( function() {
 						res.last_access = d_now.getTime();
 						res.last_visited = params[2];
 						db.put(res).then(function(response) {
-							db.close();
+							//db.close();
 						});
 					}).catch(function (err) {
-						db.close();
+						//db.close();
 						log('error writing sahs_user for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' + err);
 					});
 					return "ok";
