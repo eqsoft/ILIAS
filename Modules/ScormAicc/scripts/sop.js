@@ -21,6 +21,13 @@ $( document ).ready( function() {
 		var progressInterval = 1000;
 		var progressMaxtime = 20000;
 		var isPurgeCookieRegEx;
+		
+		const CLIENT_SUCCESS = 'Successfully posted to client_data!';
+		const USER_SUCCESS = 'Successfully posted to user_data!';
+		const LM_SUCCESS = 'Successfully posted to lm!';
+		const SAHS_SUCCESS = 'Successfully posted to sahs_user!';
+		const SCORM_SUCCESS = 'Successfully posted to scorm_tracking!';
+		
 		/**
 		 * init sop
 		 */ 
@@ -154,37 +161,37 @@ $( document ).ready( function() {
 		 * sop is already in appcache and the appcache manifest did not changed
 		 */ 
 		var sopAppCacheNoupdate = function() {
-			//log("sop appcache on noupdate...");
+			log("sop appcache on noupdate...");
 			showForm();
 			outProgress();
 		};
 		
 		var sopAppCacheDownloading = function() {
-			//log("sop appcache on downloading");
+			log("sop appcache on downloading");
 		};
 		
 		var sopAppCacheProgress = function(evt) {
-			//log("sop appcache on progress...");
+			log("sop appcache on progress...");
 		};
 		
 		var sopAppCacheCached = function() {
-			//log("sop appcache on cached...");
+			log("sop appcache on cached...");
 			showForm();
 			outProgress();
 		};
 		
 		var sopAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
-			//log("sop appcache on updateready...");
+			log("sop appcache on updateready...");
 			showForm();
 			outProgress();
 		};
 		
 		var sopAppCacheObsolete = function() {
-			//log("sop appcache on obsolete...");
+			log("sop appcache on obsolete...");
 		};
 		
 		var sopAppCacheError = function(evt) {
-			//log("sop appcache on error: " + evt);
+			log("sop appcache on error: " + evt);
 			msg("sop appcache on error: ",true,true);
 			outProgress();
 		};
@@ -216,15 +223,15 @@ $( document ).ready( function() {
 		};
 		
 		var lmAppCacheDownloading = function() {
-			//log("lm appcache on downloading");
+			log("lm appcache on downloading");
 		};
 		
 		var lmAppCacheProgress = function(evt) {
-			//log("lm appcache on progress...");
+			log("lm appcache on progress...");
 		};
 		
 		var lmAppCacheCached = function() {
-			//log("lm appcache on cached...");
+			log("lm appcache on cached...");
 			if (sopGlobals.mode == "online") {
 				outProgress();
 				loadOfflineMode();
@@ -244,7 +251,7 @@ $( document ).ready( function() {
 		};
 		
 		var lmAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
-			//log("lm appcache on updateready...");
+			log("lm appcache on updateready...");
 			if (sopGlobals.mode == "online") {
 				outProgress();
 				try {
@@ -289,7 +296,7 @@ $( document ).ready( function() {
 		};
 		
 		var lmAppCacheObsolete = function() {
-			//log("lm appcache on obsolete...");
+			log("lm appcache on obsolete...");
 		};
 		
 		var lmAppCacheError = function(evt) {
@@ -408,7 +415,7 @@ $( document ).ready( function() {
 			*/ 
 		}
 
-		var removeTrackingData = function () { // ToDo: make async
+		var removeTrackingData = function () { // unused? ToDo: make async
 		
 			var removerow = function(table,id,rev) {
 				var db = new PouchDB(table,{auto_compaction:true, revs_limit: 1});
@@ -528,7 +535,7 @@ $( document ).ready( function() {
 			});
 		}
 		
-		var tracking2sopclient = function( client_data ) {
+		var tracking2sopclient = function( client_data, resolve ) {
 			log("tracking2sopclient");
 			var db = new PouchDB('client_data',{auto_compaction:true, revs_limit: 1});
 			var remoteCouch = false;
@@ -545,16 +552,24 @@ $( document ).ready( function() {
 				return db.remove(doc._id, doc._rev);
 			}).then(function (result) {
 				log("tracking2sopclient entry");
-				return insertRow();
+				if (resolve) {
+					return insertRow().then( function() { log( CLIENT_SUCCESS ) } ).catch( function(err) { log(err) } );
+				}
+				else {
+					return insertRow();
+				}
 			}).catch(function (err) {
 				log("tracking2sopclient new entry");
-				return insertRow(); 
+				if (resolve) {
+					return insertRow().then( function() { log( CLIENT_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+				}
+				else {
+					return insertRow();
+				}
 			});
-			
-			
 		}
 		
-		var tracking2sopuser = function(user_data) {
+		var tracking2sopuser = function(user_data, resolve) {
 			log("tracking2sopuser");
 			var db = new PouchDB('user_data',{auto_compaction:true, revs_limit: 1});
 			var remoteCouch = false;
@@ -579,16 +594,24 @@ $( document ).ready( function() {
 				return db.remove(doc._id, doc._rev);
 			}).then(function (result) {
 				log("tracking2sopuser entry");
-				return insertRow();
+				if (resolve) {
+					return insertRow().then( function() { log( USER_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+				}
+				else {
+					return insertRow();
+				}
 			}).catch(function (err) {
 				log("tracking2sopuser new entry");
-				return insertRow();
+				if (resolve) {
+					return insertRow().then( function() { log( USER_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+				}
+				else {
+					return insertRow();
+				}
 			});
-
-			
 		}
 		
-		var tracking2soplm = function(lm) {
+		var tracking2soplm = function(lm, resolve) {
 			log("tracking2soplm");
 			var db = new PouchDB('lm',{auto_compaction:true, revs_limit: 1});
 			var remoteCouch = false;
@@ -620,14 +643,24 @@ $( document ).ready( function() {
 				return db.remove(doc._id, doc._rev);
 			}).then(function (result) {
 				log("tracking2soplm entry");
-				return insertRow();
+				if (resolve) {
+					return insertRow().then( function() { log( LM_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+				}
+				else {
+					return insertRow();
+				}
 			}).catch(function (err) {
 				log("tracking2soplm new entry");
-				return insertRow();
+				if (resolve) {
+					return insertRow().then( function() { log( LM_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+				}
+				else {
+					return insertRow();
+				}
 			});
 		}
 		
-		var tracking2sopsahs = function(sahs_user, usrid) {
+		var tracking2sopsahs = function(sahs_user, usrid, resolve) {
 			log("tracking2sopsahs");
 			var db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
 			var remoteCouch = false;
@@ -659,14 +692,24 @@ $( document ).ready( function() {
 				return db.remove(doc._id, doc._rev);
 			}).then(function (result) {
 				log("tracking2sopsahs entry");
-				return insertRow();
+				if (resolve) {
+					return insertRow().then( function() { log( SAHS_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+				}
+				else {
+					return insertRow();
+				}
 			}).catch(function (err) {
 				log("tracking2sopsahs new entry");
-				return insertRow();
+				if (resolve) {
+					return insertRow().then( function() { log( SAHS_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+				}
+				else {
+					return insertRow();
+				}
 			});
 		}
 		
-		var tracking2sopcmi = function(cmi) {
+		var tracking2sopcmi = function(cmi, resolve) {
 			log("tracking2sopcmi");
 			var dbname = 'scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId;
 			var db = new PouchDB(dbname,{auto_compaction:true, revs_limit: 1});
@@ -676,30 +719,50 @@ $( document ).ready( function() {
 			for (var i=0; i<cmi.length; i++) {
 				dat[i]={_id: cmi[i][0]+'_'+cmi[i][1], rvalue: cmi[i][2]}; //id=sco_id+lvalue
 			}
-			return db.bulkDocs(dat);
+			if (resolve) {
+				return db.bulkDocs(dat).then( function() { log( SCORM_SUCCESS ) } ).catch( function(err) { log(err) } ); 
+			}
+			else {
+				return db.bulkDocs(dat);
+			}
 		}
 		
 		var tracking2sop = function(d) {
 			log("tracking2sop");
 			var usrid = d.user_data[6];
-
-			removeTable('scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId).then( function(res) {
-				return tracking2sopclient(d.client_data); // new Promise
+			
+			/* no chaining, only scorm_tracking chain after removing */
+			tracking2sopclient(d.client_data, true);
+			tracking2sopuser(d.user_data, true); 
+			tracking2soplm(d.lm, true);
+			tracking2sopsahs(d.sahs_user, usrid, true);
+			removeTable('scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId, false).then( function(res) {
+				return tracking2sopcmi(d.cmi, false); // new Promise
 			}).then( function() {
-				log('Successfully posted to client_data!');
-				return tracking2sopuser(d.user_data); // new Promise
-			}).then( function () {
-				log('Successfully posted to user_data!');
-				return tracking2soplm(d.lm); // new Promise
-			}).then( function () {
-				log('Successfully posted to lm!');
-				return tracking2sopsahs(d.sahs_user, usrid); // new Promise
-			}).then( function () {
-				log('Successfully put to sahs_user! '+d.sahs_user+' sco_total_time_sec: '+d.sahs_user[7]+' ; status: '+d.sahs_user[8]);
-				return tracking2sopcmi(d.cmi); // new Promise
-			}).then( function () {
-				log('Successfully posted to scorm_tracking!');
+				log(CLIENT_SUCCESS);
 			}).catch( function(err) { log(err) } );
+			
+			/* complete chaining */
+			/*
+			removeTable('scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId, false).then( function(res) {
+				return tracking2sopclient(d.client_data, false); // new Promise
+			}).then( function() {
+				log(CLIENT_SUCCESS);
+				return tracking2sopuser(d.user_data, false); // new Promise
+			}).then( function () {
+				log(USER_SUCCESS);
+				return tracking2soplm(d.lm, false); // new Promise
+			}).then( function () {
+				log(LM_SUCCESS);
+				return tracking2sopsahs(d.sahs_user, usrid, false); // new Promise
+			}).then( function () {
+				//log('Successfully put to sahs_user! '+d.sahs_user+' sco_total_time_sec: '+d.sahs_user[7]+' ; status: '+d.sahs_user[8]);
+				log(SAHS_SUCCESS);
+				return tracking2sopcmi(d.cmi, false); // new Promise
+			}).then( function () {
+				log(SCORM_SUCCESS);
+			}).catch( function(err) { log(err) } );
+			*/ 
 		}
 
 
