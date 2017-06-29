@@ -415,26 +415,6 @@ $( document ).ready( function() {
 			*/ 
 		}
 
-		var removeTrackingData = function () { // unused? ToDo: make async
-		
-			var removerow = function(table,id,rev) {
-				var db = new PouchDB(table,{auto_compaction:true, revs_limit: 1});
-				db.bulkDocs([{_id: id, _rev: rev, _deleted:true}]).then(function (result) {
-					log('Successfully deleted a row in table '+table);
-					db.close();
-					return true;
-				}).catch(function (err) {
-					log('Issue deleting a row with _id='+id+' in table '+table+': '+err);
-					db.close();
-					return false;
-				});
-			}
-
-			// if (removerow('user_data','isam6','1-3a953f9a87dc7baf617a0a3da69252d7') != false) {
-				// return true;
-			// }
-		}
-		
 		var data2console = function() {
 
 			var remoteCouch = false;
@@ -479,14 +459,14 @@ $( document ).ready( function() {
 		var sop2il = function() {
 			inProgress();
 			var remoteCouch = false;
-			var cmi = [];
+			var cmi = "";
 			var sop2il_data = {};
 			var db = new PouchDB('sahs_user');
 			//var purgeCache = $('#chkPurgeCache').is(':checked'); // default remove appcache assets, checkbox is hidden by display: none 
 			var purgeCache = true; 
 			db.get(sopGlobals.ilClient+'_'+sopGlobals.lmId).then(function(res){
 				sop2il_data = {
-					"cmi":[],
+					// "cmi":[],
 					"adl_seq_utilities":{},
 					"changed_seq_utilities":0,
 					"saved_global_status":0,
@@ -504,19 +484,19 @@ $( document ).ready( function() {
 					"total_time_sec":null,
 					"module_version":res.module_version
 				};
-				db = new PouchDB('scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId);
-				db.allDocs({include_docs: true, descending: true}).then(function(result){
+				dbtri = new PouchDB('scorm_tracking_'+sopGlobals.ilClient+'_'+sopGlobals.lmId);
+				dbtri.allDocs({include_docs: true, descending: true}).then(function(result){
 					for (var i=0; i<result.total_rows; i++) {
 						var left = result.rows[i].doc._id;
 						var ileft = left.indexOf('_');
-						cmi[i] = [ left.substr(0,ileft) , left.substr(ileft+1) , result.rows[i].doc.rvalue ];
+						cmi += ',["' + left.substr(0,ileft) +'","'+ left.substr(ileft+1) +'",'+ toJSONString(decodeURIComponent(result.rows[i].doc.rvalue)) +']';
 					}
-					sop2il_data.cmi = cmi;
+					if (cmi != "") cmi = cmi.substr(1);
 					s_s=toJSONString(sop2il_data);
 					var cmdUrl = document.URL.substring(0,document.URL.indexOf('?'))+'?baseClass=ilSAHSPresentationGUI&ref_id='+sopGlobals.refId+'&client_id='+sopGlobals.ilClient+'&cmd=';
-					var ret = JSON.parse(sendRequest(cmdUrl+"offlineMode_sop2ilpush", s_s));
+					var ret = JSON.parse(sendRequest(cmdUrl+"offlineMode_sop2ilpush", '{"cmi":['+cmi+'],'+s_s.substr(1)));
 					if (ret.msg[0] == "post data recieved") {
-						db.destroy();
+						dbtri.destroy();
 						removeTableRow('sahs_user', ""+sopGlobals.ilClient+'_'+sopGlobals.lmId);
 						removeTableRow('lm', ""+sopGlobals.ilClient+'_'+sopGlobals.lmId);
 					}
@@ -529,7 +509,7 @@ $( document ).ready( function() {
 					}
 				});
 			}).catch(function (err) {
-				//db.close();
+				// dbtri.close();
 				console.log(err);
 				outProgress();
 			});
@@ -900,7 +880,7 @@ function sendRequest (url, data, callback, user, password, headers) {
 
 	if (typeof headers !== "object") {headers = {};}
 	headers['Accept'] = 'text/javascript';
-	//headers['Accept-Charset'] = 'UTF-8'; // error
+	// headers['Accept-Charset'] = 'UTF-8'; // error
 	var r = sendAndLoad(url, data, callback, user, password, headers);
 	
 	if (r.content) {
