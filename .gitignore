@@ -45,5 +45,7 @@ trunk.ini.php
 trunk.sh
 sophtml5.ini.php
 sophtml5.sh
+rest52.sh
+rest52.ini.php
 /Modules/ScormAicc/sop/sop.appcache
 /Modules/ScormAicc/sop/sop_index.html
