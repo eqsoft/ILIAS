@@ -77,154 +77,39 @@ class ilSCORMOfflineMode
 		return $this->offlineMode;
 	}
 	
-	function createSopIndexFileIfNotExists() {
+	function getSopManifestEntries() {
 		global $log;
-		$log->write("createSopIndexFileIfNotExists");
-		if (file_exists($this->sop_index)) {
-			return true;
-		}
-		//?baseClass=ilSAHSPresentationGUI&client_id=forkSopHtml5&cmd=offlineMode_manifest
-		$appcache_url = './ilias.php?baseClass=ilSAHSPresentationGUI&client_id='.CLIENT_ID.'&cmd=offlineMode_manifest';
-		// ToDo: template file?
-		$index_string = '<html manifest="' . $appcache_url . '"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"><title>sop_index.html</title></head><body></body></html>'; 
-		$index_file = fopen($this->sop_index, "w");
-		if (!$index_file) {
-			$log->write("Unable to open file!");
-			return false;
-		}
-		fwrite($index_file,$index_string);
-		fclose($index_file);
-		return true;
-	}
-	
-	function createSopManifestFileIfNotExists() {
-		global $log;
-		$log->write("createSopManifestFileIfNotExists");
-		if (file_exists($this->sop_appcache)) {
-			return true;
-		}
-		$manifest_string = "CACHE MANIFEST\n\nCACHE:\n";
-		$manifest_file = fopen($this->sop_appcache,'w');
-		if (!$manifest_file) {
-			$log->write("Unable to open file!");
-			return false;
-		}
+		$log->write("getSopManifestEntries");
+		$manifest_string = "";
 		$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->sop_dir));
 		foreach($objects as $name => $object) {
-			
 			if (preg_match('/\/\.+/',$name)) {
 				continue;
 			}
-			
-			if (preg_match('/sop\.appcache/',$name)) {
+			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
+			$manifest_string .= $name . "\n";
+		}	
+		return $manifest_string;
+	}
+	
+	function getLmManifestEntries() {
+		global $log;
+		$log->write("getLmManifestEntries");
+		$this->lm_dir = ilUtil::getWebspaceDir("filesystem").'/lm_data/lm_'.$this->obj_id;
+		$manifest_string = "";
+		$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->lm_dir));
+		foreach($objects as $name => $object) {
+			if (preg_match('/\/\.+/',$name)) {
 				continue;
 			}
-			
-			if (preg_match('/sop_index\.html/',$name)) {
+			if (preg_match('/\.zip$/',$name)) {
 				continue;
 			}
 			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
 			$manifest_string .= $name . "\n";
 		}
-		$manifest_string .= "\nNETWORK:\n*\n";
-		$manifest_string .= "\n#".date("Y-m-d H:i:s");
-		fwrite($manifest_file, $manifest_string);
-		fclose($manifest_file);
-		return true;
-	}
-	
-	
-	function getPurgeIndexHtml() { // Quick and dirty. obsolet?
-		global $log;
-		$log->write("getPurgeIndexHtml");
-		return str_replace("cmd=offlineMode_appcache","offlineMode_purgeCache",file_get_contents(ilUtil::getWebspaceDir("filesystem").'/lm_data/lm_'.$this->lmId.'/sop_index.html'));
-	}
-	 
-	
-	function createLmManifestFileIfNotExists() {
-		global $log;
-		$log->write("createManifestFileIfNotExists");
-		$this->lm_dir = ilUtil::getWebspaceDir("filesystem").'/lm_data/lm_'.$this->obj_id;
-		if (!file_exists($this->lm_dir)) {
-			$log->write("could not find " . $this->lm_dir);
-			return false;
-		}
-		$this->lm_index = $this->lm_dir.'/lm_index.html';
-		$this->lm_appcache = $this->lm_dir.'/lm.appcache';
-		if (file_exists($this->lm_index) && file_exists($this->lm_appcache)) {
-			$log->write("sop_index.html and sop.appcache already exists, nothing to do.");
-			return true;
-		}
-		$this->lm_imsmanifest_xml = $this->lm_dir.'/imsmanifest.xml';
-		if (!file_exists($this->lm_imsmanifest_xml)) {
-			$log->write("could not find " . $this->lm_imsmanifest_xml);
-			return false;
-		}
-		// create both offline files
-		
-		// appcache manifest
-		$this->imsmanifest = new DOMDocument();
-		if (!$this->imsmanifest->load($this->lm_imsmanifest_xml)) {
-			$log->write("could not load " . $this->lm_imsmanifest_xml);
-			return false;
-		}
-		$xpath = new DOMXpath($this->imsmanifest);
-		$hrefs = $xpath->query("//*[@href]/@href");
-		//$index_url =    ILIAS_HTTP_PATH . '/ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_il2sop'; 
-		//$appcache_url = ILIAS_HTTP_PATH . '/ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_appcache';
-		//$index_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_il2sop'; 
-		$appcache_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id='.$_GET["ref_id"].'&client_id='.CLIENT_ID.'&cmd=offlineMode_appcache';
-		
-		if (!is_null($hrefs) && !file_exists($this->lm_appcache)) {
-			$manifest_file = fopen($this->lm_appcache, "w");
-			if (!$manifest_file) {
-				$log->write("Unable to open file!");
-				return false;
-			}
-			$manifest_string = "CACHE MANIFEST\n\nCACHE:\n";
-			
-			$href_array = array(); // for checking double entries
-			foreach ($hrefs as $href) {
-				// check if exists
-				$url = $this->lm_dir.'/'.$href->nodeValue;
-				if (in_array($url,$href_array)) {
-					continue;
-				}
-				if (!file_exists($url)) {
-					$log->write("WARNING: could not find url: " . $url);
-					continue;
-				}
-				
-				$href_array[] = $url;
-				// manifest will be delivered dynamically from an ilias.php?... call, so the relative pathes must begin from webroot
-				$manifest_string .= './data/'.CLIENT_ID.'/lm_data/lm_'.$this->obj_id.'/'.$href->nodeValue."\n";
-				//$log->write($href->nodeValue);
-			}
-			$manifest_string .= "\nNETWORK:\n*\n";
-			$manifest_string .= "\n#".date("Y-m-d H:i:s");
-			fwrite($manifest_file, $manifest_string);
-			fclose($manifest_file);
-		}
-		
-		//sop_index.html
-		if (file_exists($this->lm_index)) {
-			$log->write("sop_index.html already exists.");
-			return true;
-		}
-		// ToDo: template file?
-		$index_string = '<html manifest="' . $appcache_url . '"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"><title>lm_index.html</title></head><body></body></html>'; 
-		$index_file = fopen($this->lm_index, "w");
-		if (!$index_file) {
-			$log->write("Unable to open file!");
-			return false;
-		}
-		fwrite($index_file,$index_string);
-		fclose($index_file);
-		
-		//$log->write(var_export($hrefs,TRUE));
-		//$log->write($this->lm_dir);
-		
-		return true;
+		$log->write($manifest_string);
+		return $manifest_string;
 	}
 	
 	function getClientIdSop() {
