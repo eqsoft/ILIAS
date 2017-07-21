@@ -18,6 +18,7 @@ class ButtonTest extends ILIAS_UI_TestBase {
 	static $canonical_css_classes = array
 		( "standard"	=>	 "btn btn-default"
 		, "primary"	 =>	 "btn btn-default btn-primary"
+		, "shy"	 =>	 "btn btn-link"
 		);
 
 	public function test_implements_factory_interface() {
@@ -36,6 +37,11 @@ class ButtonTest extends ILIAS_UI_TestBase {
 			( "ILIAS\\UI\\Component\\Button\\Close"
 			, $f->close()
 			);
+		$this->assertInstanceOf
+			( "ILIAS\\UI\\Component\\Button\\Shy"
+			, $f->shy("label", "http://www.ilias.de")
+			);
+
 	}
 
 	/**
@@ -148,7 +154,7 @@ class ButtonTest extends ILIAS_UI_TestBase {
 		$html = $this->normalizeHTML($r->render($b));
 
 		$css_classes = self::$canonical_css_classes[$factory_method];
-		$expected = "<a class=\"$css_classes ilSubmitInactive\" data-action=\"$ln\">".
+		$expected = "<a class=\"$css_classes ilSubmitInactive disabled\" data-action=\"$ln\">".
 					"label".
 					"</a>";
 		$this->assertEquals($expected, $html);
@@ -220,6 +226,7 @@ class ButtonTest extends ILIAS_UI_TestBase {
 		return array
 			( array("standard")
 			, array("primary")
+			, array("shy")
 			);
 	}
 
