@@ -17,7 +17,16 @@ class ilSCORMOfflineMode
 	var $type;
 	var $obj_id;
 	var $offlineMode;
+	var $cmd_url;
+	var $lm_cmd_url;
+	var $player12_url;
+	var $player2004_url;
+	var $som_url;
+	
 	var $sop_dir;
+	var $som_dir;
+	var $scripts_dir;
+	
 	var $sop_index;
 	var $sop_appcache;
 	var $lm_dir;
@@ -25,6 +34,7 @@ class ilSCORMOfflineMode
 	var $lm_appcache;
 	var $lm_imsmanifest_xml;
 	var $imsmanifest;
+	var $debug = false; // omit scripts folder for appcache
 	
 	/**
 	* Constructor
@@ -40,10 +50,17 @@ class ilSCORMOfflineMode
 		$this->obj_id = ilObject::_lookupObjectId($_GET['ref_id']);
 		include_once "./Modules/ScormAicc/classes/class.ilObjSAHSLearningModule.php";
 		$this->type = ilObjSAHSLearningModule::_lookupSubType($this->obj_id);
+		$this->cmd_url = './ilias.php?baseClass=ilSAHSPresentationGUI&cmd=';
+		$this->lm_cmd_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id=' . $this->id . '&cmd=';
+		$this->player12_url = $this->cmd_url . 'offlineMode_player12';
+		$this->player2004_url = $this->cmd_url . 'offlineMode_player2004'; // ToDo: does not exist yet
+		$this->som_url = $this->cmd_url . 'offlineMode_som';
 		$this->offlineMode = 'online';
 		$this->sop_index = './Modules/ScormAicc/sop/sop_index.html';
 		$this->sop_appcache = './Modules/ScormAicc/sop/sop.appcache';
-		$this->sop_dir = './Modules/ScormAicc/sop/';
+		$this->sop_dir = './Modules/ScormAicc/templates/sop/';
+		$this->som_dir = './Modules/ScormAicc/templates/som/';
+		$this->scripts_dir = './Modules/ScormAicc/scripts/';
 		$this->read();
 	}
 	
@@ -80,15 +97,35 @@ class ilSCORMOfflineMode
 	function getSopManifestEntries() {
 		global $log;
 		$log->write("getSopManifestEntries");
-		$manifest_string = "";
+		$manifest_string = $this->player12_url . "\n";
+		$manifest_string .= $this->som_url . "\n";
 		$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->sop_dir));
 		foreach($objects as $name => $object) {
 			if (preg_match('/\/\.+/',$name)) {
 				continue;
 			}
 			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
-			$manifest_string .= $name . "\n";
-		}	
+			$manifest_string .= self::encodeuri($name) . "\n";
+		}
+		$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->som_dir));
+		foreach($objects as $name => $object) {
+			if (preg_match('/\/\.+/',$name)) {
+				continue;
+			}
+			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
+			$manifest_string .= self::encodeuri($name) . "\n";
+		}
+		if (!$this->debug) {
+			$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->scripts_dir));
+			foreach($objects as $name => $object) {
+				if (preg_match('/\/\.+/',$name)) {
+					continue;
+				}
+				//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
+				$manifest_string .= self::encodeuri($name) . "\n";
+			}
+		}
+		$log->write($manifest_string);
 		return $manifest_string;
 	}
 	
@@ -106,7 +143,7 @@ class ilSCORMOfflineMode
 				continue;
 			}
 			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
-			$manifest_string .= $name . "\n";
+			$manifest_string .= self::encodeuri($name) . "\n";
 		}
 		$log->write($manifest_string);
 		return $manifest_string;
@@ -372,6 +409,10 @@ class ilSCORMOfflineMode
 			array('integer','integer'),
 			array($obj_id,$user_id)
 		);
+	}
+	
+	public static function encodeuri($path) {
+		return implode('/', array_map('rawurlencode', explode('/', $path)));
 	}
 	
 }

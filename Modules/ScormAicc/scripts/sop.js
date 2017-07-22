@@ -114,7 +114,7 @@ $( document ).ready( function() {
 								IliasScormVars=result.init_data;
 								IliasScormVars.launchId=result.last_visited;
 								IliasScormVars.status.saved_global_status=result.status;
-								IliasScormVars.dataDirectory='../../../../data/'+params[0]+'/lm_data/lm_'+params[1]+'/';
+								IliasScormVars.dataDirectory='./data/'+params[0]+'/lm_data/lm_'+params[1]+'/';
 								IliasScormResources=result.resources;
 								if (IliasScormResources.length==1){
 									document.getElementById("leftView").style.width="0";

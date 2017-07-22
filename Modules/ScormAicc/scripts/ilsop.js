@@ -6,11 +6,6 @@ var sop;
 
 $( document ).ready( function() {
 	sop = (function() {
-		//var offline = true;
-		var iliasPhp = "";
-		var sopCmdUrl = "";
-		var lmCmdUrl = "";
-		var webroot = "";
 		var sopAppCache;
 		var lmAppCache;
 		var sopFrame = "";
@@ -36,15 +31,8 @@ $( document ).ready( function() {
 			//removeAllTables();
 			msgs = [];
 			progress = false;
-			iliasPhp = document.URL.substring(0,document.URL.indexOf('?'));
-			webroot = iliasPhp.replace(/ilias.php/,"");
-			lmCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&ref_id='+sopGlobals.refId+'&client_id='+sopGlobals.ilClient+'&cmd=';
-			sopCmdUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sopGlobals.ilClient+'&cmd=offlineMode_sop';
-			sopFrame = '<iframe id="sopAppCacheDownloadFrame" src="' + sopCmdUrl + '" onload="sop.createSopAppCacheEventHandler(this);"></iframe>';
-			lmFrame = '<iframe id="lmAppCacheDownloadFrame" src="' + lmCmdUrl + 'offlineMode_il2sop" onload="parent.sop.createLmAppCacheEventHandler(this);"></iframe>';
-			trackingUrl = iliasPhp+'?baseClass=ilSAHSPresentationGUI&client_id='+sopGlobals.ilClient+'&cmd=offlineMode_tracking2sop&ref_id='+sopGlobals.refId;
-			sopOfflineUrl = webroot + "Modules/ScormAicc/sop/player/player12.html";
-			somOfflineUrl = webroot + "Modules/ScormAicc/sop/manager/som.html";
+			sopFrame = '<iframe id="sopAppCacheDownloadFrame" src="' + sopGlobals.sop_frm_url + '" onload="sop.createSopAppCacheEventHandler(this);"></iframe>';
+			lmFrame = '<iframe id="lmAppCacheDownloadFrame" src="' + sopGlobals.lm_frm_url  + '" onload="parent.sop.createLmAppCacheEventHandler(this);"></iframe>';
 			$('#onlineForm').hide();
 			$('#offlineForm').hide();
 			isPurgeCookieRegEx = new RegExp(sopGlobals.sop_purge_cookie_1);
@@ -97,20 +85,20 @@ $( document ).ready( function() {
 		
 		var loadOnlineMode = function () {
 			window.setTimeout(function() {
-				location.replace(lmCmdUrl+"offlineMode_sop2ilOk");
+				location.replace(sopGlobals.lm_cmd_url+"offlineMode_sop2ilOk");
 			}, 2000);
 		};
 		
 		var loadOfflineMode = function () {
 			window.setTimeout(function() {
-				location.replace(lmCmdUrl+"offlineMode_il2sopOk");
+				location.replace(sopGlobals.lm_cmd_url+"offlineMode_il2sopOk");
 			}, 2000);
 		};
 		
 		var exportLm = function () {
 			log("sop: exportLm");
 			inProgress();
-			$.getJSON( trackingUrl, function( data ) { // trigger trackingdata
+			$.getJSON( sopGlobals.tracking_url, function( data ) { // trigger trackingdata
 				if (typeof data == 'object') {
 					if (tracking2sop(data) != false) {
 						$('#iliasOfflineManager').after(lmFrame); // trigger appcache download
@@ -125,13 +113,13 @@ $( document ).ready( function() {
 		
 		
 		var startOffline = function () {
-			log("startOffline: " +sopOfflineUrl);
-			open(sopOfflineUrl,"client="+sopGlobals.ilClient+"&obj_id="+sopGlobals.lmId);
+			log("startOffline: " +sopGlobals.player12_url); // ToDo: player2004 switch
+			open(sopGlobals.player12_url,"client="+sopGlobals.ilClient+"&obj_id="+sopGlobals.lmId);
 		};
 		
 		var startSom = function () {
 			log("startSom");
-			open(somOfflineUrl,"client="+sopGlobals.ilClient);
+			open(sopGlobals.som_url,"client="+sopGlobals.ilClient);
 		};
 		
 		var pushTracking = function () {
