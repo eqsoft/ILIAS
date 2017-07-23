@@ -10,6 +10,7 @@ $( document ).ready( function() {
 		var lmAppCache;
 		var sopFrame = "";
 		var lmFrame = "";
+		var lmExists = false;
 		var msgs;
 		var progress;
 		var progressTime;
@@ -50,7 +51,25 @@ $( document ).ready( function() {
 				msg(sopGlobals.sop_system_check_error,true);
 			}
 			inProgress();
-			$('#iliasOfflineManager').after(sopFrame); // catch the appcache events
+			if (sopGlobals.mode == 'offline') { // check if lm exists in browser
+				checkLmExists().then(function(res) {
+					lmExists = true;
+					$('#iliasOfflineManager').after(sopFrame); // catch the appcache events
+				//
+				}).catch(function(err) {
+					lmExists = false;
+					$('#iliasOfflineManager').after(sopFrame); // catch the appcache events
+				});
+			}
+			else {
+				$('#iliasOfflineManager').after(sopFrame); // catch the appcache events
+			}
+			
+		};
+		
+		var checkLmExists = function() {
+			var db = new PouchDB('sahs_user');
+			return db.get(sopGlobals.ilClient+'_'+sopGlobals.lmId);
 		};
 		
 		var showForm = function() {
@@ -75,8 +94,13 @@ $( document ).ready( function() {
 			$('#offlineForm').hide();
 			$('#onlineForm').hide();
 			msg("check offline slm");
-			inProgress();
-			$('#iliasOfflineManager').after(lmFrame);
+			if (lmExists) {
+				inProgress();
+				$('#iliasOfflineManager').after(lmFrame);
+			}
+			else {
+				$('#lmNotExists').show();
+			}
 		};
 		
 		var _showOfflineForm = function() {

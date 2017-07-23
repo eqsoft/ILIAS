@@ -34,7 +34,7 @@ class ilSCORMOfflineMode
 	var $lm_appcache;
 	var $lm_imsmanifest_xml;
 	var $imsmanifest;
-	var $debug = true; // omit caching sop and som files for debugging
+	var $debug = false; // omit caching sop and som files for debugging
 	
 	/**
 	* Constructor

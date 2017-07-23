@@ -11223,6 +11223,7 @@ common#:#obj_wiks#:#Wiki
 common#:#obj_wiks_desc#:#Global Wiki Settings
 blog#:#blog_edit_posting#:#Edit Posting
 sop#:#sop_check_system_requirements#:#Checking system requirements
+sop#:#sop_lm_not_exists#:#The learningmodule does not exist in the offline storage of this browser. <br />Please use use same device and browser as on learning module export.<br /><br />If this is the right device and right browser maybe the learningmodule was removed bei deleting the browser cache. Please contact your course admininstrator.
 sop#:#sop_already_exported#:#This Learning Module has already been exported. Please open it with the computer on which you have installed Firefox with the SCORM Offline Player addon.
 sop#:#sop_firefox_required#:#Using a SCORM module offline requires Mozilla Firefox Browser Version 38.
 sop#:#sop_xpi_install#:#Please install the following Firefox addon: %s<br />After having successfully installed the xpi you have to refresh the page using the ‘Reload page’ button. Afterwards the SCORM Learning Module can be used in offline mode.
@@ -11231,7 +11232,7 @@ sop#:#sop_text_export#:#Export SCORM Learning Module for offline use
 sop#:#sop_export#:#SCORM Learning Module Export
 sop#:#sop_desc_export#:#A learning module in offline mode can only be used offline. Once the tracking data has been imported back to ILIAS, the learning module will be online again.
 sop#:#sop_text_start_offline#:#Start learning module in offline mode
-sop#:#sop_start_offline#:#Start learning module offline
+sop#:#sop_start_sop#:#Start learning module offline
 sop#:#sop_text_start_som#:#Start SCORM Offline Manager
 sop#:#sop_start_som#:#Start SOM
 sop#:#sop_text_push_tracking#:#Import offline tracking data to ILIAS and switch to online mode
