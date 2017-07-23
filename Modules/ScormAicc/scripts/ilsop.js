@@ -112,8 +112,8 @@ $( document ).ready( function() {
 		};
 		
 		
-		var startOffline = function () {
-			log("startOffline: " +sopGlobals.player12_url); // ToDo: player2004 switch
+		var startSop = function () {
+			log("startSop: " +sopGlobals.player12_url); // ToDo: player2004 switch
 			open(sopGlobals.player12_url,"client="+sopGlobals.ilClient+"&obj_id="+sopGlobals.lmId);
 		};
 		
@@ -938,7 +938,7 @@ function toJSONString (v, tab) {
 		return {
 			init 				: init,
 			exportLm 			: exportLm,
-			startOffline			: startOffline,
+			startSop			: startSop,
 			startSom			: startSom,
 			pushTracking 			: pushTracking,
 			createSopAppCacheEventHandler 	: createSopAppCacheEventHandler,

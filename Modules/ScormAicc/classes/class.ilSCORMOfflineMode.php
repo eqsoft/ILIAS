@@ -34,7 +34,7 @@ class ilSCORMOfflineMode
 	var $lm_appcache;
 	var $lm_imsmanifest_xml;
 	var $imsmanifest;
-	var $debug = false; // omit scripts folder for appcache
+	var $debug = true; // omit scripts folder for appcache
 	
 	/**
 	* Constructor
@@ -97,25 +97,27 @@ class ilSCORMOfflineMode
 	function getSopManifestEntries() {
 		global $log;
 		$log->write("getSopManifestEntries");
-		$manifest_string = $this->player12_url . "\n";
-		$manifest_string .= $this->som_url . "\n";
-		$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->sop_dir));
-		foreach($objects as $name => $object) {
-			if (preg_match('/\/\.+/',$name)) {
-				continue;
-			}
-			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
-			$manifest_string .= self::encodeuri($name) . "\n";
-		}
-		$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->som_dir));
-		foreach($objects as $name => $object) {
-			if (preg_match('/\/\.+/',$name)) {
-				continue;
-			}
-			//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
-			$manifest_string .= self::encodeuri($name) . "\n";
-		}
+		$manifest_string = "";
 		if (!$this->debug) {
+			$manifest_string = $this->player12_url . "\n";
+			$manifest_string .= $this->som_url . "\n";
+			$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->sop_dir));
+			foreach($objects as $name => $object) {
+				if (preg_match('/\/\.+/',$name)) {
+					continue;
+				}
+				//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
+				$manifest_string .= self::encodeuri($name) . "\n";
+			}
+			$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->som_dir));
+			foreach($objects as $name => $object) {
+				if (preg_match('/\/\.+/',$name)) {
+					continue;
+				}
+				//$manifest_string .= preg_replace('/^\./','./Modules/ScormAicc',$name) . "\n"; // for cli
+				$manifest_string .= self::encodeuri($name) . "\n";
+			}
+			
 			$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->scripts_dir));
 			foreach($objects as $name => $object) {
 				if (preg_match('/\/\.+/',$name)) {
