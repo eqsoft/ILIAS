@@ -506,7 +506,12 @@ this.SchedulePing=SchedulePing;
 basisInit();
 
 if (typeof SOP!="undefined" && SOP==true) {
-	window.addEventListener('beforeunload',onWindowUnload);
+	// document.addEventListener('DOMContentLoaded', function () {
+		window.addEventListener('beforeunload', function (event) {
+			onWindowUnload();
+			event.preventDefault();
+		});
+	// });
 } else {
 	if(window.addEventListener) window.addEventListener('unload',onWindowUnload);
 	else if(window.attachEvent) window.attachEvent('onunload',onWindowUnload);//IE<9
