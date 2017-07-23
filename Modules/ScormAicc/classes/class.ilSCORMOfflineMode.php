@@ -34,7 +34,7 @@ class ilSCORMOfflineMode
 	var $lm_appcache;
 	var $lm_imsmanifest_xml;
 	var $imsmanifest;
-	var $debug = true; // omit scripts folder for appcache
+	var $debug = true; // omit caching sop and som files for debugging
 	
 	/**
 	* Constructor
@@ -94,12 +94,12 @@ class ilSCORMOfflineMode
 		return $this->offlineMode;
 	}
 	
-	function getSopManifestEntries() {
+	function getSopManifestEntries() { // ToDo: database support !!
 		global $log;
 		$log->write("getSopManifestEntries");
 		$manifest_string = "";
 		if (!$this->debug) {
-			$manifest_string = $this->player12_url . "\n";
+			$manifest_string .= $this->player12_url . "\n";
 			$manifest_string .= $this->som_url . "\n";
 			$objects = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->sop_dir));
 			foreach($objects as $name => $object) {
@@ -131,7 +131,7 @@ class ilSCORMOfflineMode
 		return $manifest_string;
 	}
 	
-	function getLmManifestEntries() {
+	function getLmManifestEntries() { // ToDo: database support !!
 		global $log;
 		$log->write("getLmManifestEntries");
 		$this->lm_dir = ilUtil::getWebspaceDir("filesystem").'/lm_data/lm_'.$this->obj_id;

@@ -102,8 +102,8 @@ $( document ).ready( function() {
 		var openLm = function(lm) {
 			lmtmp = lm.split('_');
 			log("openLm: "+lm);
-			var player = (lms[lm].scorm_version == "1.2") ? "player12.html" : "player2004.html"
-			open("../player/"+player,"client="+lmtmp[0]+"&obj_id="+lmtmp[1]);
+			var player = (lms[lm].scorm_version == "1.2") ? somGlobals.player12_url : somGlobals.player2004_url;
+			open(player,"client="+lmtmp[0]+"&obj_id="+lmtmp[1]);
 		};
 		
 		var renderAllLm = function () {
@@ -129,7 +129,7 @@ $( document ).ready( function() {
 					TITLE 		: lm.title,
 					DESCRIPTION	: lm.description,
 					CRSDETAILS 	: "detail_" + lm_id,
-					STATUSICON	: "images/" + st + ".png",
+					STATUSICON	: "./Modules/ScormAicc/templates/sop/images/" + st + ".png",
 					STATUSTITLE	: st
 				}
 				str += getTemplateContent(tmp,data);
