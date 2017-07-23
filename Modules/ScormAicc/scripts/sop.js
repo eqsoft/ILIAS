@@ -65,6 +65,27 @@ $( document ).ready( function() {
 			return dbData(statement, params);
 		}
 
+		var retryUntilWritten = function(table,id,values) {
+			var dbtr = new PouchDB(table,{auto_compaction:true, revs_limit: 1, cache : false});
+			var remoteCouch = false;
+			return dbtr.get(id).then(function (doc) {
+				for (var i=0; i<values.length; i++) {
+					doc[values[i][0]] = values[i][1];
+				}
+				return dbtr.put(doc);
+			}).catch(function (err) {
+				if (err.status === 409) {
+					return retryUntilWritten(table,id,values);
+				} else { // new doc
+					var doc = {};
+					doc._id = id;
+					for (var i=0; i<values.length; i++) {
+						doc[values[i][0]] = values[i][1];
+					}
+					return dbtr.put(doc);
+				}
+			});
+		}
 
 		var dbData = function(statement, params) {
 			if (params != null && params !="") {
@@ -140,71 +161,52 @@ $( document ).ready( function() {
 				break;
 
 				case "setSCORM12data" :
-
-					function retryUntilWritten(doc) {
-						return dbtr.get(doc._id).then(function (origDoc) {
-							doc._rev = origDoc._rev;
-							return dbtr.put(doc);
-						}).catch(function (err) {
-							if (err.status === 409) {
-								return retryUntilWritten(doc);
-							} else { // new doc
-								return dbtr.put(doc);
-							}
-						});
-					}
-
 					var this_id = params[0] + '_' + params[1]; //client + obj_id
 					var data=JSON.parse(params[2]);
 					var d_now = new Date();
 					var remoteCouch = false;
 					//set data for tracking
-					var dbtr = new PouchDB('scorm_tracking_'+this_id,{auto_compaction:true, revs_limit: 1, cache : false});
 					for(var i=0; i<data.cmi.length; i++) {
 						var a_d=data.cmi[i];
-						var tmp = retryUntilWritten({_id:a_d[0]+'_'+a_d[1], rvalue:encodeURIComponent(a_d[2]) });
+						var tmp = retryUntilWritten(
+							'scorm_tracking_'+this_id,
+							a_d[0]+'_'+a_d[1],
+							[["rvalue",encodeURIComponent(a_d[2])]]
+						);
 					}
-					
-					var db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
+					//update data for sahs_user
+					var a_change = [];
+					var db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1, cache : false});
 					db.get(this_id).then(function(res){
-						//update data for sahs_user
 						if (data.now_global_status != data.saved_global_status) {
-							res.last_status_change = d_now.getTime();
+							a_change.push([ "last_status_change", d_now.getTime() ]);
 						}
 						if (typeof data.percentageCompleted == "number") {
-							res.percentage_completed = Math.round(data.percentageCompleted);
+							a_change.push([ "percentage_completed", Math.round(data.percentageCompleted) ]);
 						}
 						if (typeof data.totalTimeCentisec == "number") {
-							res.sco_total_time_sec = Math.round(data.totalTimeCentisec/100);
+							a_change.push([ "totalTimeCentisec", Math.round(data.totalTimeCentisec/100) ]);
 						}
-						res.last_access = d_now.getTime();
-						res.status = data.now_global_status;
-						db.put(res).then(function(response) {
-							db.close();
-						});
-					}).catch(function (err) {
-						db.close();
-						log('error writing sahs_user for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' + err);
+						a_change.push([ "last_access", d_now.getTime() ]);
+						a_change.push([ "status", data.now_global_status ]);
+
+						var tmp = retryUntilWritten(
+							'sahs_user',
+							this_id,
+							a_change
+						);
 					});
 					return "ok";
-					// emit(exports, "lmUserDataChanged", client+"_"+obj_id);
 				break;
 
 				case "scormPlayerUnload" :
 					var this_id = params[0] + '_' + params[1]; //client + obj_id
 					var d_now = new Date();
-					var remoteCouch = false;
-					var db = new PouchDB('sahs_user',{auto_compaction:true, revs_limit: 1});
-					db.get(this_id).then(function(res){
-						res.last_access = d_now.getTime();
-						res.last_visited = params[2];
-						db.put(res).then(function(response) {
-							db.close();
-						});
-					}).catch(function (err) {
-						db.close();
-						log('error writing sahs_user for statement ' + statement + ' with params '+ JSON.stringify(params) + ': ' + err);
-					});
+					var tmp = retryUntilWritten(
+						'sahs_user',
+						this_id,
+						[ [ "last_access", d_now.getTime() ], [ "last_visited", params[2] ] ]
+					);
 					return "ok";
 				break;
 
