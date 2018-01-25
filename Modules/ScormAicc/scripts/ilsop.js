@@ -4,6 +4,15 @@
 
 var sop;
 
+var JakeCacheConfig = {
+  autoInit: false,
+  fetchMode: 0,
+  consoleColor: '#42e8f4',
+  consoleSWColor: '#7aa868',
+  deleteCacheOnEmptyEntries: true,
+  debug: true
+};
+
 $( document ).ready( function() {
 	sop = (function() {
 		var sopAppCache;
@@ -17,7 +26,8 @@ $( document ).ready( function() {
 		var progressInterval = 1000;
 		var progressMaxtime = 20000;
 		var isPurgeCookieRegEx;
-		
+		var swEnabled = false;
+		var sw = null;
 		const CLIENT_SUCCESS = 'Successfully posted to client_data!';
 		const USER_SUCCESS = 'Successfully posted to user_data!';
 		const LM_SUCCESS = 'Successfully posted to lm!';
@@ -31,6 +41,13 @@ $( document ).ready( function() {
 			log("sop: init");
 			//removeAllTables();
 			msgs = [];
+			swEnabled = ('serviceWorker' in navigator);
+			if (swEnabled === true) {
+				sw = navigator.serviceWorker;
+				sw.addEventListener('controllerchange', swControllerChange, false);
+			}
+			sopGlobals.sop_frm_url = (swEnabled === true) ? sopGlobals.sop_frm_url+'&swenabled=1' : sopGlobals.sop_frm_url;
+ 			sopGlobals.lm_frm_url = (swEnabled === true) ? sopGlobals.lm_frm_url+'&swenabled=1' : sopGlobals.lm_frm_url;
 			progress = false;
 			sopFrame = '<iframe id="sopAppCacheDownloadFrame" src="' + sopGlobals.sop_frm_url + '" onload="sop.createSopAppCacheEventHandler(this);"></iframe>';
 			lmFrame = '<iframe id="lmAppCacheDownloadFrame" src="' + sopGlobals.lm_frm_url  + '" onload="parent.sop.createLmAppCacheEventHandler(this);"></iframe>';
@@ -39,6 +56,7 @@ $( document ).ready( function() {
 			isPurgeCookieRegEx = new RegExp(sopGlobals.sop_purge_cookie_1);
 			document.cookie = sopGlobals.sop_purge_cookie_0;
 			checkSystem();
+			//$('#iliasOfflineManager').after(sopFrame); // catch the appcache events
 		};
 		
 		/**
@@ -47,9 +65,11 @@ $( document ).ready( function() {
 		var checkSystem = function() {
 			log("sop: checkSystem");
 			msg(sopGlobals.sop_check_system_requirements,true,true);
-			if (typeof window.applicationCache !== 'object') {
-				msg(sopGlobals.sop_system_check_error,true);
-			}
+			if (('serviceWorker' in navigator) === false && ('applicationCache' in window) === false) {
+ 				console.error('sop aborted: neither serviceworker nor appcache are supported by this browser');
+  				msg(sopGlobals.sop_system_check_error,true);
+ 				return;
+  			}
 			inProgress();
 			if (sopGlobals.mode == 'offline') { // check if lm exists in browser
 				checkLmExists().then(function(res) {
@@ -182,7 +202,7 @@ $( document ).ready( function() {
 			log("add " + sopGlobals.sop_purge_cookie_1);
 			document.cookie = sopGlobals.sop_purge_cookie_1;
 			log("cookies: " + document.cookie);
-			lmAppCache.update();
+			lmAppCache.update(true);
 		}
 		
 		/*********************
@@ -190,45 +210,47 @@ $( document ).ready( function() {
 		 *********************/ 
 		
 		
-		var sopAppCacheChecking = function() {
-			//log("sop appcache on checking...");
+		var sopAppCacheChecking = function(event) {
+			log("sop appcache on checking...");
+			
 		};
 		
 		/**
 		 * sop is already in appcache and the appcache manifest did not changed
 		 */ 
-		var sopAppCacheNoupdate = function() {
+		var sopAppCacheNoupdate = function(event) {
+			console.log("sopAppCacheNoupdate");
 			log("sop appcache on noupdate...");
 			showForm();
 			outProgress();
 		};
 		
-		var sopAppCacheDownloading = function() {
+		var sopAppCacheDownloading = function(event) {
 			log("sop appcache on downloading");
 		};
 		
-		var sopAppCacheProgress = function(evt) {
-			log("sop appcache on progress...");
+		var sopAppCacheProgress = function(event) {
+			log("sop appcache on progress..."); 
 		};
 		
-		var sopAppCacheCached = function() {
+		var sopAppCacheCached = function(event) {
 			log("sop appcache on cached...");
 			showForm();
 			outProgress();
 		};
 		
-		var sopAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
+		var sopAppCacheUpdateready = function(event) { //ToDo: prevent multiple progress endings (4x events)
 			log("sop appcache on updateready...");
 			showForm();
 			outProgress();
 		};
 		
-		var sopAppCacheObsolete = function() {
+		var sopAppCacheObsolete = function(event) {
 			log("sop appcache on obsolete...");
 		};
 		
-		var sopAppCacheError = function(evt) {
-			log("sop appcache on error: " + evt);
+		var sopAppCacheError = function(event) {
+			log("sop appcache on error: " + event);
 			msg("sop appcache on error: ",true,true);
 			outProgress();
 		};
@@ -237,11 +259,11 @@ $( document ).ready( function() {
 		/*********************
 		 * lm appcache events
 		 *********************/ 
-		var lmAppCacheChecking = function() {
+		var lmAppCacheChecking = function(event) {
 			log("lm appcache on checking...");
 		};
 		
-		var lmAppCacheNoupdate = function() {
+		var lmAppCacheNoupdate = function(event) {
 			log("lm appcache on noupdate...");
 			if (sopGlobals.mode == "online") {
 				outProgress();
@@ -259,15 +281,15 @@ $( document ).ready( function() {
 			}
 		};
 		
-		var lmAppCacheDownloading = function() {
+		var lmAppCacheDownloading = function(event) {
 			log("lm appcache on downloading");
 		};
 		
-		var lmAppCacheProgress = function(evt) {
+		var lmAppCacheProgress = function(event) {
 			log("lm appcache on progress...");
 		};
 		
-		var lmAppCacheCached = function() {
+		var lmAppCacheCached = function(event) {
 			log("lm appcache on cached...");
 			if (sopGlobals.mode == "online") {
 				outProgress();
@@ -287,7 +309,7 @@ $( document ).ready( function() {
 			}
 		};
 		
-		var lmAppCacheUpdateready = function() { //ToDo: prevent multiple progress endings (4x events)
+		var lmAppCacheUpdateready = function(event) { //ToDo: prevent multiple progress endings (4x events)
 			log("lm appcache on updateready...");
 			if (sopGlobals.mode == "online") {
 				outProgress();
@@ -309,9 +331,6 @@ $( document ).ready( function() {
 					catch(e) {
 						//
 					}
-					//log("remove purgeCookie");
-					//removeCookie("purgeCookie");
-					//log("cookies: " + document.cookie);
 					log("add " + sopGlobals.sop_purge_cookie_0);
 					document.cookie = sopGlobals.sop_purge_cookie_0;
 					log("cookies: " + document.cookie);
@@ -332,19 +351,19 @@ $( document ).ready( function() {
 			}
 		};
 		
-		var lmAppCacheObsolete = function() {
+		var lmAppCacheObsolete = function(event) {
 			log("lm appcache on obsolete...");
 		};
 		
-		var lmAppCacheError = function(evt) {
-			log("lm appcache on error: " + evt);
+		var lmAppCacheError = function(event) {
+			log("lm appcache on error: " + event);
 			outProgress();
 			msg("lm appcache on error: ",true,true);
 		};
 		
 		var createSopAppCacheEventHandler = function(iframe) {
-			log("sop: createSopAppCacheEventHandler: " + iframe);
-			sopAppCache = iframe.contentWindow.applicationCache;
+			log("sop: createSopAppCacheEventHandler");
+			sopAppCache = (swEnabled) ? iframe.contentWindow.jakeCache : iframe.contentWindow.applicationCache;
 			sopAppCache.addEventListener('checking', sopAppCacheChecking, false);
 			sopAppCache.addEventListener('noupdate', sopAppCacheNoupdate, false);
 			sopAppCache.addEventListener('downloading', sopAppCacheDownloading, false);
@@ -353,21 +372,11 @@ $( document ).ready( function() {
 			sopAppCache.addEventListener('updateready', sopAppCacheUpdateready, false);
 			sopAppCache.addEventListener('obsolete', sopAppCacheObsolete, false);
 			sopAppCache.addEventListener('error', sopAppCacheError, false);
-			/* Problems with this since Firefox 54
-			$(sopAppCache).on('checking', sopAppCacheChecking);
-			$(sopAppCache).on('noupdate', sopAppCacheNoupdate);
-			$(sopAppCache).on('downloading', sopAppCacheDownloading);
-			$(sopAppCache).on('progress', sopAppCacheProgress);
-			$(sopAppCache).on('cached', sopAppCacheCached);
-			$(sopAppCache).on('updateready', sopAppCacheUpdateready);
-			$(sopAppCache).on('obsolete', sopAppCacheObsolete);
-			$(sopAppCache).on('error', sopAppCacheError);
-			*/ 
 		};
 		
 		var createLmAppCacheEventHandler = function(iframe) {
 			log("sop: createLmAppCacheEventHandler: " + iframe);
-			lmAppCache = iframe.contentWindow.applicationCache;
+			lmAppCache = (swEnabled) ? iframe.contentWindow.jakeCache : iframe.contentWindow.applicationCache;
 			lmAppCache.addEventListener('checking', lmAppCacheChecking, false);
 			lmAppCache.addEventListener('noupdate', lmAppCacheNoupdate, false);
 			lmAppCache.addEventListener('downloading', lmAppCacheDownloading, false);
@@ -376,18 +385,11 @@ $( document ).ready( function() {
 			lmAppCache.addEventListener('updateready', lmAppCacheUpdateready, false);
 			lmAppCache.addEventListener('obsolete', lmAppCacheObsolete, false);
 			lmAppCache.addEventListener('error', lmAppCacheError, false);
-			/* Problems with this since Firefox 54
-			$(lmAppCache).on('checking', lmAppCacheChecking);
-			$(lmAppCache).on('noupdate', lmAppCacheNoupdate);
-			$(lmAppCache).on('downloading', lmAppCacheDownloading);
-			$(lmAppCache).on('progress', lmAppCacheProgress);
-			$(lmAppCache).on('cached', lmAppCacheCached);
-			$(lmAppCache).on('updateready', lmAppCacheUpdateready);
-			$(lmAppCache).on('obsolete', lmAppCacheObsolete);
-			$(lmAppCache).on('error', lmAppCacheError);
-			*/ 
 		};
 		
+		var swControllerChange = function(event) {
+			log("controllerchange");
+		};
 		/**
 		 * utils
 		 */

@@ -4,6 +4,9 @@ CACHE:
 {CACHE_ENTRIES}
 
 NETWORK:
-*
+libs/bowser/*
+
+FALLBACK:
+fallback.html offline.html
 
 #{VERSION}

@@ -15,6 +15,7 @@
 */
 class ilSCORMOfflineMode
 {
+	
 	var $type;
 	var $obj_id;
 	var $offlineMode;
@@ -23,11 +24,9 @@ class ilSCORMOfflineMode
 	var $player12_url;
 	var $player2004_url;
 	var $som_url;
-	
 	var $sop_dir;
 	var $som_dir;
 	var $scripts_dir;
-	
 	var $sop_index;
 	var $sop_appcache;
 	var $lm_dir;
@@ -35,6 +34,7 @@ class ilSCORMOfflineMode
 	var $lm_appcache;
 	var $lm_imsmanifest_xml;
 	var $imsmanifest;
+	var $sw_enabled = false;
 	var $debug = false; // omit caching sop and som files for debugging
 
 	/**
@@ -51,23 +51,27 @@ class ilSCORMOfflineMode
 		$this->obj_id = ilObject::_lookupObjectId($_GET['ref_id']);
 		include_once "./Modules/ScormAicc/classes/class.ilObjSAHSLearningModule.php";
 		$this->type = ilObjSAHSLearningModule::_lookupSubType($this->obj_id);
-		$this->cmd_url = './ilias.php?baseClass=ilSAHSPresentationGUI&cmd=';
-		$this->lm_cmd_url = './ilias.php?baseClass=ilSAHSPresentationGUI&ref_id=' . $this->id . '&cmd=';
+		if (!isset($_SESSION['swenabled']) && $_GET["swenabled"] == "1") {
+			$_SESSION['swenabled'] == "1";
+			$this->sw_enabled = true;
+		}
+		$this->cmd_url = 'ilias.php?baseClass=ilSAHSPresentationGUI&cmd=';
+		$this->lm_cmd_url = 'ilias.php?baseClass=ilSAHSPresentationGUI&ref_id=' . $this->id . '&cmd=';
 		$this->lm_info_url = $this->lm_cmd_url . 'infoScreen';
 		$this->player12_url = $this->cmd_url . 'offlineMode_player12';
 		$this->player2004_url = $this->cmd_url . 'offlineMode_player2004';
 		$this->som_url = $this->cmd_url . 'offlineMode_som';
 		$this->offlineMode = 'online';
-		$this->sop_index = './Modules/ScormAicc/sop/sop_index.html';
-		$this->sop_appcache = './Modules/ScormAicc/sop/sop.appcache';
-		$this->sop_dir = './Modules/ScormAicc/templates/sop/';
-		$this->som_dir = './Modules/ScormAicc/templates/som/';
-		$this->scripts_dir = './Modules/ScormAicc/scripts/';
-		$this->images_dir = './templates/default/images/scorm/';
-		$this->pouchdb_js = './libs/bower/bower_components/pouchdb/dist/pouchdb.min.js';
-		$this->jquery_js = './libs/bower/bower_components/jquery/dist/jquery.min.js';
-		$this->bootstrap_js = './libs/bower/bower_components/bootstrap/dist/js/bootstrap.min.js';
-		$this->bootstrap_css = './libs/bower/bower_components/bootstrap/dist/css/bootstrap.min.css';
+		$this->sop_index = 'Modules/ScormAicc/sop/sop_index.html';
+		$this->sop_appcache = 'Modules/ScormAicc/sop/sop.appcache';
+		$this->sop_dir = 'Modules/ScormAicc/templates/sop/';
+		$this->som_dir = 'Modules/ScormAicc/templates/som/';
+		$this->scripts_dir = 'Modules/ScormAicc/scripts/';
+		$this->images_dir = 'templates/default/images/scorm/';
+		$this->pouchdb_js = 'libs/bower/bower_components/pouchdb/dist/pouchdb.min.js';
+		$this->jquery_js = 'libs/bower/bower_components/jquery/dist/jquery.min.js';
+		$this->bootstrap_js = 'libs/bower/bower_components/bootstrap/dist/js/bootstrap.min.js';
+		$this->bootstrap_css = 'libs/bower/bower_components/bootstrap/dist/css/bootstrap.min.css';
 		$this->read();
 	}
 	

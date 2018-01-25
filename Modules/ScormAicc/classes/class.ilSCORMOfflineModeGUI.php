@@ -54,7 +54,9 @@ class ilSCORMOfflineModeGUI
 		switch($cmd) {
 			case 'offlineMode_sop' :
 				$log->write("offlineMode_sop");
-				$sop_cache = new ilTemplate('tpl.cache.html',true,true,'Modules/ScormAicc');
+				$tpl_cache = ($this->offlineMode->sw_enabled) ? 'tpl.cache_sw.html' : 'tpl.cache.html';
+				$log->write("serviceworker enabled: " . $this->offlineMode->sw_enabled . " template: " . $tpl_cache);
+				$sop_cache = new ilTemplate($tpl_cache,true,true,'Modules/ScormAicc');
 				//$sop_cache->setVariable("APPCACHE_URL",$ilCtrl->getLinkTarget($this,"offlineMode_sopcache")."&client_id=" . CLIENT_ID);
 				$sop_cache->setVariable("APPCACHE_URL",$this->sopcache_url);
 				$sop_cache->setVariable("CACHE_TITLE","SOP Cache Page");
@@ -72,7 +74,8 @@ class ilSCORMOfflineModeGUI
 				
 			case 'offlineMode_il2sop':
 				$log->write("offlineMode_il2sop");
-				$lm_cache = new ilTemplate('tpl.cache.html',true,true,'Modules/ScormAicc');
+				$tpl_cache = ($this->offlineMode->sw_enabled) ? 'tpl.cache_sw.html' : 'tpl.cache.html';
+				$lm_cache = new ilTemplate($tpl_cache,true,true,'Modules/ScormAicc');
 				//$lm_cache->setVariable("APPCACHE_URL",$ilCtrl->getLinkTarget($this,"offlineMode_lmcache")."&client_id=" . CLIENT_ID);
 				$lm_cache->setVariable("APPCACHE_URL",$this->lmcache_url);
 				$lm_cache->setVariable("CACHE_TITLE","LM Cache Page");
