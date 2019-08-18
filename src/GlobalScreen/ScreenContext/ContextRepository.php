@@ -5,9 +5,6 @@ use ILIAS\Data\ReferenceId;
 /**
  * Class ContextRepository
  *
- * The Collection of all available Contexts in the System. You can use them in
- * your @see ScreenContextAwareProvider to announce you are interested in.
- *
  * @author Fabian Schmid <fs@studer-raimann.ch>
  */
 class ContextRepository
@@ -21,6 +18,7 @@ class ContextRepository
     const C_DESKTOP = 'desktop';
     const C_REPO = 'repo';
     const C_ADMINISTRATION = 'administration';
+    const C_LTI = 'lti';
 
 
     /**
@@ -79,6 +77,14 @@ class ContextRepository
         return $this->get(BasicScreenContext::class, self::C_ADMINISTRATION);
     }
 
+
+    /**
+     * @return ScreenContext
+     */
+    public function lti() : ScreenContext
+    {
+        return $this->get(BasicScreenContext::class, self::C_LTI);
+    }
 
     /**
      * @param string $class_name

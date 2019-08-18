@@ -1710,10 +1710,6 @@ class ilInitialisation
 	{
 		global $ilUser, $DIC;
 
-		require_once "./Services/LTI/classes/class.ilLTIViewGUI.php";
-		$lti = new ilLTIViewGUI($ilUser);
-		$GLOBALS["DIC"]["lti"] = $lti;
-
 		if(ilContext::hasUser())
 		{
 			// load style definitions
@@ -1723,12 +1719,6 @@ class ilInitialisation
 
 		self::initUIFramework($GLOBALS["DIC"]);
 
-		// LTI
-		if ($lti->isActive())
-		{
-			include_once "./Services/LTI/classes/class.ilTemplate.php";
-			$tpl = new LTI\ilGlobalTemplate("tpl.main.html", true, true, "Services/LTI");
-		}
 		/*else if (
 			$_REQUEST["baseClass"] == "ilLMPresentationGUI" ||
 			$_GET["baseClass"] == "ilLMPresentationGUI" ||
@@ -1737,7 +1727,7 @@ class ilInitialisation
 		) {
 			$tpl = new ilLMGlobalTemplate("tpl.main.html", true, true);
 		}*/
-		else if (
+		if (
 			$_REQUEST["cmdClass"] == "ilobjbloggui" ||
 			$_GET["cmdClass"] == "ilobjbloggui"		||
 			$_REQUEST["cmdClass"] == "ilblogpostinggui" ||
@@ -1812,18 +1802,8 @@ class ilInitialisation
 
 		if(ilContext::hasUser())
 		{
-			// LTI
-			if ($lti->isActive())
-			{
-				include_once './Services/LTI/classes/class.ilMainMenuGUI.php';
-				$ilMainMenu = new LTI\ilMainMenuGUI("_top");
-			}
-			else
-			{
-				include_once './Services/MainMenu/classes/class.ilMainMenuGUI.php';
-				$ilMainMenu = new ilMainMenuGUI("_top");
-			}
-
+			include_once './Services/MainMenu/classes/class.ilMainMenuGUI.php';
+			$ilMainMenu = new ilMainMenuGUI("_top");
 			self::initGlobal("ilMainMenu", $ilMainMenu);
 			unset($ilMainMenu);
 
@@ -1843,7 +1823,8 @@ class ilInitialisation
 			{
 				$_GET['offset'] = (int) $_GET['offset'];		// old code
 			}
-
+			self::initGlobal("lti","ilLTIViewGUI","./Services/LTI/classes/class.ilLTIViewGUI.php");
+			$GLOBALS["DIC"]["lti"]->init();
 			self::initKioskMode($GLOBALS["DIC"]);
 		}
 		else
