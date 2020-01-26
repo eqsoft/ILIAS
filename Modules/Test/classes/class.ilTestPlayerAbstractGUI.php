@@ -68,6 +68,8 @@ abstract class ilTestPlayerAbstractGUI extends ilTestServiceGUI
 	*/
 	public function __construct($a_object)
 	{
+		global $ilUser;
+		$ilUser->writePref('side_list_of_questions', 1);
 		parent::__construct($a_object);
 		$this->ref_id = $_GET["ref_id"];
 		
@@ -2694,6 +2696,8 @@ abstract class ilTestPlayerAbstractGUI extends ilTestServiceGUI
 // fau: testNav - new function populateNavWhenChangedModal
 	protected function populateNavWhenChangedModal()
 	{
+		$_SESSION['save_on_navigation_prevent_confirmation'] == "1";
+		return;
 		if (!empty($_SESSION['save_on_navigation_prevent_confirmation']))
 		{
 			return;

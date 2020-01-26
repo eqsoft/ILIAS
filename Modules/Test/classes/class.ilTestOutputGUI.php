@@ -615,7 +615,7 @@ abstract class ilTestOutputGUI extends ilTestPlayerAbstractGUI
 	{
 		$this->updateWorkingTime();
 		$this->saveResult = FALSE;
-		if (!$force)
+		/*if (!$force)
 		{
 			$formtimestamp = $_POST["formtimestamp"];
 			if (strlen($formtimestamp) == 0) $formtimestamp = $_GET["formtimestamp"];
@@ -627,7 +627,7 @@ abstract class ilTestOutputGUI extends ilTestPlayerAbstractGUI
 			{
 				return FALSE;
 			}
-		}
+		}*/
 		// save question solution
 		if ($this->canSaveResult() || $force)
 		{

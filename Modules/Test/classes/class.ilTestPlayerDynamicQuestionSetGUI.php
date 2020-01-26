@@ -764,7 +764,7 @@ class ilTestPlayerDynamicQuestionSetGUI extends ilTestPlayerAbstractGUI
 	public function saveQuestionSolution($authorized = true, $force = false)
 	{
 		// what is this formtimestamp ??
-		if (!$force)
+		/*if (!$force)
 		{
 			$formtimestamp = $_POST["formtimestamp"];
 			if (strlen($formtimestamp) == 0) $formtimestamp = $_GET["formtimestamp"];
@@ -776,7 +776,7 @@ class ilTestPlayerDynamicQuestionSetGUI extends ilTestPlayerAbstractGUI
 			{
 				return FALSE;
 			}
-		}
+		}*/
 		
 		// determine current question
 		
