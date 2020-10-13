@@ -140,13 +140,19 @@ class ilCmiXapiLaunchGUI
     protected function buildActorParameter()
     {
         global $DIC; /* @var \ILIAS\DI\Container $DIC */
-        
+        $name = ilCmiXapiUser::getName($this->object->getUserName(), $DIC->user());
+        $name = ($name === '') ? 'NO_NAME' : $name;
         return json_encode([
             'mbox' => $this->cmixUser->getUsrIdent(),
-            'name' => ilCmiXapiUser::getName($this->object->getUserName(), $DIC->user())
+            'objectType' => 'Agent',
+            'name' => $name,
+            'account' => [
+                'name' => $name,
+                'homePage' => 'NO_PAGE'
+            ]
         ]);
     }
-    
+
     protected function getValidToken()
     {
         global $DIC; /* @var \ILIAS\DI\Container $DIC */
