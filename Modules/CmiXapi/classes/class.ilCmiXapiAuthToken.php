@@ -297,14 +297,10 @@ class ilCmiXapiAuthToken
         $ilDB = $DIC->database();
         
         if ($checkValid) {
-            $checkValid .= "AND valid_until > CURRENT_TIMESTAMP";
+            $checkValid = "AND valid_until > CURRENT_TIMESTAMP";
         }
         
-        $query = "
-				SELECT * FROM cmix_token
-				WHERE obj_id = %s AND usr_id = %s
-				{$checkValid}
-		";
+        $query = "SELECT * FROM cmix_token WHERE obj_id = %s AND usr_id = %s {$checkValid}";
         
         $result = $ilDB->queryF($query, array('integer', 'integer'), array($objId, $usrId));
         
