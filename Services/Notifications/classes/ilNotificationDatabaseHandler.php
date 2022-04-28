@@ -22,6 +22,7 @@ namespace ILIAS\Notifications;
 use ilDBInterface;
 use ILIAS\Notifications\Model\ilNotificationConfig;
 use ILIAS\Notifications\Model\ilNotificationParameter;
+use ILIAS\Notifications\ilNotificationSetupHelper;
 use ilSetting;
 use stdClass;
 

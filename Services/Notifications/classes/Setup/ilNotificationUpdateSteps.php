@@ -15,6 +15,10 @@
  * https://github.com/ILIAS-eLearning
  *
  *********************************************************************/
+use ILIAS\Setup;
+use ILIAS\Refinery;
+use ILIAS\Setup\Environment;
+use ILIAS\Notifications\ilNotificationSetupHelper;
 
 class ilNotificationUpdateSteps implements ilDatabaseUpdateSteps
 {
@@ -57,7 +61,7 @@ class ilNotificationUpdateSteps implements ilDatabaseUpdateSteps
     public function step_3() : void
     {
         $this->db->manipulateF('DELETE FROM notification_usercfg WHERE module = %s', ['text'], ['osd_main']);
-        ilNotificationSetupHelper::registerType(
+        ILIAS\Notifications\ilNotificationSetupHelper::registerType(
             'buddysystem_request',
             'buddysystem_request',
             'buddysystem_request_desc',
@@ -68,7 +72,7 @@ class ilNotificationUpdateSteps implements ilDatabaseUpdateSteps
 
     public function step_4() : void
     {
-        ilNotificationSetupHelper::registerType(
+        ILIAS\Notifications\ilNotificationSetupHelper::registerType(
             'who_is_online',
             'who_is_online',
             'who_is_online_desc',
@@ -92,7 +96,7 @@ class ilNotificationUpdateSteps implements ilDatabaseUpdateSteps
 
     public function step_5() : void
     {
-        ilNotificationSetupHelper::registerType(
+        ILIAS\Notifications\ilNotificationSetupHelper::registerType(
             'badge_received',
             'badge_received',
             'badge_received_desc',

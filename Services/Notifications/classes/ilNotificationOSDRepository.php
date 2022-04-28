@@ -24,6 +24,7 @@ use ILIAS\DI\Container;
 use ILIAS\Notifications\Model\ilNotificationConfig;
 use ILIAS\Notifications\Model\ilNotificationLink;
 use ILIAS\Notifications\Model\ilNotificationObject;
+use ILIAS\Notifications\ilNotificationSetupHelper;
 use ilLanguage;
 
 /**

@@ -7168,7 +7168,7 @@ $ilDB->manipulateF(
     require_once 'Modules/Chatroom/classes/class.ilChatroomInstaller.php';
     ilChatroomInstaller::install();
 
-    require_once 'Services/Notifications/classes/class.ilNotificationSetupHelper.php';
+    require_once 'Services/Notifications/classes/Setup/class.ilNotificationSetupHelper.php';
     ilNotificationSetupHelper::setupTables();
 
     $settings = new ilSetting('notifications');
