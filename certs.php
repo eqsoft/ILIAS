@@ -25,7 +25,7 @@ const ERROR_OPEN_SSL_CONF='error openssl config invalid';
 
 function verifyPrivateKey() : string 
 {
-    global $ilSetting;
+    global $ilSetting;  // TODO: constructor of class
     $key = $ilSetting->get(LTI_1_3_PRIVATE_KEY);
 
     if (empty($key)) 
@@ -52,7 +52,7 @@ function verifyPrivateKey() : string
 
 function getPrivateKey() : array 
 {
-        global $ilSetting;
+        global $ilSetting; // TODO: constructor of class
         $privatekey = $ilSetting->get(LTI_1_3_PRIVATE_KEY);
         $kid = $ilSetting->get(LTI_1_3_KID);
         return [
@@ -61,15 +61,15 @@ function getPrivateKey() : array
         ];
 }
 
-function getJwks() : array 
+function getJwks() : array
 {
-    $jwks = array('keys' => array());
+    $jwks = ['keys' => []];
 
     $privatekey = getPrivateKey();
     $res = openssl_pkey_get_private($privatekey['key']);
     $details = openssl_pkey_get_details($res);
 
-    $jwk = array();
+    $jwk = [];
     $jwk['kty'] = 'RSA';
     $jwk['alg'] = 'RS256';
     $jwk['kid'] = $privatekey['kid'];
