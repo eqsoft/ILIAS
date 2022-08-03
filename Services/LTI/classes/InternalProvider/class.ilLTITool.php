@@ -74,20 +74,25 @@ class ilLTITool extends ILIAS\LTI\ToolProvider\Tool
         $this->setParameterConstraint('roles', true, null, array('basic-lti-launch-request'));
     }
 
+    /*
+    protected function onInitiateLogin(array $requestParameters, array &$authParameters) : void
+    {
+        ilSession::set("lti_initiate_login_user_id",$requestParameters['login_hint']);
+    }
+    */
     /**
      * Process a valid launch request
      */
     protected function onLaunch() : void
     {
         // save/update current user
-        if ($this->userResult instanceof User) {
+        if ($this->userResult instanceof User) {       
+            //$_SESSION['lti13_user_id'] = $this->userResult->getId();
             $this->userResult->save();
         }
-
         if ($this->context instanceof Context) {
             $this->context->save();
         }
-
         if ($this->resourceLink instanceof ResourceLink) {
             $this->resourceLink->save();
         }

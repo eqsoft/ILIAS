@@ -726,6 +726,7 @@ class Tool
      * @param array $requestParameters Request parameters
      * @param array $authParameters    Authentication request parameters
      */
+    
     protected function onInitiateLogin(array $requestParameters, array &$authParameters)
     {
     }
@@ -774,6 +775,7 @@ class Tool
                 }
             }
             if ($this->ok) {
+                Jwt::setJwtClient();
                 $jwtClient = Jwt::getJwtClient();
                 $algorithms = \array_intersect(
                     $jwtClient::getSupportedAlgorithms(),
@@ -1927,7 +1929,6 @@ EOD;
                 }
             }
         }
-
         return $this->ok;
     }
 
@@ -2026,7 +2027,7 @@ EOD;
             $deploymentId = $parameters['lti_deployment_id'];
         }
         $currentLogLevel = Util::$logLevel;
-        $this->platform = Platform::fromPlatformId($parameters['iss'], $clientId, $deploymentId, $this->dataConnector);
+        $this->platform = \ilLTIPlatform::fromPlatformId($parameters['iss'], $clientId, $deploymentId, $this->dataConnector);
         if ($this->platform->debugMode && ($currentLogLevel < Util::LOGLEVEL_INFO)) {
             $this->debugMode = true;
             Util::logRequest();
