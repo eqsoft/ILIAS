@@ -221,7 +221,7 @@ class Platform
         $this->name = null;
         $this->secret = null;
         $this->signatureMethod = 'HMAC-SHA1';
-        $this->encryptionMethod = null;
+        $this->encryptionMethod = '';
         $this->rsaKey = null;
         $this->kid = null;
         $this->jku = null;
@@ -517,6 +517,7 @@ class Platform
      * @param bool               $autoEnable    True if the platform is to be enabled automatically (optional, default is false)
      * @return Platform       The platform object
      */
+    /*
     public static function fromPlatformId(string $platformId, string $clientId, string $deploymentId, DataConnector $dataConnector = null, bool $autoEnable = false) : Platform
     {
         $platform = new static($dataConnector);
@@ -531,7 +532,7 @@ class Platform
 
         return $platform;
     }
-
+    */
     //changed; to be erased because of php strict standards
 //    /**
 //     * Load the platform from the database by its record ID.

@@ -2026,7 +2026,7 @@ EOD;
             $deploymentId = $parameters['lti_deployment_id'];
         }
         $currentLogLevel = Util::$logLevel;
-        $this->platform = Platform::fromPlatformId($parameters['iss'], $clientId, $deploymentId, $this->dataConnector);
+        $this->platform = \ilLTIPlatform::fromPlatformId($parameters['iss'], $clientId, $deploymentId, $this->dataConnector);
         if ($this->platform->debugMode && ($currentLogLevel < Util::LOGLEVEL_INFO)) {
             $this->debugMode = true;
             Util::logRequest();
