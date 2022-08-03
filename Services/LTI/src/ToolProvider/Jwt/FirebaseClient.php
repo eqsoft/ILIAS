@@ -86,8 +86,8 @@ class FirebaseClient implements ClientInterface
         $sections = explode('.', $jwtString);
         $ok = count($sections) === 3;
         if ($ok) {
-            $headers = json_decode(JWT::urlsafeB64Decode($sections[0]));
-            $payload = json_decode(JWT::urlsafeB64Decode($sections[1]));
+            $headers = json_decode(JWT::urlsafeB64Decode($sections[0]),true);
+            $payload = json_decode(JWT::urlsafeB64Decode($sections[1]),true);
             $ok = !is_null($headers) && !is_null($payload);
         }
         if ($ok) {

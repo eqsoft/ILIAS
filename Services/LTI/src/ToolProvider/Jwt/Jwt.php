@@ -63,6 +63,7 @@ class Jwt
      */
     public function __construct()
     {
+
     }
 
     /**
@@ -72,9 +73,9 @@ class Jwt
      *
      * @return void
      */
-    public static function setJwtClient(\ILIAS\LTI\ToolProvider\Jwt\ClientInterface $jwtClient = null)
+    public static function setJwtClient(\ILIAS\LTI\ToolProvider\Jwt\ClientInterface $jwtclient = null)
     {
-        self::$jwtClient = $jwtClient;
+        self::$jwtClient = $jwtclient;
         Util::logDebug('JwtClient set to \'' . get_class(self::$jwtClient) . '\'');
     }
 
@@ -85,11 +86,10 @@ class Jwt
      */
     public static function getJwtClient()
     {
-        if (!self::$jwtClient) {
+        //if (!self::$jwtClient)) {
             self::$jwtClient = new FirebaseClient();
             Util::logDebug('JwtClient set to \'' . get_class(self::$jwtClient) . '\'');
-        }
-
+        //}
         return self::$jwtClient;
     }
 }

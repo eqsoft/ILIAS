@@ -438,6 +438,7 @@ class Tool
     {
         if (is_null($this->messageParameters)) {
             $this->parseMessage();
+            file_put_contents("log.txt","X:\n".var_export($this->messageParameters,true),FILE_APPEND);
             // Set debug mode
             if (Util::$logLevel < Util::LOGLEVEL_DEBUG) {
                 $this->debugMode = (isset($this->messageParameters['custom_debug']) &&
@@ -774,6 +775,7 @@ class Tool
                 }
             }
             if ($this->ok) {
+                Jwt::setJwtClient();
                 $jwtClient = Jwt::getJwtClient();
                 $algorithms = \array_intersect(
                     $jwtClient::getSupportedAlgorithms(),
