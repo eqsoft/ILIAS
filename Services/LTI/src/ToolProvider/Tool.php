@@ -726,6 +726,7 @@ class Tool
      * @param array $requestParameters Request parameters
      * @param array $authParameters    Authentication request parameters
      */
+    
     protected function onInitiateLogin(array $requestParameters, array &$authParameters)
     {
     }
@@ -1928,7 +1929,6 @@ EOD;
                 }
             }
         }
-
         return $this->ok;
     }
 

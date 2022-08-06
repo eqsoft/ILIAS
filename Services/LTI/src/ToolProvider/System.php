@@ -1148,7 +1148,6 @@ trait System
             $callback = "on{$this->messageParameters['lti_message_type']}";
         }
         if (method_exists($this, $callback)) {
-            //Util::logtxt(var_export($this->messageParameters,true));
             $this->$callback();
         } elseif ($this->ok) {
             $this->ok = false;
