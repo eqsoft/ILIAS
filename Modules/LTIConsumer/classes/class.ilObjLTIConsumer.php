@@ -654,7 +654,7 @@ $this->setActivationEndingTime($activation["timing_end"]);
 
         ilLTIConsumerResult::getByKeys($this->getId(), $DIC->user()->getId(), true);
 
-        $custom_params = $this->getCustomParams();
+        $custom_params = $this->getCustomParams(); //ToDo: same as in buildLaunchParametersLTI13?
         $toolConsumerInstanceGuid = CLIENT_ID . ".";
         $parseIliasUrl = parse_url(ILIAS_HTTP_PATH);
         if (array_key_exists("path", $parseIliasUrl)) {
@@ -765,7 +765,6 @@ $this->setActivationEndingTime($activation["timing_end"]);
 
         ilLTIConsumerResult::getByKeys($this->getId(), $DIC->user()->getId(), true);
 
-        $custom_params = $this->getCustomParams();
         $toolConsumerInstanceGuid = CLIENT_ID . ".";
         $parseIliasUrl = parse_url(ILIAS_HTTP_PATH);
         if (array_key_exists("path", $parseIliasUrl)) {
@@ -807,6 +806,10 @@ $this->setActivationEndingTime($activation["timing_end"]);
             "role_scope_mentor" => ""
         ];
 
+        $custom_params = $this->getCustomParams();
+        foreach ($custom_params as $key => $value) {
+            $launch_vars['custom_' . $key] = $value;
+        }
         $ltilib = new lti13lib();
 
         if (!empty($ltilib->verifyPrivateKey())) {
