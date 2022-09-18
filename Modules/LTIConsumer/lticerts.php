@@ -21,6 +21,7 @@ declare(strict_types=1);
 /** @noRector */
 
 chdir("../../");
+require_once("libs/composer/vendor/autoload.php");
 ilContext::init(ilContext::CONTEXT_SCORM);
 ilInitialisation::initILIAS();
 
