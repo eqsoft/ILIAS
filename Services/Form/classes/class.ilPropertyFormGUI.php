@@ -356,7 +356,8 @@ class ilPropertyFormGUI extends ilFormGUI
         }
 
         // check if POST is missing completely (if post_max_size exceeded)
-        $post = $this->http->request()->getParsedBody();
+        $http = $DIC->http();
+        $post = $http->request()->getParsedBody();
         if (count($this->items) > 0 && count($post) === 0) {
             $ok = false;
         }
@@ -397,7 +398,6 @@ class ilPropertyFormGUI extends ilFormGUI
                 }
             }
         }
-        $http = $DIC->http();
         $txt = $DIC->language()->txt("form_input_not_valid");
         switch ($http->request()->getHeaderLine('Accept')) {
             // When JS asks for a valid JSON-Response, we send the success and message as JSON
@@ -447,6 +447,7 @@ class ilPropertyFormGUI extends ilFormGUI
         string $a_post_var,
         bool $ensureValidation = true
     ) {
+        global $DIC;
         // this check ensures, that checkInput has been called (incl. stripSlashes())
         if (!$this->check_input_called && $ensureValidation) {
             throw new LogicException('Error: ilPropertyFormGUI->getInput() called without calling checkInput() first.');
@@ -456,8 +457,8 @@ class ilPropertyFormGUI extends ilFormGUI
         if (is_object($item) && method_exists($item, "getInput")) {
             return $item->getInput();
         }
-
-        $post = $this->http->request()->getParsedBody();
+        $http = $DIC->http();
+        $post = $http->request()->getParsedBody();
         return $post[$a_post_var] ?? '';
     }
 
