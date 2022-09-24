@@ -163,10 +163,12 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $initiateLogin->setRequired(true);
         $lti13->addSubItem($initiateLogin);
 
-        $redirectionUris = new ilTextInputGUI($lng->txt('lti_con_redirection_uris'), 'redirection_uris');
-        $redirectionUris->setValue($this->provider->getRedirectionUris());
+        $redirectionUris = new ilTextAreaInputGUI($lng->txt('lti_con_redirection_uris'), 'redirection_uris');
+        $redirectionUris->setRows(4);
+        $redirectionUris->setValue(implode("\n",explode(",",$this->provider->getRedirectionUris())));
         $redirectionUris->setRequired(true);
         $lti13->addSubItem($redirectionUris);
+
         //key_type
         $keyType = new ilRadioGroupInputGUI($lng->txt('lti_con_key_type'), 'key_type');
         $keyType->setRequired(true);
@@ -455,7 +457,9 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
                 $provider->setProviderUrl($this->getInput('provider_url13'));
             }
             $provider->setInitiateLogin($this->getInput('initiate_login'));
-            $provider->setRedirectionUris($this->getInput('redirection_uris'));
+            $redirection_uris_input = $this->getInput('redirection_uris');
+            preg_match_all('/\S+/sm',$redirection_uris_input,$matches);
+            $provider->setRedirectionUris(implode(",",$matches[0]));
             $provider->setKeyType($this->getInput('key_type'));
             if ($provider->getKeyType() == 'RSA_KEY') {
                 $provider->setPublicKey($this->getInput('public_key'));
