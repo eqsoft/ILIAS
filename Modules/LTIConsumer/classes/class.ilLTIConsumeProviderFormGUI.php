@@ -203,12 +203,12 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
             $Lti13Info = new ilTextAreaInputGUI($lng->txt('lti13_hints'), 'lti13_hints');
             $Lti13Info->setRows(6);
             $Lti13Info->setValue(
-                "Platform ID: "
-                . "\nClient ID: " . $this->provider->getClientId()
-                . "\nDeployment ID: " . (string) $this->provider->getId()
-                . "\nPublic keyset URL: "
-                . "\nAccess token URL: "
-                . "\nAuthentication request URL: "
+                "Platform ID: \t\t\t\t\t" . $this->provider->getPlattformId()
+                . "\nClient ID: \t\t\t\t\t" . $this->provider->getClientId()
+                . "\nDeployment ID: \t\t\t\t" . (string) $this->provider->getId()
+                . "\nPublic keyset URL: \t\t\t" . $this->provider->getPublicKeysetUrl()
+                . "\nAccess token URL: \t\t\t" . $this->provider->getAccessTokenUrl()
+                . "\nAuthentication request URL: \t" . $this->provider->getAuthenticationRequestUrl()
             );
             $Lti13Info->setDisabled(true);
             $lti13->addSubItem($Lti13Info);
