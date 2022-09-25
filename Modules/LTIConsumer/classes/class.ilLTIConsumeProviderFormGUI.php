@@ -121,6 +121,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $this->addItem($sectionHeader);
 
         $versionInp = new ilRadioGroupInputGUI($lng->txt('lti_con_version'), 'lti_version');
+
         $lti11 = new ilRadioOption($lng->txt('lti_con_version_1.1'), 'LTI-1p0');
         $versionInp->addOption($lti11);
 
@@ -153,21 +154,28 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
             $lti13->setInfo($lng->txt('lti_con_version_1.3_before_id'));
         }
         $versionInp->addOption($lti13);
+        $registrationMode = new ilRadioGroupInputGUI($lng->txt('lti_con_registration_mode'), 'lti_registrationMode');
+        $manualMode = new ilRadioOption($lng->txt('lti_con_registration_mode_manual'), 'manual');
+        $dynamicMode = new ilRadioOption($lng->txt('lti_con_registration_mode_dynamic'), 'dynamic');
+        $registrationMode->addOption($manualMode);
+        $registrationMode->addOption($dynamicMode);
+        $lti13->addSubItem($registrationMode);
+
         $providerUrlInp = new ilTextInputGUI($lng->txt('lti_con_tool_url'), 'provider_url13');
         $providerUrlInp->setValue($this->provider->getProviderUrl());
         $providerUrlInp->setRequired(true);
-        $lti13->addSubItem($providerUrlInp);
+        $manualMode->addSubItem($providerUrlInp);
 
         $initiateLogin = new ilTextInputGUI($lng->txt('lti_con_initiate_login_url'), 'initiate_login');
         $initiateLogin->setValue($this->provider->getInitiateLogin());
         $initiateLogin->setRequired(true);
-        $lti13->addSubItem($initiateLogin);
+        $manualMode->addSubItem($initiateLogin);
 
         $redirectionUris = new ilTextAreaInputGUI($lng->txt('lti_con_redirection_uris'), 'redirection_uris');
         $redirectionUris->setRows(4);
         $redirectionUris->setValue(implode("\n",explode(",",$this->provider->getRedirectionUris())));
         $redirectionUris->setRequired(true);
-        $lti13->addSubItem($redirectionUris);
+        $manualMode->addSubItem($redirectionUris);
 
         //key_type
         $keyType = new ilRadioGroupInputGUI($lng->txt('lti_con_key_type'), 'key_type');
@@ -189,7 +197,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $keyJwk->addSubItem($keyset);
 
         $keyType->setValue($this->provider->getKeyType());
-        $lti13->addSubItem($keyType);
+        $manualMode->addSubItem($keyType);
 
         $contentItem = new ilCheckboxInputGUI($lng->txt('lti_con_content_item'), 'content_item');
         $contentItem->setValue('1');
@@ -197,7 +205,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $contentItemUrl = new ilTextInputGUI($lng->txt('lti_con_content_item_url'), 'content_item_url');
         $contentItemUrl->setValue($this->provider->getContentItemUrl());
         $contentItem->addSubItem($contentItemUrl);
-        $lti13->addSubItem($contentItem);
+        $manualMode->addSubItem($contentItem);
 
         //grade sync
 
@@ -213,8 +221,14 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
                 . "\nAuthentication request URL: \t" . $this->provider->getAuthenticationRequestUrl()
             );
             $Lti13Info->setDisabled(true);
-            $lti13->addSubItem($Lti13Info);
+            $manualMode->addSubItem($Lti13Info);
         }
+
+        $registrationUrl = new ilTextInputGUI($lng->txt('lti_con_registration_url'), 'registration_url');
+        $registrationUrl->setValue('');
+        $registrationUrl->setRequired(true);
+        $dynamicMode->addSubItem($registrationUrl);
+
 
 
         $versionInp->setValue($this->provider->getLtiVersion());
@@ -502,4 +516,53 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         }
         $provider->setRemarks($this->getInput('remarks'));
     }
+
+    private function getDynamicRegistrationButton() : \ILIAS\UI\Component\Button\Primary
+    {
+        global $DIC;
+        $lng = $DIC->language();
+        $factory = $DIC->ui()->factory();
+        //$renderer = $DIC->ui()->renderer();
+        //$deleteUrl = str_replace('&amp;','&',$DIC->ctrl->getLinkTarget($this, "asyncDeleteUsers"));
+        //$formUrl = str_replace('&amp;','&',$DIC->ctrl->getLinkTarget($this, "showUserAddView"));
+        //$users_json = json_encode($users);
+        return $factory->button()->primary($lng->txt('send'), '#')
+            ->withAdditionalOnLoadCode(function ($id) {
+                return
+                    "$('#$id').click(function(e) {
+                                    console.log('sdfsdfd');
+                     
+                    });";
+            });
+    }
+    /*
+     * // custom buttons for async deletion
+        $factory = $DIC->ui()->factory();
+        $renderer = $DIC->ui()->renderer();
+        $deleteUrl = str_replace('&amp;','&',$ilCtrl->getLinkTarget($this, "asyncDeleteUsers"));
+        $formUrl = str_replace('&amp;','&',$ilCtrl->getLinkTarget($this, "showUserAddView"));
+        $users_json = json_encode($users);
+        $btnConfirm = $factory->button()->primary($lng->txt('delete'), '#')
+                        ->withLoadingAnimationOnClick(true)
+                        ->withAdditionalOnLoadCode(function ($id) use ($users_json, $deleteUrl, $formUrl) {
+                            return
+                                "$('#$id').click(function(e) {
+                                    //console.log('$users_json');
+                                    postdata = '$users_json';
+                                    $.post('$deleteUrl', postdata, function(data) {
+                                            console.log('done');
+                                            console.log(data['msg']);
+                                            // ToDo: inspect json response
+                                            done();
+                                        });
+                                        function done() {
+                                            location.assign('$formUrl'+'&asyncdelete=success');
+                                        }
+                                        function failed() {
+                                            location.assign('$formUrl'+'&asyncdelete=failed');
+                                        }
+                                });";
+                        });
+        $this->tpl->setContent($renderer->render([$btnConfirm]) . '</br>' . $confirm->getHTML());
+     */
 }
