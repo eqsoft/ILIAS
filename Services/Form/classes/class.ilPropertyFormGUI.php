@@ -484,7 +484,8 @@ class ilPropertyFormGUI extends ilFormGUI
     public function getContent(): string
     {
         global $DIC;
-        $lng = $this->lng;
+        $lng = $DIC->language();
+        //$lng = $this->lng;
         $tpl = $DIC["tpl"];
         $ilSetting = $this->settings;
 

@@ -39,7 +39,6 @@ class ilLTIConsumerProviderSelectionFormTableGUI extends ilPropertyFormGUI
     public function __construct(string $newType, ilObjLTIConsumerGUI $parentGui, string $parentCmd, string $applyFilterCmd, string $resetFilterCmd)
     {
         global $DIC; /* @var \ILIAS\DI\Container $DIC */
-
         $this->table = new ilLTIConsumerProviderTableGUI($parentGui, $parentCmd);
 
         $this->table->setFilterCommand($applyFilterCmd);
