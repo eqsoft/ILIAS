@@ -1,0 +1,31 @@
+<iframe id="lti_dyn_reg_iframe" name="lti_dyn_reg_iframe" src="{LTI_DYN_REG_URL}" width="0" height="0" style="visibility: hidden"></iframe>
+<script>
+  let toolRegUrl = "{LTI_TOOL_REG_URL}";
+  let regEndUrl = "{LTI_REG_END_URL}";
+  let settingsUrl = "{LTI_SETTINGS_URL}";
+  let origin = new URL(toolRegUrl).origin;
+  window.addEventListener('message', e => {
+    if (origin === e.origin) {
+      if (e.data.subject && e.data.subject === 'org.imsglobal.lti.close') {
+        console.log('lti tool adding succeeded');
+        /*
+        fetch(regEndUrl)
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.error !== '') {
+            console.error('Error:', data.error);
+          } else {
+            console.log('end Url');
+            //location.assign(settingsUrl.replace('provider_id=0','provider_id='+data.providerId));
+          }
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+        });
+         */
+      } else {
+        // ToDo: wait for xx seconds and redirect to GUI
+      }
+    }
+  }, false);
+</script>

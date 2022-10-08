@@ -533,6 +533,8 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         global $DIC; /* @var \ILIAS\DI\Container $DIC */
         $lng = $DIC->language();
         $this->setFormAction($formaction);
+        $this->clearCommandButtons();
+        $this->addCommandButton("addDynReg", $DIC->language()->txt('lti_dyn_reg_add_tool'));
         $this->setTitle($lng->txt('lti_form_provider_create'));
         $regUrlInp = new ilTextInputGUI($lng->txt('lti_con_prov_dyn_reg_url'), 'lti_dyn_reg_url');
         $regUrlInp->setInfo($lng->txt('lti_con_prov_dyn_reg_url_info'));
@@ -541,6 +543,29 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $regParamsInp = new ilTextInputGUI($lng->txt('lti_con_prov_dyn_reg_params'), 'lti_dyn_reg_custom_params');
         $regParamsInp->setInfo($lng->txt('lti_con_prov_dyn_reg_params_info'));
         $this->addItem($regParamsInp);
+    }
+
+    public function getDynRegRequest(): string
+    {
+        global $DIC; /* @var \ILIAS\DI\Container $DIC */
+        $lng = $DIC->language();
+        //ToDo: is url format validation?
+        $toolRegUrl = $this->getInput('lti_dyn_reg_url');
+        $customParams = $this->getInput('lti_dyn_reg_custom_params');
+        $regUrl = ilObjLTIConsumer::getRegistrationStartUrl()."?url=".urlencode($toolRegUrl);
+        if (!empty($customParams)) {
+            $regUrl .= "&custom_params=" . urlencode($customParams);
+        }
+        $this->getItemByPostVar('lti_dyn_reg_url')->setDisabled(true);
+        $this->getItemByPostVar('lti_dyn_reg_custom_params')->setDisabled(true);
+        $this->clearCommandButtons();
+        $this->addCommandButton("cancelDynReg", $DIC->language()->txt('cancel'));
+        $template = new ilTemplate('tpl.lti_dyn_reg_request.html',true,true, "Modules/LTIConsumer");
+        $template->setVariable('LTI_TOOL_REG_URL',$toolRegUrl);
+        $template->setVariable('LTI_DYN_REG_URL',$regUrl);
+        $template->setVariable('LTI_REG_END_URL',ilObjLTIConsumer::getRegistrationEndUrl());
+        $template->setVariable('LTI_SETTINGS_URL',"#");
+        return $template->get() . $this->getHTML();
     }
 
     private function getDynamicRegistration(): string

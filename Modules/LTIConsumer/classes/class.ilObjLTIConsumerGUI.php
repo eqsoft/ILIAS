@@ -37,7 +37,7 @@ declare(strict_types=1);
 class ilObjLTIConsumerGUI extends ilObject2GUI
 {
     public const CFORM_CUSTOM_NEW = 99;
-    public const CFORM_DYNAMIC_REGISTRATION = 98; // ?
+    public const CFORM_DYNAMIC_REGISTRATION = 98; //
 
     public const TAB_ID_INFO = 'tab_info';
     public const TAB_ID_CONTENT = 'tab_content';
@@ -85,7 +85,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         );
 
         if (ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
-            $forms[self::CFORM_DYNAMIC_REGISTRATION] = $this->initDynamicRegistrationForm($a_new_type);
+            $forms[self::CFORM_DYNAMIC_REGISTRATION] = $this->initDynRegForm($a_new_type);
             $forms[self::CFORM_CUSTOM_NEW] = $this->initCustomCreateForm($a_new_type);
         }
 
@@ -149,14 +149,13 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         return $form;
     }
 
-    public function initDynamicRegistrationForm(string $a_new_type): \ilLTIConsumeProviderFormGUI
+    public function initDynRegForm(string $a_new_type): \ilLTIConsumeProviderFormGUI
     {
         global $DIC;
         /* @var \ILIAS\DI\Container $DIC */
         $provider = new ilLTIConsumeProvider();
-        $form = new ilLTIConsumeProviderFormGUI($provider, true);
-        $form->initDynRegForm("#", '', '');
-        $form->clearCommandButtons();
+        $form = new ilLTIConsumeProviderFormGUI($provider);
+        $form->initDynRegForm($this->ctrl->getFormAction($this, "cancelDynReg"), '', '');
         $form->setTitle($DIC->language()->txt($a_new_type . '_dynamic_registration'));
         return $form;
     }
@@ -179,12 +178,6 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $form->setTitle($DIC->language()->txt($a_new_type . '_custom_new'));
 
         return $form;
-    }
-
-    public function asyncRegStart(): void
-    {
-        global $DIC;
-        $template = new ilTemplate('tpl.default_description.html', true, true, 'Services/Certificate');
     }
 
     protected function buildProviderSelectionForm(string $a_new_type): \ilLTIConsumerProviderSelectionFormTableGUI
@@ -271,6 +264,39 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $form->setValuesByPost();
 
         $DIC->ui()->mainTemplate()->setContent($form->getHtml());
+    }
+
+    public function addDynReg(): void
+    {
+        global $DIC;
+        if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
+            throw new ilLtiConsumerException('permission denied!');
+        }
+        $new_type = $this->getRequestValue("new_type");
+
+        $DIC->ctrl()->setParameter($this, "new_type", $new_type);
+
+        $DIC->language()->loadLanguageModule($new_type);
+
+        $form = $this->initDynRegForm($new_type);
+        $form->setValuesByPost();
+        if ($form->checkInput()) {
+            $DIC->ctrl()->setParameter($this, "new_type", "");
+            $DIC->ui()->mainTemplate()->setContent($form->getDynRegRequest());
+            return;
+        }
+        $DIC->ui()->mainTemplate()->setContent($form->getHTML());
+    }
+
+    public function cancelDynReg(): void
+    {
+        global $DIC;
+        if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
+            throw new ilLtiConsumerException('permission denied!');
+        }
+        $new_type = $this->getRequestValue("new_type");
+        $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class,'new_type',$new_type);
+        $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class,'create');
     }
 
     protected function afterSave(\ilObject $newObject): void
