@@ -556,6 +556,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         if (!empty($customParams)) {
             $regUrl .= "&custom_params=" . urlencode($customParams);
         }
+        $showToolConfigUrl = $DIC->ctrl()->getLinkTargetByClass([ilRepositoryGUI::class,ilObjLTIConsumerGUI::class],'showToolConfig');
         $this->getItemByPostVar('lti_dyn_reg_url')->setDisabled(true);
         $this->getItemByPostVar('lti_dyn_reg_custom_params')->setDisabled(true);
         $this->clearCommandButtons();
@@ -564,7 +565,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $template->setVariable('LTI_TOOL_REG_URL',$toolRegUrl);
         $template->setVariable('LTI_DYN_REG_URL',$regUrl);
         $template->setVariable('LTI_REG_END_URL',ilObjLTIConsumer::getRegistrationEndUrl());
-        $template->setVariable('LTI_SETTINGS_URL',"#");
+        $template->setVariable('LTI_SHOW_TOOL_CONFIG_URL',$showToolConfigUrl);
         return $template->get() . $this->getHTML();
     }
 
