@@ -528,13 +528,13 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $provider->setRemarks($this->getInput('remarks'));
     }
 
-    public function initDynRegForm(string $formaction, string $saveCmd, string $cancelCmd): void
+    public function initDynRegForm(string $formaction): void
     {
         global $DIC; /* @var \ILIAS\DI\Container $DIC */
         $lng = $DIC->language();
         $this->setFormAction($formaction);
         $this->clearCommandButtons();
-        $this->addCommandButton("addDynReg", $DIC->language()->txt('lti_dyn_reg_add_tool'));
+
         $this->setTitle($lng->txt('lti_form_provider_create'));
         $regUrlInp = new ilTextInputGUI($lng->txt('lti_con_prov_dyn_reg_url'), 'lti_dyn_reg_url');
         $regUrlInp->setInfo($lng->txt('lti_con_prov_dyn_reg_url_info'));
@@ -542,6 +542,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $this->addItem($regUrlInp);
         $regParamsInp = new ilTextInputGUI($lng->txt('lti_con_prov_dyn_reg_params'), 'lti_dyn_reg_custom_params');
         $regParamsInp->setInfo($lng->txt('lti_con_prov_dyn_reg_params_info'));
+        $this->addCommandButton("addDynReg", $DIC->language()->txt('lti_dyn_reg_add_tool'));
         $this->addItem($regParamsInp);
     }
 
@@ -557,16 +558,31 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
             $regUrl .= "&custom_params=" . urlencode($customParams);
         }
         $showToolConfigUrl = $DIC->ctrl()->getLinkTargetByClass([ilRepositoryGUI::class,ilObjLTIConsumerGUI::class],'showToolConfig');
+        $regErrorUrl = $DIC->ctrl()->getLinkTargetByClass([ilRepositoryGUI::class,ilObjLTIConsumerGUI::class],'addDynReg');
         $this->getItemByPostVar('lti_dyn_reg_url')->setDisabled(true);
         $this->getItemByPostVar('lti_dyn_reg_custom_params')->setDisabled(true);
         $this->clearCommandButtons();
-        $this->addCommandButton("cancelDynReg", $DIC->language()->txt('cancel'));
+        //$this->addCommandButton("cancelDynReg", $DIC->language()->txt('cancel'));
         $template = new ilTemplate('tpl.lti_dyn_reg_request.html',true,true, "Modules/LTIConsumer");
         $template->setVariable('LTI_TOOL_REG_URL',$toolRegUrl);
         $template->setVariable('LTI_DYN_REG_URL',$regUrl);
         $template->setVariable('LTI_REG_END_URL',ilObjLTIConsumer::getRegistrationEndUrl());
         $template->setVariable('LTI_SHOW_TOOL_CONFIG_URL',$showToolConfigUrl);
+        $template->setVariable('LTI_REG_ERROR_URL',$regErrorUrl);
+        $DIC->ui()->mainTemplate()->setOnScreenMessage('info', $lng->txt('lti_dyn_reg_redirect_after_10_secs'));
         return $template->get() . $this->getHTML();
+    }
+
+    public function getDynRegError(): string
+    {
+        global $DIC; /* @var \ILIAS\DI\Container $DIC */
+        $lng = $DIC->language();
+        $this->removeItemByPostVar('lti_dyn_reg_url');
+        $this->removeItemByPostVar('lti_dyn_reg_custom_params');
+        $this->setTitle("");
+        $this->clearCommandButtons();
+        $this->addCommandButton("cancelDynReg", $DIC->language()->txt('cancel'));
+        return $this->getHTML();
     }
 
     private function getDynamicRegistration(): string

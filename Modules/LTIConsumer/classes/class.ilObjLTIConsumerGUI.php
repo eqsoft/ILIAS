@@ -155,7 +155,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         /* @var \ILIAS\DI\Container $DIC */
         $provider = new ilLTIConsumeProvider();
         $form = new ilLTIConsumeProviderFormGUI($provider);
-        $form->initDynRegForm($this->ctrl->getFormAction($this, "cancelDynReg"), '', '');
+        $form->initDynRegForm($this->ctrl->getFormAction($this, "cancelDynReg"));
         $form->setTitle($DIC->language()->txt($a_new_type . '_dynamic_registration'));
         return $form;
     }
@@ -297,9 +297,15 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $DIC->ctrl()->setParameter($this, "new_type", $new_type);
 
         $DIC->language()->loadLanguageModule($new_type);
-
         $form = $this->initDynRegForm($new_type);
+        $error = ($this->getRequestValue('error') != null) ? $this->getRequestValue('error') : "";
         $form->setValuesByPost();
+        if (!empty($error)) {
+            $DIC->ctrl()->setParameter($this, "new_type", "");
+            $DIC->ui()->mainTemplate()->setOnScreenMessage('failure',base64_decode($error));
+            $DIC->ui()->mainTemplate()->setContent($form->getDynRegError());
+            return;
+        }
         if ($form->checkInput()) {
             $DIC->ctrl()->setParameter($this, "new_type", "");
             $DIC->ui()->mainTemplate()->setContent($form->getDynRegRequest());
