@@ -351,18 +351,46 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $DIC->ctrl()->setParameter($this, "provider_id", $provider_id);
         $DIC->language()->loadLanguageModule($new_type);
         ilSession::clear('lti_dynamic_registration_client_id');
-        ilSession::clear('custom_params');
+        ilSession::clear('lti_dynamic_registration_custom_params');
         $form = $this->initShowToolConfig($new_type,(int)$provider_id);
         $form->setValuesByPost();
         if ($form->checkInput()) { // update only overridable fields
             $provider = $form->getProvider();
             $form->initProvider($provider);
             $provider->update();
-            // jump to provider selection table
-            $DIC->ctrl()->redirectByClass([ilRepositoryGUI::class, ilObjLTIConsumerGUI::class],"create");
+            // jump to provider selection is one option:
+            // $DIC->ctrl()->redirectByClass([ilRepositoryGUI::class, ilObjLTIConsumerGUI::class],"create");
+            // direct redirection to save is onle less click (there is a switch for save | contentSelection in GUI class):
+            $DIC->ctrl()->redirectByClass([ilRepositoryGUI::class, ilObjLTIConsumerGUI::class],"save");
             return;
         }
         $DIC->ui()->mainTemplate()->setContent($form->getHTML());
+    }
+
+    public function contentSelection(string $providerId, string $newType, string $refId, ilLTIConsumeProvider $provider): void
+    {
+        global $DIC;
+        if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
+            throw new ilLtiConsumerException('permission denied!');
+        }
+        $DIC->ctrl()->setParameter($this, "new_type", $newType);
+        $DIC->ctrl()->setParameter($this, "provider_id", $providerId);
+        $DIC->ctrl()->setParameter($this, "ref_id", $refId);
+
+        $form = new ilLTIConsumeProviderFormGUI($provider);
+        $formaction = $this->ctrl->getFormAction($this, "cancelContentSelection");
+        $DIC->ui()->mainTemplate()->setContent($form->getContentSelectionRequest($formaction));
+    }
+
+    public function cancelContentSelection(): void
+    {
+        global $DIC;
+        if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
+            throw new ilLtiConsumerException('permission denied!');
+        }
+        $new_type = $this->getRequestValue("new_type");
+        $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class,'new_type',$new_type);
+        $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class,'create');
     }
 
     protected function afterSave(\ilObject $newObject): void
@@ -642,8 +670,28 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
                 break;
 
             default:
-                $command = $DIC->ctrl()->getCmd(self::DEFAULT_CMD);
-                $this->{$command}();
+                if ($DIC->ctrl()->getCmd() === 'save') {
+                    $this->checkContentSelection();
+                } else {
+                    $command = $DIC->ctrl()->getCmd(self::DEFAULT_CMD);
+                    $this->{$command}();
+                }
+        }
+    }
+
+    protected function checkContentSelection(): void {
+        $providerId = $this->getRequestValue('provider_id');
+        $newType = $this->getRequestValue('new_type');
+        $refId = $this->getRequestValue('ref_id');
+        if ($providerId !== null && $newType == 'lti' && $refId != null) {
+            $provider = new ilLTIConsumeProvider((int)$providerId);
+            if ($provider->isContentItem() && !empty($provider->getContentItemUrl())) {
+                $this->contentSelection($providerId, $newType, $refId, $provider);
+            } else {
+                $this->save();
+            }
+        } else {
+            $this->save();
         }
     }
 

@@ -38,15 +38,12 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
      */
     protected bool $adminContext = false;
 
-    protected bool $dynamicMode = false;
-
     /**
      * ilLTIConsumeProviderFormGUI constructor.
      */
-    public function __construct(ilLTIConsumeProvider $provider, bool $dynMode = false)
+    public function __construct(ilLTIConsumeProvider $provider)
     {
         parent::__construct();
-        $this->dynamicMode = $dynMode;
         $this->provider = $provider;
     }
 
@@ -869,6 +866,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
                 $provider->setPublicKeyset($this->getInput('public_keyset'));
             }
             $provider->setContentItem((bool) $this->getInput('content_item'));
+            //ToDo: maybe its usefull to seperate the switch from the content field
             if ($provider->isContentItem()) {
                 $provider->setContentItemUrl($this->getInput('content_item_url'));
             }
@@ -921,9 +919,20 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $this->addItem($regParamsInp);
     }
 
+    public function getContentSelectionRequest($formaction): string
+    {
+        global $DIC;
+        $lng = $DIC->language();
+        $this->setFormAction($formaction);
+        $this->setTitle($lng->txt('lti_form_provider_content_selection'));
+        $this->clearCommandButtons();
+        $this->addCommandButton("cancelContentSelection", $lng->txt('cancel'));
+        return $this->getHTML();
+    }
+
     public function getDynRegRequest(): string
     {
-        global $DIC; /* @var \ILIAS\DI\Container $DIC */
+        global $DIC;
         $lng = $DIC->language();
         //ToDo: is url format validation?
         $toolRegUrl = $this->getInput('lti_dyn_reg_url');
