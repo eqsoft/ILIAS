@@ -169,7 +169,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
 
         $form = new ilLTIConsumeProviderFormGUI($provider);
 
-        $form->initForm($this->ctrl->getFormAction($this, "cancelDynReg"), '', '');
+        $form->initToolConfigForm($this->ctrl->getFormAction($this, "cancelDynReg"), '', '');
 
         $form->clearCommandButtons();
         $form->addCommandButton("saveDynReg", $this->lng->txt('save'));
@@ -348,16 +348,16 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $new_type = $this->getRequestValue("new_type");
         $DIC->ctrl()->setParameter($this, "new_type", $new_type);
         $provider_id = $this->getRequestValue("provider_id");
-        //$DIC->ctrl()->setParameter($this, "provider_id", $provider_id);
+        $DIC->ctrl()->setParameter($this, "provider_id", $provider_id);
         $DIC->language()->loadLanguageModule($new_type);
+        ilSession::clear('lti_dynamic_registration_client_id');
+        ilSession::clear('custom_params');
         $form = $this->initShowToolConfig($new_type,(int)$provider_id);
         $form->setValuesByPost();
         if ($form->checkInput()) { // update only overridable fields
             $provider = $form->getProvider();
             $form->initProvider($provider);
             $provider->update();
-            ilSession::clear('lti_dynamic_registration_client_id');
-            ilSession::clear('custom_params');
             // jump to provider selection table
             $DIC->ctrl()->redirectByClass([ilRepositoryGUI::class, ilObjLTIConsumerGUI::class],"create");
             return;

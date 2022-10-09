@@ -106,6 +106,7 @@ class ilLTIConsumerSettingsGUI
         return true;
     }
 
+    /* deprecated
     public static function isUserDynamicRegistrationTransaction(ilLTIConsumeProvider $provider): bool
     {
         global $DIC;
@@ -120,6 +121,7 @@ class ilLTIConsumerSettingsGUI
         }
         return false;
     }
+    */
 
     /**
      * Execute Command
