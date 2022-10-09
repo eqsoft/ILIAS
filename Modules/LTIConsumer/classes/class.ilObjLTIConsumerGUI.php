@@ -349,8 +349,6 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         if ($form->checkInput()) { // update only overridable fields
             $provider = $form->getProvider();
             $form->initProvider($provider);
-            //$provider->setTitle($form->getInput('title'));
-            //$provider->setDescription($form->getInput('description'));
             $provider->update();
             ilSession::clear('lti_dynamic_registration_client_id');
             ilSession::clear('custom_params');

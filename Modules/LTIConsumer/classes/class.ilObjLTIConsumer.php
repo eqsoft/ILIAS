@@ -58,6 +58,8 @@ class ilObjLTIConsumer extends ilObject2
 
     protected string $customLaunchSecret = '';
 
+    protected string $customParams = '';
+
     protected ?int $ref_id = 0;
 
     //Highscore
@@ -228,6 +230,16 @@ class ilObjLTIConsumer extends ilObject2
         $this->customLaunchSecret = $customLaunchSecret;
     }
 
+    public function getCustomParams(): string
+    {
+        return $this->customParams;
+    }
+
+    public function setCustomParams(string $customParams): void
+    {
+        $this->customParams = $customParams;
+    }
+
     public function getLaunchKey(): string
     {
         if ($this->getProvider()->isProviderKeyCustomizable()) {
@@ -288,7 +300,30 @@ class ilObjLTIConsumer extends ilObject2
     /**
      * @return string[]
      */
-    private function getCustomParams(): array
+    public function getCustomParamsArray(): array
+    {
+        $paramsAsArray = [];
+
+        $params = $this->getCustomParams();
+        // allows   foo=bar;foo2=baz2; foo3=baz3
+        $params = preg_split('/; ?/', $params);
+
+        foreach ($params as $param) {
+            $param = explode('=', $param);
+            // empty field, duplicate/leading/trailing semicolon?
+            if ($param[0] != '') {
+                $value = isset($param[1]) ? $param[1] : '';
+                $paramsAsArray[$param[0]] = $value;
+            }
+        }
+
+        return $paramsAsArray;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getProviderCustomParamsArray(): array
     {
         $paramsAsArray = [];
 
@@ -307,7 +342,6 @@ class ilObjLTIConsumer extends ilObject2
 
         return $paramsAsArray;
     }
-
 
     protected function doRead(): void
     {
@@ -331,6 +365,7 @@ class ilObjLTIConsumer extends ilObject2
 
             $this->setCustomLaunchKey((string) $row['launch_key']);
             $this->setCustomLaunchSecret((string) $row['launch_secret']);
+            $this->setCustomParams((string) $row['custom_params']);
 
             $this->setUseXapi((bool) $row['use_xapi']);
             $this->setCustomActivityId((string) $row['activity_id']);
@@ -365,6 +400,7 @@ class ilObjLTIConsumer extends ilObject2
             'launch_method' => ['text', $this->getLaunchMethod()],
             'launch_key' => ['text', $this->getCustomLaunchKey()],
             'launch_secret' => ['text', $this->getCustomLaunchSecret()],
+            'custom_params' => ['text', $this->getCustomParams()],
             'use_xapi' => ['integer',$this->getUseXapi()],
             'activity_id' => ['text',$this->getCustomActivityId()],
             'show_statements' => ['integer',$this->isStatementsReportEnabled()],
@@ -663,7 +699,11 @@ class ilObjLTIConsumer extends ilObject2
 
         ilLTIConsumerResult::getByKeys($this->getId(), $DIC->user()->getId(), true);
 
-        $custom_params = $this->getCustomParams();
+        //ToDo: Check!
+        $provider_custom_params = $this->getProviderCustomParamsArray();
+        $custom_params = $this->getCustomParamsArray();
+        $merged_params = array_merge($provider_custom_params,$custom_params);
+
         $toolConsumerInstanceGuid = CLIENT_ID . ".";
         $parseIliasUrl = parse_url(ILIAS_HTTP_PATH);
         if (array_key_exists("path", $parseIliasUrl)) {
@@ -713,7 +753,7 @@ class ilObjLTIConsumer extends ilObject2
             "http_method" => "POST",
             "sign_method" => "HMAC_SHA1",
             "token" => null,
-            "data" => ($launch_vars + $custom_params)
+            "data" => ($launch_vars + $merged_params)
         ];
 
         return ilLTIConsumerLaunch::signOAuth($OAuthParams);
@@ -815,8 +855,10 @@ class ilObjLTIConsumer extends ilObject2
             "role_scope_mentor" => ""
         ];
 
-        $custom_params = $this->getCustomParams();
-        foreach ($custom_params as $key => $value) {
+        $provider_custom_params = $this->getProviderCustomParamsArray();
+        $custom_params = $this->getCustomParamsArray();
+        $merged_params = array_merge($provider_custom_params,$custom_params);
+        foreach ($merged_params as $key => $value) {
             $launch_vars['custom_' . $key] = $value;
         }
 
