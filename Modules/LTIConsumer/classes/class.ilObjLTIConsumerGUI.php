@@ -428,7 +428,8 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             exit; //TODO: no exit
         } else {
             $loginData = ilSession::get('lti13_login_data');
-            $data = ilObjLTIConsumer::buildContentSelectionParameters($provider, (int) $ref_id, $DIC->ctrl()->getLinkTarget($this, 'contentSelectionResponse'),$loginData['nonce']);
+            // ToDo: correct Link!! replace ILIAS_HTTP_PATH
+            $data = ilObjLTIConsumer::buildContentSelectionParameters($provider, (int) $ref_id, ilObjLTIConsumer::getIliasHttpPath()."/".$DIC->ctrl()->getLinkTarget($this, 'contentSelectionResponse'),$loginData['nonce']);
             $tplContentSelection = new ilTemplate("tpl.lti_jwt_autosubmit.html", true, true, "Modules/LTIConsumer");
             $tplContentSelection->setVariable("LTI_JWT_FORM_ACTION", $provider->getContentItemUrl());
             $tplContentSelection->setVariable("LTI_JWT_ID_TOKEN", $data['id_token']);
@@ -437,6 +438,31 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             echo $tplContentSelection->get();
             exit; //TODO: no exit
         }
+    }
+
+    public function contentSelectionResponse(): void {
+        global $DIC;
+        if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
+            throw new ilLtiConsumerException('permission denied!');
+        }
+        $new_type = $this->getRequestValue("new_type");
+        $DIC->ctrl()->setParameter($this, "new_type", $new_type);
+        $provider_id = $this->getRequestValue("provider_id");
+        $DIC->ctrl()->setParameter($this, "provider_id", $provider_id);
+        $ref_id = $this->getRequestValue("ref_id");
+        $DIC->ctrl()->setParameter($this, "ref_id", $ref_id);
+        $DIC->language()->loadLanguageModule($new_type);
+        $DIC->http()->wrapper()->post()->retrieve('JWT',$DIC->refinery()->kindlyTo()->string());
+        $provider = new ilLTIConsumeProvider((int) $provider_id);
+        //ToDo: fetch with file_get_contents ok? needs caching?
+        $jwks = file_get_contents($provider->getPublicKeyset());
+        //ToDo: Errorhandling
+        $keyset = json_decode($jwks,true);
+        $token = $DIC->http()->wrapper()->post()->retrieve('JWT',$DIC->refinery()->kindlyTo()->string());
+        $keys = Firebase\JWT\JWK::parseKeySet($keyset);
+        $data = Firebase\JWT\JWT::decode($token, $keys);
+        echo var_export($data,true);
+        exit;
     }
 
     public function cancelContentSelection(): void

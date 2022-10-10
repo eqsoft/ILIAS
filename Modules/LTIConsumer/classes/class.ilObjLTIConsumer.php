@@ -1057,7 +1057,6 @@ class ilObjLTIConsumer extends ilObject2
                 $payLoad["{$claim}/claim/ext"][substr($key, 4)] = $value;
             }
         }
-        file_put_contents("log.txt",json_encode($payLoad,JSON_PRETTY_PRINT),FILE_APPEND);
         if (!empty(self::verifyPrivateKey())) {
             throw new DomainException(self::ERROR_OPEN_SSL_CONF);
         }
@@ -1065,7 +1064,6 @@ class ilObjLTIConsumer extends ilObject2
         $jwt = Firebase\JWT\JWT::encode($payLoad, $privateKey['key'], 'RS256', $privateKey['kid']);
         $newParms = array();
         $newParms['id_token'] = $jwt;
-        file_put_contents("log.txt",var_export($newParms,true),FILE_APPEND);
         return $newParms;
     }
 
@@ -1136,7 +1134,7 @@ class ilObjLTIConsumer extends ilObject2
         return $jwks;
     }
 
-    protected static function getIliasHttpPath(): string
+    public static function getIliasHttpPath(): string
     {
         global $DIC;
 
