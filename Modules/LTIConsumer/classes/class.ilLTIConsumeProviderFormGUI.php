@@ -919,7 +919,7 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $this->addItem($regParamsInp);
     }
 
-    public function getContentSelectionRequest($formaction): string
+    public function getContentSelectionFrame($formaction): string
     {
         global $DIC;
         $lng = $DIC->language();
@@ -927,7 +927,10 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $this->setTitle($lng->txt('lti_form_provider_content_selection'));
         $this->clearCommandButtons();
         $this->addCommandButton("cancelContentSelection", $lng->txt('cancel'));
-        return $this->getHTML();
+        $src = $DIC->ctrl()->getLinkTargetByClass(ilObjLTIConsumerGUI::class,'contentSelectionRequest');
+        $template = new ilTemplate('tpl.lti_content_selection.html',true,true, "Modules/LTIConsumer");
+        $template->setVariable('LTI_CONTENT_SELECTION_IFRAME_SRC',$src);
+        return $this->getHTML() . $template->get();
     }
 
     public function getDynRegRequest(): string

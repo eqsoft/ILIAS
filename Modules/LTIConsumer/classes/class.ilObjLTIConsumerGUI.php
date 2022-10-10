@@ -379,7 +379,24 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
 
         $form = new ilLTIConsumeProviderFormGUI($provider);
         $formaction = $this->ctrl->getFormAction($this, "cancelContentSelection");
-        $DIC->ui()->mainTemplate()->setContent($form->getContentSelectionRequest($formaction));
+        $DIC->ui()->mainTemplate()->setContent($form->getContentSelectionFrame($formaction));
+    }
+
+    public function contentSelectionRequest(): void
+    {
+        global $DIC;
+        if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
+            throw new ilLtiConsumerException('permission denied!');
+        }
+        $new_type = $this->getRequestValue("new_type");
+        $DIC->ctrl()->setParameter($this, "new_type", $new_type);
+        $provider_id = $this->getRequestValue("provider_id");
+        $DIC->ctrl()->setParameter($this, "provider_id", $provider_id);
+        $ref_id = $this->getRequestValue("ref_id");
+        $DIC->ctrl()->setParameter($this, "ref_id", $ref_id);
+        $DIC->language()->loadLanguageModule($new_type);
+        echo "<pre>Loading...</pre>";
+        exit; //TODO: no exit
     }
 
     public function cancelContentSelection(): void
