@@ -321,6 +321,19 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             throw new ilLtiConsumerException('permission denied!');
         }
         $new_type = $this->getRequestValue("new_type");
+        //$provider_id = $this->getRequestValue("provider_id");
+        if (ilSession::has('lti_dynamic_registration_client_id')) {
+            $providerId = ilLTIConsumeProvider::getProviderIdFromClientId(ilSession::get('lti_dynamic_registration_client_id'));
+            if ($providerId > 0) {
+                try {
+                    $provider = new ilLTIConsumeProvider($providerId);
+                    //ToDo: check if provider is in use? should never happen...
+                    $provider->delete();
+                } catch (\ILIAS\Filesystem\Exception\IOException $e) {
+                    //ToDo: error handling
+                }
+            }
+        }
         $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class, 'new_type', $new_type);
         $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class, 'create');
     }
