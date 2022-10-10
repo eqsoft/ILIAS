@@ -927,9 +927,9 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         $this->setTitle($lng->txt('lti_form_provider_content_selection'));
         $this->clearCommandButtons();
         $this->addCommandButton("cancelContentSelection", $lng->txt('cancel'));
-        $src = $DIC->ctrl()->getLinkTargetByClass(ilObjLTIConsumerGUI::class,'contentSelectionRequest');
-        $template = new ilTemplate('tpl.lti_content_selection.html',true,true, "Modules/LTIConsumer");
-        $template->setVariable('LTI_CONTENT_SELECTION_IFRAME_SRC',$src);
+        $src = $DIC->ctrl()->getLinkTargetByClass(ilObjLTIConsumerGUI::class, 'contentSelectionRequest');
+        $template = new ilTemplate('tpl.lti_content_selection.html', true, true, "Modules/LTIConsumer");
+        $template->setVariable('LTI_CONTENT_SELECTION_IFRAME_SRC', $src);
         return $this->getHTML() . $template->get();
     }
 
@@ -940,22 +940,22 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
         //ToDo: is url format validation?
         $toolRegUrl = $this->getInput('lti_dyn_reg_url');
         $customParams = $this->getInput('lti_dyn_reg_custom_params');
-        $regUrl = ilObjLTIConsumer::getRegistrationStartUrl()."?url=".urlencode($toolRegUrl);
+        $regUrl = ilObjLTIConsumer::getRegistrationStartUrl() . "?url=" . urlencode($toolRegUrl);
         if (!empty($customParams)) {
             $regUrl .= "&custom_params=" . urlencode($customParams);
         }
-        $showToolConfigUrl = $DIC->ctrl()->getLinkTargetByClass([ilRepositoryGUI::class,ilObjLTIConsumerGUI::class],'showToolConfig');
-        $regErrorUrl = $DIC->ctrl()->getLinkTargetByClass([ilRepositoryGUI::class,ilObjLTIConsumerGUI::class],'addDynReg');
+        $showToolConfigUrl = $DIC->ctrl()->getLinkTargetByClass([ilRepositoryGUI::class,ilObjLTIConsumerGUI::class], 'showToolConfig');
+        $regErrorUrl = $DIC->ctrl()->getLinkTargetByClass([ilRepositoryGUI::class,ilObjLTIConsumerGUI::class], 'addDynReg');
         $this->getItemByPostVar('lti_dyn_reg_url')->setDisabled(true);
         $this->getItemByPostVar('lti_dyn_reg_custom_params')->setDisabled(true);
         $this->clearCommandButtons();
         //$this->addCommandButton("cancelDynReg", $DIC->language()->txt('cancel'));
-        $template = new ilTemplate('tpl.lti_dyn_reg_request.html',true,true, "Modules/LTIConsumer");
-        $template->setVariable('LTI_TOOL_REG_URL',$toolRegUrl);
-        $template->setVariable('LTI_DYN_REG_URL',$regUrl);
-        $template->setVariable('LTI_REG_END_URL',ilObjLTIConsumer::getRegistrationEndUrl());
-        $template->setVariable('LTI_SHOW_TOOL_CONFIG_URL',$showToolConfigUrl);
-        $template->setVariable('LTI_REG_ERROR_URL',$regErrorUrl);
+        $template = new ilTemplate('tpl.lti_dyn_reg_request.html', true, true, "Modules/LTIConsumer");
+        $template->setVariable('LTI_TOOL_REG_URL', $toolRegUrl);
+        $template->setVariable('LTI_DYN_REG_URL', $regUrl);
+        $template->setVariable('LTI_REG_END_URL', ilObjLTIConsumer::getRegistrationEndUrl());
+        $template->setVariable('LTI_SHOW_TOOL_CONFIG_URL', $showToolConfigUrl);
+        $template->setVariable('LTI_REG_ERROR_URL', $regErrorUrl);
         $DIC->ui()->mainTemplate()->setOnScreenMessage('info', $lng->txt('lti_dyn_reg_redirect_after_10_secs'));
         return $template->get() . $this->getHTML();
     }

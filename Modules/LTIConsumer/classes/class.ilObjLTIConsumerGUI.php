@@ -302,7 +302,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $form->setValuesByPost();
         if (!empty($error)) {
             $DIC->ctrl()->setParameter($this, "new_type", "");
-            $DIC->ui()->mainTemplate()->setOnScreenMessage('failure',base64_decode($error));
+            $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', base64_decode($error));
             $DIC->ui()->mainTemplate()->setContent($form->getDynRegError());
             return;
         }
@@ -321,11 +321,12 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             throw new ilLtiConsumerException('permission denied!');
         }
         $new_type = $this->getRequestValue("new_type");
-        $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class,'new_type',$new_type);
-        $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class,'create');
+        $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class, 'new_type', $new_type);
+        $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class, 'create');
     }
 
-    public function showToolConfig(): void {
+    public function showToolConfig(): void
+    {
         global $DIC;
         if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
             throw new ilLtiConsumerException('permission denied!');
@@ -335,7 +336,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $provider_id = $this->getRequestValue("provider_id");
         $DIC->ctrl()->setParameter($this, "provider_id", $provider_id);
         $DIC->language()->loadLanguageModule($new_type);
-        $form = $this->initShowToolConfig($new_type,(int)$provider_id);
+        $form = $this->initShowToolConfig($new_type, (int)$provider_id);
         $DIC->ui()->mainTemplate()->setContent($form->getHTML());
     }
 
@@ -352,7 +353,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $DIC->language()->loadLanguageModule($new_type);
         ilSession::clear('lti_dynamic_registration_client_id');
         ilSession::clear('lti_dynamic_registration_custom_params');
-        $form = $this->initShowToolConfig($new_type,(int)$provider_id);
+        $form = $this->initShowToolConfig($new_type, (int)$provider_id);
         $form->setValuesByPost();
         if ($form->checkInput()) { // update only overridable fields
             $provider = $form->getProvider();
@@ -361,7 +362,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             // jump to provider selection is one option:
             // $DIC->ctrl()->redirectByClass([ilRepositoryGUI::class, ilObjLTIConsumerGUI::class],"create");
             // direct redirection to save is onle less click (there is a switch for save | contentSelection in GUI class):
-            $DIC->ctrl()->redirectByClass([ilRepositoryGUI::class, ilObjLTIConsumerGUI::class],"save");
+            $DIC->ctrl()->redirectByClass([ilRepositoryGUI::class, ilObjLTIConsumerGUI::class], "save");
             return;
         }
         $DIC->ui()->mainTemplate()->setContent($form->getHTML());
@@ -406,8 +407,8 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             throw new ilLtiConsumerException('permission denied!');
         }
         $new_type = $this->getRequestValue("new_type");
-        $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class,'new_type',$new_type);
-        $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class,'create');
+        $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class, 'new_type', $new_type);
+        $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class, 'create');
     }
 
     protected function afterSave(\ilObject $newObject): void
@@ -696,7 +697,8 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         }
     }
 
-    protected function checkContentSelection(): void {
+    protected function checkContentSelection(): void
+    {
         $providerId = $this->getRequestValue('provider_id');
         $newType = $this->getRequestValue('new_type');
         $refId = $this->getRequestValue('ref_id');

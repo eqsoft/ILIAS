@@ -702,7 +702,7 @@ class ilObjLTIConsumer extends ilObject2
         //ToDo: Check!
         $provider_custom_params = $this->getProviderCustomParamsArray();
         $custom_params = $this->getCustomParamsArray();
-        $merged_params = array_merge($provider_custom_params,$custom_params);
+        $merged_params = array_merge($provider_custom_params, $custom_params);
 
         $toolConsumerInstanceGuid = CLIENT_ID . ".";
         $parseIliasUrl = parse_url(ILIAS_HTTP_PATH);
@@ -857,7 +857,7 @@ class ilObjLTIConsumer extends ilObject2
 
         $provider_custom_params = $this->getProviderCustomParamsArray();
         $custom_params = $this->getCustomParamsArray();
-        $merged_params = array_merge($provider_custom_params,$custom_params);
+        $merged_params = array_merge($provider_custom_params, $custom_params);
         foreach ($merged_params as $key => $value) {
             $launch_vars['custom_' . $key] = $value;
         }
@@ -969,7 +969,7 @@ class ilObjLTIConsumer extends ilObject2
 
         $provider_custom_params = $this->getProviderCustomParamsArray();
         $custom_params = $this->getCustomParamsArray();
-        $merged_params = array_merge($provider_custom_params,$custom_params);
+        $merged_params = array_merge($provider_custom_params, $custom_params);
         foreach ($merged_params as $key => $value) {
             $launch_vars['custom_' . $key] = $value;
         }
