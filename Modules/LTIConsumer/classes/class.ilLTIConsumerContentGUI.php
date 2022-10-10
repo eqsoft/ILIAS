@@ -363,7 +363,6 @@ class ilLTIConsumerContentGUI
         $launchContextTitle = $launchContext["title"];
 
         $cmixUser = $this->cmixUser;
-        ilObjLTIConsumer::buildContentSelectionParameters($this->object->getProvider(),'', $clientId, $deploymentId, $nonce, $launchContextType, $launchContextId, $launchContextTitle,"http://returnurl");
         return $this->object->buildLaunchParametersLTI13(
             $cmixUser,
             $endpoint,
@@ -511,3 +510,4 @@ class ilLTIConsumerContentGUI
         return $default ?? null;
     }
 }
+

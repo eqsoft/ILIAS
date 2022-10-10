@@ -409,8 +409,32 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $ref_id = $this->getRequestValue("ref_id");
         $DIC->ctrl()->setParameter($this, "ref_id", $ref_id);
         $DIC->language()->loadLanguageModule($new_type);
-        echo "<pre>Loading...</pre>";
-        exit; //TODO: no exit
+        $provider = new ilLTIConsumeProvider((int) $provider_id);
+        $redirectUrl = $DIC->ctrl()->getLinkTarget($this,'contentSelectionRequest');
+
+        if (!ilSession::has('lti13_login_data')) {
+            $userIdLTI = ilCmiXapiUser::getIdentAsId($provider->getPrivacyIdent(), $DIC->user());
+            //$emailPrimary = ilCmiXapiUser::getIdent($provider->getPrivacyIdent(), $DIC->user());
+            $ltiMessageHint = (string) $ref_id . ":" . CLIENT_ID . ":" . base64_encode($redirectUrl);
+            $tplLogin = new ilTemplate("tpl.lti_initial_login.html", true, true, "Modules/LTIConsumer");
+            $tplLogin->setVariable("LTI_INITIAL_LOGIN_ACTION",$provider->getInitiateLogin());
+            $tplLogin->setVariable("ISS",ILIAS_HTTP_PATH);
+            $tplLogin->setVariable("TARGET_LINK_URL",$provider->getProviderUrl());
+            $tplLogin->setVariable("LOGIN_HINT",$userIdLTI);
+            $tplLogin->setVariable("LTI_MESSAGE_HINT",$ltiMessageHint);
+            $tplLogin->setVariable("CLIENT_ID",$provider->getClientId());
+            $tplLogin->setVariable("LTI_DEPLOYMENT_ID",(string) $provider->getId());
+            echo $tplLogin->get();
+            exit; //TODO: no exit
+        } else {
+            $data = ilObjLTIConsumer::buildContentSelectionParameters($provider, (int) $ref_id, $DIC->ctrl()->getLinkTarget($this, 'contentSelectionResponse'));
+            $tplContentSelection = new ilTemplate("tpl.lti_jwt_autosubmit.html", true, true, "Modules/LTIConsumer");
+            $tplContentSelection->setVariable("LTI_JWT_FORM_ACTION", $provider->getContentItemUrl());
+            $tplContentSelection->setVariable("LTI_JWT_ID_TOKEN", $data['id_token']);
+            //echo "<pre>" . var_export($data,true) . "</pre>";
+            echo $tplContentSelection->get();
+            exit; //TODO: no exit
+        }
     }
 
     public function cancelContentSelection(): void

@@ -47,8 +47,10 @@ require_once("Services/Init/classes/class.ilInitialisation.php");
 ilInitialisation::initILIAS();
 
 global $DIC;
-
+//file_put_contents("log.txt",var_export($data,true),FILE_APPEND);
+//exit;
 $ltiMessageHint = $data['lti_message_hint'];
+
 if (empty($ltiMessageHint)) {
     $DIC->http()->saveResponse(
         $DIC->http()->response()
@@ -61,9 +63,25 @@ if (empty($ltiMessageHint)) {
         $DIC->http()->close();
     }
 }
-list($ref_id, $client_id) = explode(":", $ltiMessageHint);
+$mh = explode(":", $ltiMessageHint);
+$isContentSelection = false;
+$ref_id = '';
+$client_id = '';
+$redirect_uri = '';
+if (count($mh) == 2) { // launch message auth
+    list($ref_id, $client_id) = explode(":", $ltiMessageHint);
+} else { // contentSelection message auth
+    $isContentSelection = true;
+    list($ref_id, $client_id, $redirect_uri) = explode(":", $ltiMessageHint);
+}
+
 ilSession::set('lti13_login_data', $data);
-$url = "../../goto.php?target=lti_" . $ref_id . "&client_id=" . $client_id;
+if ($isContentSelection) {
+    $url = base64_decode($redirect_uri);
+} else {
+    $url = "../../goto.php?target=lti_" . $ref_id . "&client_id=" . $client_id;
+}
+
 $DIC->http()->saveResponse(
     $DIC->http()->response()
     ->withStatus(302)

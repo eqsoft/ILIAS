@@ -23,6 +23,7 @@ declare(strict_types=1);
  *
  * @author      Uwe Kohnle <kohnle@internetlehrer-gmbh.de>
  * @author      Björn Heyser <info@bjoernheyser.de>
+ * @author      Stefan Schneider <eqsoft4@gmail.com>
  *
  * @package     Modules/LTIConsumer
  */
@@ -866,7 +867,7 @@ class ilObjLTIConsumer extends ilObject2
             $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', 'ERROR_OPEN_SSL_CONF', true);
             return null;
         }
-        return self::LTISignJWT($launch_vars, $endpoint, $clientId, $deploymentId, $nonce);
+        return self::LTISignJWT($launch_vars, $clientId, $deploymentId, $nonce);
     }
 
     /**
@@ -875,9 +876,19 @@ class ilObjLTIConsumer extends ilObject2
 
     // ToDo:
 
-    public static function buildContentSelectionParameters(ilLTIConsumeProvider $provider, string $endpoint, string $clientId, int $deploymentId, string $nonce, string $contextType, string $contextId, string $contextTitle, string $returnUrl): ?array
+    public static function buildContentSelectionParameters(ilLTIConsumeProvider $provider, int $refId, string $returnUrl): ?array
     {
         global $DIC;
+
+        $nonce = ILIAS\LTI\ToolProvider\Util::getRandomString(15);
+        $clientId = $provider->getClientId();
+        $deploymentId = $provider->getId();
+        $ilLTIConsumerLaunch = new ilLTIConsumerLaunch($refId);
+        $context = $ilLTIConsumerLaunch->getContext();
+        $contextType = $ilLTIConsumerLaunch::getLTIContextType($context["type"]);
+        $contextId = $context["id"];
+        $contextTitle = $context["title"];
+
         $roles = "Instructor";
         $usrImage = '';
         if ($provider->getIncludeUserPicture()) {
@@ -909,7 +920,6 @@ class ilObjLTIConsumer extends ilObject2
         }
 
         $userIdLTI = ilCmiXapiUser::getIdentAsId($provider->getPrivacyIdent(), $DIC->user());
-        //$emailPrimary = $cmixUser->getUsrIdent();
         $emailPrimary = ilCmiXapiUser::getIdent($provider->getPrivacyIdent(), $DIC->user());
         $toolConsumerInstanceGuid = CLIENT_ID . ".";
         $parseIliasUrl = parse_url(ILIAS_HTTP_PATH);
@@ -918,84 +928,7 @@ class ilObjLTIConsumer extends ilObject2
         }
         $toolConsumerInstanceGuid .= $parseIliasUrl["host"];
 
-        /*
-
- $launch_vars = [
-   "iss" => "https://platform.example.org",
-   "sub" => "a6d5c443-1f51-4783-ba1a-7686ffe3b54a",
-   "aud" => [
-         "962fa4d8-bcbf-49a0-94b2-2de05ad274af"
-      ],
-   "exp" => 1510185728,
-   "iat" => 1510185228,
-   "azp" => "962fa4d8-bcbf-49a0-94b2-2de05ad274af",
-   "nonce" => "fc5fdc6d-5dd6-47f4-b2c9-5d1216e9b771",
-   "name" => "Ms Jane Marie Doe",
-   "given_name" => "Jane",
-   "family_name" => "Doe",
-   "middle_name" => "Marie",
-   "picture" => "https://example.org/jane.jpg",
-   "email" => "jane@example.org",
-   "locale" => "en-US",
-   "https://purl.imsglobal.org/spec/lti/claim/deployment_id" => "07940580-b309-415e-a37c-914d387c1150",
-   "https://purl.imsglobal.org/spec/lti/claim/message_type" => "LtiDeepLinkingRequest",
-   "https://purl.imsglobal.org/spec/lti/claim/version" => "1.3.0",
-   "https://purl.imsglobal.org/spec/lti/claim/roles" => [
-            "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
-            "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Faculty"
-         ],
-   "https://purl.imsglobal.org/spec/lti/claim/context" => [
-               "id" => "c1d887f0-a1a3-4bca-ae25-c375edcc131a",
-               "label" => "ECON 101",
-               "title" => "Economics as a Social Science",
-               "type" => [
-                  "CourseOffering"
-               ]
-            ],
-   "https://purl.imsglobal.org/spec/lti/claim/tool_platform" => [
-                     "contact_email" => "support@example.org",
-                     "description" => "An Example Tool Platform",
-                     "name" => "Example Tool Platform",
-                     "url" => "https://example.org",
-                     "product_family_code" => "example.org",
-                     "version" => "1.0"
-                  ],
-   "https://purl.imsglobal.org/spec/lti/claim/launch_presentation" => [
-                        "document_target" => "iframe",
-                        "height" => 320,
-                        "width" => 240
-                     ],
-   "https://purl.imsglobal.org/spec/lti/claim/custom" => [
-                           "myCustom" => "123"
-                        ],
-   "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings" => [
-                              "deep_link_return_url" => "https://platform.example/deep_links",
-                              "accept_types" => [
-                                 "link",
-                                 "file",
-                                 "html",
-                                 "ltiResourceLink",
-                                 "image"
-                              ],
-                              "accept_media_types" => "image/*,text/html",
-                              "accept_presentation_document_targets" => [
-                                    "iframe",
-                                    "window",
-                                    "embed"
-                                 ],
-                              "accept_multiple" => true,
-                              "auto_create" => true,
-                              "title" => "This is the default title",
-                              "text" => "This is the default text",
-                              "data" => "csrftoken:c7fbba78-7b75-46e3-9201-11e6d5f36f53"
-                           ]
-];
-
-
-         */
-
-
-        $launch_vars = [
+        $content_select_vars = [
             "lti_message_type" => "ContentItemSelectionRequest",
             "lti_version" => "1.3.0",
             "user_id" => (string) $userIdLTI,
@@ -1020,7 +953,7 @@ class ilObjLTIConsumer extends ilObject2
             "tool_consumer_instance_contact_email" => $DIC->settings()->get("admin_email"),
             "tool_consumer_info_product_family_code" => "ilias",
             "tool_consumer_info_version" => ILIAS_VERSION,
-            "deep_link_return_url" => $returnUrl,
+            "content_item_return_url" => $returnUrl,
             "accept_types" => "ltiResourceLink",
             "accept_presentation_document_targets" => "iframe,window,embed",
             "accept_multiple" => true,
@@ -1028,17 +961,17 @@ class ilObjLTIConsumer extends ilObject2
         ];
         $provider_custom_params = self::getProviderCustomParamsArray($provider);
         foreach ($provider_custom_params as $key => $value) {
-            $launch_vars['custom_' . $key] = $value;
+            $content_select_vars['custom_' . $key] = $value;
         }
 
         if (!empty(self::verifyPrivateKey())) {
             $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', 'ERROR_OPEN_SSL_CONF', true);
             return null;
         }
-        return self::LTISignJWT($launch_vars, $endpoint, $clientId, $deploymentId, $nonce);
+        return self::LTISignJWT($content_select_vars, $clientId, $deploymentId, $nonce);
     }
 
-    public static function LTISignJWT(array $parms, string $endPoint, string $oAuthConsumerKey, $typeId = 0, string $nonce = ''): array
+    public static function LTISignJWT(array $parms, string $oAuthConsumerKey, $typeId = 0, string $nonce = ''): array
     {
         if (empty($typeId)) {
             $typeId = 0;
@@ -1118,7 +1051,7 @@ class ilObjLTIConsumer extends ilObject2
         $jwt = Firebase\JWT\JWT::encode($payLoad, $privateKey['key'], 'RS256', $privateKey['kid']);
         $newParms = array();
         $newParms['id_token'] = $jwt;
-
+        file_put_contents("log.txt",var_export($newParms,true),FILE_APPEND);
         return $newParms;
     }
 
@@ -1364,3 +1297,60 @@ class ilObjLTIConsumer extends ilObject2
         }
     }
 }
+
+/*
+{
+    "nonce": "1tPjia7uxOZvNUVoIz9EmmAWGyscaiLV",
+    "iat": 1665414749,
+    "exp": 1665414809,
+    "iss": "https:\/\/ltitrunk.example.com",
+    "aud": "n6ueV4rdz90Noys",
+    "https:\/\/purl.imsglobal.org\/spec\/lti\/claim\/deployment_id": "1",
+    "https:\/\/purl.imsglobal.org\/spec\/lti\/claim\/message_type": "LtiDeepLinkingRequest",
+    "https:\/\/purl.imsglobal.org\/spec\/lti\/claim\/version": "1.3.0",
+    "sub": "6",
+    "picture": "",
+    "https:\/\/purl.imsglobal.org\/spec\/lti\/claim\/roles": [
+        "http:\/\/purl.imsglobal.org\/vocab\/lis\/v2\/membership#Instructor"
+    ],
+    "given_name": "-",
+    "family_name": "-",
+    "name": "-",
+    "email": "6@5f9613a4-886a-492c-bd92-1314e54c8eb3.ilias",
+    "https:\/\/purl.imsglobal.org\/spec\/lti\/claim\/context": {
+        "id": "82",
+        "type": [
+            "CourseOffering"
+        ],
+        "title": "LTI Kurs",
+        "label": "CourseOffering 82"
+    },
+    "https:\/\/purl.imsglobal.org\/spec\/lti\/claim\/launch_presentation": {
+        "locale": "de",
+        "document_target": "window",
+        "width": "",
+        "height": ""
+    },
+    "https:\/\/purl.imsglobal.org\/spec\/lti\/claim\/tool_platform": {
+        "guid": "ltitrunk.ltitrunk.example.com",
+        "name": "ltitrunk",
+        "description": "Open Source eLearning",
+        "url": "https:\/\/ltitrunk.example.com\/goto.php?target=root_1&client_id=ltitrunk",
+        "contact_email": "ltitrunk@ltitrunk.de",
+        "product_family_code": "ilias",
+        "version": "8.0_beta2 2022-09-21"
+    },
+    "https:\/\/purl.imsglobal.org\/spec\/lti-dl\/claim\/deep_linking_settings": {
+        "accept_types": [
+            "ltiResourceLink"
+        ],
+        "accept_presentation_document_targets": [
+            "embed",
+            "iframe",
+            "window"
+        ],
+        "accept_multiple": true,
+        "auto_create": true
+    }
+}
+ */
