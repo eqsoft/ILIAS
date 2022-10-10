@@ -323,11 +323,11 @@ class ilObjLTIConsumer extends ilObject2
     /**
      * @return string[]
      */
-    public function getProviderCustomParamsArray(): array
+    public static function getProviderCustomParamsArray(ilLTIConsumeProvider $provider): array
     {
         $paramsAsArray = [];
 
-        $params = $this->getProvider()->getCustomParams();
+        $params = $provider->getCustomParams();
         // allows   foo=bar;foo2=baz2; foo3=baz3
         $params = preg_split('/; ?/', $params);
 
@@ -700,7 +700,7 @@ class ilObjLTIConsumer extends ilObject2
         ilLTIConsumerResult::getByKeys($this->getId(), $DIC->user()->getId(), true);
 
         //ToDo: Check!
-        $provider_custom_params = $this->getProviderCustomParamsArray();
+        $provider_custom_params = self::getProviderCustomParamsArray($this->getProvider());
         $custom_params = $this->getCustomParamsArray();
         $merged_params = array_merge($provider_custom_params, $custom_params);
 
@@ -855,7 +855,7 @@ class ilObjLTIConsumer extends ilObject2
             "role_scope_mentor" => ""
         ];
 
-        $provider_custom_params = $this->getProviderCustomParamsArray();
+        $provider_custom_params = self::getProviderCustomParamsArray($this->getProvider());
         $custom_params = $this->getCustomParamsArray();
         $merged_params = array_merge($provider_custom_params, $custom_params);
         foreach ($merged_params as $key => $value) {
@@ -866,7 +866,7 @@ class ilObjLTIConsumer extends ilObject2
             $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', 'ERROR_OPEN_SSL_CONF', true);
             return null;
         }
-        return $this->LTISignJWT($launch_vars, $endpoint, $clientId, $deploymentId, $nonce);
+        return self::LTISignJWT($launch_vars, $endpoint, $clientId, $deploymentId, $nonce);
     }
 
     /**
@@ -875,34 +875,22 @@ class ilObjLTIConsumer extends ilObject2
 
     // ToDo:
 
-    public function buildContentSelectionParameters(ilCmiXapiUser $cmixUser, string $endpoint, string $clientId, int $deploymentId, string $nonce, string $contextType, string $contextId, string $contextTitle, ?string $returnUrl = ''): ?array
+    public static function buildContentSelectionParameters(ilLTIConsumeProvider $provider, string $endpoint, string $clientId, int $deploymentId, string $nonce, string $contextType, string $contextId, string $contextTitle, string $returnUrl): ?array
     {
-        global $DIC; /* @var \ILIAS\DI\Container $DIC */
-
-        $roles = $DIC->access()->checkAccess('write', '', $this->getRefId()) ? "Instructor" : "Learner";
-        if ($this->getProvider()->getAlwaysLearner() == true) {
-            $roles = "Learner";
-        }
-
-        $resource_link_id = $this->getRefId();
-        if ($this->getProvider()->getUseProviderId() == true) {
-            $resource_link_id = 'p' . $this->getProvider()->getId();
-        }
-
+        global $DIC;
+        $roles = "Instructor";
         $usrImage = '';
-        if ($this->getProvider()->getIncludeUserPicture()) {
+        if ($provider->getIncludeUserPicture()) {
             $usrImage = ILIAS_HTTP_PATH . "/" . $DIC->user()->getPersonalPicturePath("small");
         }
-
         $documentTarget = "window";
-        if ($this->getLaunchMethod() == self::LAUNCH_METHOD_EMBEDDED) {
+        if ($provider->getLaunchMethod() == self::LAUNCH_METHOD_EMBEDDED) {
             $documentTarget = "iframe";
         }
-
         $nameGiven = '-';
         $nameFamily = '-';
         $nameFull = '-';
-        switch ($this->getProvider()->getPrivacyName()) {
+        switch ($provider->getPrivacyName()) {
             case ilLTIConsumeProvider::PRIVACY_NAME_FIRSTNAME:
                 $nameGiven = $DIC->user()->getFirstname();
                 $nameFull = $DIC->user()->getFirstname();
@@ -920,24 +908,96 @@ class ilObjLTIConsumer extends ilObject2
                 break;
         }
 
-        $userIdLTI = ilCmiXapiUser::getIdentAsId($this->getProvider()->getPrivacyIdent(), $DIC->user());
-
-        $emailPrimary = $cmixUser->getUsrIdent();
-
-        ilLTIConsumerResult::getByKeys($this->getId(), $DIC->user()->getId(), true);
-
+        $userIdLTI = ilCmiXapiUser::getIdentAsId($provider->getPrivacyIdent(), $DIC->user());
+        //$emailPrimary = $cmixUser->getUsrIdent();
+        $emailPrimary = ilCmiXapiUser::getIdent($provider->getPrivacyIdent(), $DIC->user());
         $toolConsumerInstanceGuid = CLIENT_ID . ".";
         $parseIliasUrl = parse_url(ILIAS_HTTP_PATH);
         if (array_key_exists("path", $parseIliasUrl)) {
             $toolConsumerInstanceGuid .= implode(".", array_reverse(explode("/", $parseIliasUrl["path"])));
         }
         $toolConsumerInstanceGuid .= $parseIliasUrl["host"];
+
+        /*
+
+ $launch_vars = [
+   "iss" => "https://platform.example.org",
+   "sub" => "a6d5c443-1f51-4783-ba1a-7686ffe3b54a",
+   "aud" => [
+         "962fa4d8-bcbf-49a0-94b2-2de05ad274af"
+      ],
+   "exp" => 1510185728,
+   "iat" => 1510185228,
+   "azp" => "962fa4d8-bcbf-49a0-94b2-2de05ad274af",
+   "nonce" => "fc5fdc6d-5dd6-47f4-b2c9-5d1216e9b771",
+   "name" => "Ms Jane Marie Doe",
+   "given_name" => "Jane",
+   "family_name" => "Doe",
+   "middle_name" => "Marie",
+   "picture" => "https://example.org/jane.jpg",
+   "email" => "jane@example.org",
+   "locale" => "en-US",
+   "https://purl.imsglobal.org/spec/lti/claim/deployment_id" => "07940580-b309-415e-a37c-914d387c1150",
+   "https://purl.imsglobal.org/spec/lti/claim/message_type" => "LtiDeepLinkingRequest",
+   "https://purl.imsglobal.org/spec/lti/claim/version" => "1.3.0",
+   "https://purl.imsglobal.org/spec/lti/claim/roles" => [
+            "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor",
+            "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Faculty"
+         ],
+   "https://purl.imsglobal.org/spec/lti/claim/context" => [
+               "id" => "c1d887f0-a1a3-4bca-ae25-c375edcc131a",
+               "label" => "ECON 101",
+               "title" => "Economics as a Social Science",
+               "type" => [
+                  "CourseOffering"
+               ]
+            ],
+   "https://purl.imsglobal.org/spec/lti/claim/tool_platform" => [
+                     "contact_email" => "support@example.org",
+                     "description" => "An Example Tool Platform",
+                     "name" => "Example Tool Platform",
+                     "url" => "https://example.org",
+                     "product_family_code" => "example.org",
+                     "version" => "1.0"
+                  ],
+   "https://purl.imsglobal.org/spec/lti/claim/launch_presentation" => [
+                        "document_target" => "iframe",
+                        "height" => 320,
+                        "width" => 240
+                     ],
+   "https://purl.imsglobal.org/spec/lti/claim/custom" => [
+                           "myCustom" => "123"
+                        ],
+   "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings" => [
+                              "deep_link_return_url" => "https://platform.example/deep_links",
+                              "accept_types" => [
+                                 "link",
+                                 "file",
+                                 "html",
+                                 "ltiResourceLink",
+                                 "image"
+                              ],
+                              "accept_media_types" => "image/*,text/html",
+                              "accept_presentation_document_targets" => [
+                                    "iframe",
+                                    "window",
+                                    "embed"
+                                 ],
+                              "accept_multiple" => true,
+                              "auto_create" => true,
+                              "title" => "This is the default title",
+                              "text" => "This is the default text",
+                              "data" => "csrftoken:c7fbba78-7b75-46e3-9201-11e6d5f36f53"
+                           ]
+];
+
+
+         */
+
+
         $launch_vars = [
-            "lti_message_type" => "basic-lti-launch-request",
+            "lti_message_type" => "ContentItemSelectionRequest",
             "lti_version" => "1.3.0",
-            "resource_link_id" => (string) $resource_link_id,
-            "resource_link_title" => $this->getTitle(),
-            "resource_link_description" => $this->getDescription(),
             "user_id" => (string) $userIdLTI,
             "user_image" => $usrImage,
             "roles" => $roles,
@@ -949,28 +1009,25 @@ class ilObjLTIConsumer extends ilObject2
             "context_type" => $contextType,
             "context_title" => $contextTitle,
             "context_label" => $contextType . " " . $contextId,
-            "launch_presentation_locale" => $this->lng->getLangKey(),
+            "launch_presentation_locale" => $DIC->language()->getLangKey(),
             "launch_presentation_document_target" => $documentTarget,
             "launch_presentation_width" => "",//recommended
             "launch_presentation_height" => "",//recommended
-            "launch_presentation_return_url" => $returnUrl,
             "tool_consumer_instance_guid" => $toolConsumerInstanceGuid,
             "tool_consumer_instance_name" => $DIC->settings()->get("short_inst_name") ? $DIC->settings()->get("short_inst_name") : CLIENT_ID,
             "tool_consumer_instance_description" => ilObjSystemFolder::_getHeaderTitle(),
             "tool_consumer_instance_url" => ilLink::_getLink(ROOT_FOLDER_ID, "root"),//ToDo? "https://vb52p70.example.com/release_5-3/goto.php?target=root_1&client_id=inno",
             "tool_consumer_instance_contact_email" => $DIC->settings()->get("admin_email"),
-            "launch_presentation_css_url" => "",
             "tool_consumer_info_product_family_code" => "ilias",
             "tool_consumer_info_version" => ILIAS_VERSION,
-            "lis_result_sourcedid" => "",//$token,
-            "lis_outcome_service_url" => ILIAS_HTTP_PATH . "/Modules/LTIConsumer/result.php?client_id=" . CLIENT_ID,
-            "role_scope_mentor" => ""
+            "deep_link_return_url" => $returnUrl,
+            "accept_types" => "ltiResourceLink",
+            "accept_presentation_document_targets" => "iframe,window,embed",
+            "accept_multiple" => true,
+            "auto_create" => true,
         ];
-
-        $provider_custom_params = $this->getProviderCustomParamsArray();
-        $custom_params = $this->getCustomParamsArray();
-        $merged_params = array_merge($provider_custom_params, $custom_params);
-        foreach ($merged_params as $key => $value) {
+        $provider_custom_params = self::getProviderCustomParamsArray($provider);
+        foreach ($provider_custom_params as $key => $value) {
             $launch_vars['custom_' . $key] = $value;
         }
 
@@ -978,10 +1035,10 @@ class ilObjLTIConsumer extends ilObject2
             $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', 'ERROR_OPEN_SSL_CONF', true);
             return null;
         }
-        return $this->LTISignJWT($launch_vars, $endpoint, $clientId, $deploymentId, $nonce);
+        return self::LTISignJWT($launch_vars, $endpoint, $clientId, $deploymentId, $nonce);
     }
 
-    public function LTISignJWT(array $parms, string $endPoint, string $oAuthConsumerKey, $typeId = 0, string $nonce = ''): array
+    public static function LTISignJWT(array $parms, string $endPoint, string $oAuthConsumerKey, $typeId = 0, string $nonce = ''): array
     {
         if (empty($typeId)) {
             $typeId = 0;
@@ -1020,7 +1077,9 @@ class ilObjLTIConsumer extends ilObject2
         $payLoad['iss'] = ILIAS_HTTP_PATH; // TODO!!
         $payLoad['aud'] = $oAuthConsumerKey;
         $payLoad[self::LTI_JWT_CLAIM_PREFIX . '/claim/deployment_id'] = strval($typeId);
-        $payLoad[self::LTI_JWT_CLAIM_PREFIX . '/claim/target_link_uri'] = $endPoint;
+        if (!empty($endPoint)) {  // only for launch request
+            $payLoad[self::LTI_JWT_CLAIM_PREFIX . '/claim/target_link_uri'] = $endPoint;
+        }
 
         foreach ($parms as $key => $value) {
             $claim = self::LTI_JWT_CLAIM_PREFIX;
@@ -1051,6 +1110,7 @@ class ilObjLTIConsumer extends ilObject2
                 $payLoad["{$claim}/claim/ext"][substr($key, 4)] = $value;
             }
         }
+        file_put_contents("log.txt",json_encode($payLoad,JSON_PRETTY_PRINT),FILE_APPEND);
         if (!empty(self::verifyPrivateKey())) {
             throw new DomainException(self::ERROR_OPEN_SSL_CONF);
         }
