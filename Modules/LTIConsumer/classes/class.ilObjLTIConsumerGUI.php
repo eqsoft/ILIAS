@@ -427,11 +427,13 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             echo $tplLogin->get();
             exit; //TODO: no exit
         } else {
-            $data = ilObjLTIConsumer::buildContentSelectionParameters($provider, (int) $ref_id, $DIC->ctrl()->getLinkTarget($this, 'contentSelectionResponse'));
+            $loginData = ilSession::get('lti13_login_data');
+            $data = ilObjLTIConsumer::buildContentSelectionParameters($provider, (int) $ref_id, $DIC->ctrl()->getLinkTarget($this, 'contentSelectionResponse'),$loginData['nonce']);
             $tplContentSelection = new ilTemplate("tpl.lti_jwt_autosubmit.html", true, true, "Modules/LTIConsumer");
             $tplContentSelection->setVariable("LTI_JWT_FORM_ACTION", $provider->getContentItemUrl());
             $tplContentSelection->setVariable("LTI_JWT_ID_TOKEN", $data['id_token']);
-            //echo "<pre>" . var_export($data,true) . "</pre>";
+            $tplContentSelection->setVariable("LTI_JWT_STATE", $loginData['state']);
+            ilSession::clear('lti13_login_data');
             echo $tplContentSelection->get();
             exit; //TODO: no exit
         }

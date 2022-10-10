@@ -47,8 +47,7 @@ require_once("Services/Init/classes/class.ilInitialisation.php");
 ilInitialisation::initILIAS();
 
 global $DIC;
-//file_put_contents("log.txt",var_export($data,true),FILE_APPEND);
-//exit;
+
 $ltiMessageHint = $data['lti_message_hint'];
 
 if (empty($ltiMessageHint)) {
@@ -77,7 +76,7 @@ if (count($mh) == 2) { // launch message auth
 
 ilSession::set('lti13_login_data', $data);
 if ($isContentSelection) {
-    $url = base64_decode($redirect_uri);
+    $url = "../../".base64_decode($redirect_uri);
 } else {
     $url = "../../goto.php?target=lti_" . $ref_id . "&client_id=" . $client_id;
 }

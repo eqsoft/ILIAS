@@ -876,11 +876,25 @@ class ilObjLTIConsumer extends ilObject2
 
     // ToDo:
 
-    public static function buildContentSelectionParameters(ilLTIConsumeProvider $provider, int $refId, string $returnUrl): ?array
+    public static function buildContentSelectionParameters(ilLTIConsumeProvider $provider, int $refId, string $returnUrl, string $nonce): ?array
     {
         global $DIC;
 
-        $nonce = ILIAS\LTI\ToolProvider\Util::getRandomString(15);
+        /*
+        array (
+            'scope' => 'openid',
+            'response_type' => 'id_token',
+            'response_mode' => 'form_post',
+            'prompt' => 'none',
+            'client_id' => '8tU27cK2RubPlUW',
+            'redirect_uri' => 'https://moodle4.example.com/enrol/lti/launch.php',
+            'state' => 'state-9135e35b58da4393eef4929b5eda3ec719c3962bf377db4f8dee484148e581f2',
+            'nonce' => 'nonce-f4592f977949baea2117afb5f2ca5bff98c17f97f47696823f22c92852e08557',
+            'login_hint' => '6',
+            'lti_message_hint' => '82:ltitrunk:aWxpYXMucGhwP2Jhc2VDbGFzcz1pbHJlcG9zaXRvcnlndWkmY21kTm9kZT13eDptdSZjbWRDbGFzcz1pbE9iakxUSUNvbnN1bWVyR1VJJmNtZD1jb250ZW50U2VsZWN0aW9uUmVxdWVzdCZyZWZfaWQ9ODImbmV3X3R5cGU9bHRpJnByb3ZpZGVyX2lkPTEzNA==',
+        )
+        */
+
         $clientId = $provider->getClientId();
         $deploymentId = $provider->getId();
         $ilLTIConsumerLaunch = new ilLTIConsumerLaunch($refId);
