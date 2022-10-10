@@ -538,9 +538,9 @@ class ilLTIConsumeProviderFormGUI extends ilPropertyFormGUI
 
         $contentItem = new ilCheckboxInputGUI($lng->txt('lti_con_content_item'), 'content_item');
         $contentItem->setValue('1');
-
-        if (ilSession::has('lti_dynamic_registration_custom_params')) {
-            if (!empty($this->provider->getContentItemUrl())) {
+        // check if dynreg transaction session
+        if (ilLTIConsumerSettingsGUI::isUserDynamicRegistrationTransaction($this->provider)) {
+            if (!ilSession::has('lti_dynamic_registration_custom_params') && !empty($this->provider->getContentItemUrl())) {
                 $contentItem->setChecked(true);
             } else {
                 $contentItem->setChecked(false);
