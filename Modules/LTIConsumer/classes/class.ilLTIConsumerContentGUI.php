@@ -510,4 +510,3 @@ class ilLTIConsumerContentGUI
         return $default ?? null;
     }
 }
-

@@ -76,7 +76,7 @@ if (count($mh) == 2) { // launch message auth
 
 ilSession::set('lti13_login_data', $data);
 if ($isContentSelection) {
-    $url = "../../".base64_decode($redirect_uri);
+    $url = "../../" . base64_decode($redirect_uri);
 } else {
     $url = "../../goto.php?target=lti_" . $ref_id . "&client_id=" . $client_id;
 }

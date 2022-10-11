@@ -867,7 +867,7 @@ class ilObjLTIConsumer extends ilObject2
             $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', 'ERROR_OPEN_SSL_CONF', true);
             return null;
         }
-        return self::LTISignJWT($launch_vars, $clientId, $deploymentId, $nonce);
+        return self::LTISignJWT($launch_vars, $endpoint, $clientId, $deploymentId, $nonce);
     }
 
     /**
@@ -967,10 +967,10 @@ class ilObjLTIConsumer extends ilObject2
             $DIC->ui()->mainTemplate()->setOnScreenMessage('failure', 'ERROR_OPEN_SSL_CONF', true);
             return null;
         }
-        return self::LTISignJWT($content_select_vars, $clientId, $deploymentId, $nonce);
+        return self::LTISignJWT($content_select_vars, '', $clientId, $deploymentId, $nonce);
     }
 
-    public static function LTISignJWT(array $parms, string $oAuthConsumerKey, $typeId = 0, string $nonce = ''): array
+    public static function LTISignJWT(array $parms, string $endpoint, string $oAuthConsumerKey, $typeId = 0, string $nonce = ''): array
     {
         if (empty($typeId)) {
             $typeId = 0;
@@ -1009,8 +1009,8 @@ class ilObjLTIConsumer extends ilObject2
         $payLoad['iss'] = ILIAS_HTTP_PATH; // TODO!!
         $payLoad['aud'] = $oAuthConsumerKey;
         $payLoad[self::LTI_JWT_CLAIM_PREFIX . '/claim/deployment_id'] = strval($typeId);
-        if (!empty($endPoint)) {  // only for launch request
-            $payLoad[self::LTI_JWT_CLAIM_PREFIX . '/claim/target_link_uri'] = $endPoint;
+        if (!empty($endpoint)) {  // only for launch request
+            $payLoad[self::LTI_JWT_CLAIM_PREFIX . '/claim/target_link_uri'] = $endpoint;
         }
 
         foreach ($parms as $key => $value) {

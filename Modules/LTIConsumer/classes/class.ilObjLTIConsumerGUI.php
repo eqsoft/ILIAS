@@ -234,9 +234,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $newObj->setTitle($title);
         $newObj->setDescription($description);
         $newObj->create();
-
         $this->putObjectInTree($newObj);
-
         return $newObj;
     }
 
@@ -410,26 +408,26 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $DIC->ctrl()->setParameter($this, "ref_id", $ref_id);
         $DIC->language()->loadLanguageModule($new_type);
         $provider = new ilLTIConsumeProvider((int) $provider_id);
-        $redirectUrl = $DIC->ctrl()->getLinkTarget($this,'contentSelectionRequest');
+        $redirectUrl = $DIC->ctrl()->getLinkTarget($this, 'contentSelectionRequest');
 
         if (!ilSession::has('lti13_login_data')) {
             $userIdLTI = ilCmiXapiUser::getIdentAsId($provider->getPrivacyIdent(), $DIC->user());
             //$emailPrimary = ilCmiXapiUser::getIdent($provider->getPrivacyIdent(), $DIC->user());
             $ltiMessageHint = (string) $ref_id . ":" . CLIENT_ID . ":" . base64_encode($redirectUrl);
             $tplLogin = new ilTemplate("tpl.lti_initial_login.html", true, true, "Modules/LTIConsumer");
-            $tplLogin->setVariable("LTI_INITIAL_LOGIN_ACTION",$provider->getInitiateLogin());
-            $tplLogin->setVariable("ISS",ILIAS_HTTP_PATH);
-            $tplLogin->setVariable("TARGET_LINK_URL",$provider->getProviderUrl());
-            $tplLogin->setVariable("LOGIN_HINT",$userIdLTI);
-            $tplLogin->setVariable("LTI_MESSAGE_HINT",$ltiMessageHint);
-            $tplLogin->setVariable("CLIENT_ID",$provider->getClientId());
-            $tplLogin->setVariable("LTI_DEPLOYMENT_ID",(string) $provider->getId());
+            $tplLogin->setVariable("LTI_INITIAL_LOGIN_ACTION", $provider->getInitiateLogin());
+            $tplLogin->setVariable("ISS", ILIAS_HTTP_PATH);
+            $tplLogin->setVariable("TARGET_LINK_URL", $provider->getProviderUrl());
+            $tplLogin->setVariable("LOGIN_HINT", $userIdLTI);
+            $tplLogin->setVariable("LTI_MESSAGE_HINT", $ltiMessageHint);
+            $tplLogin->setVariable("CLIENT_ID", $provider->getClientId());
+            $tplLogin->setVariable("LTI_DEPLOYMENT_ID", (string) $provider->getId());
             echo $tplLogin->get();
             exit; //TODO: no exit
         } else {
             $loginData = ilSession::get('lti13_login_data');
             // ToDo: correct Link!! replace ILIAS_HTTP_PATH
-            $data = ilObjLTIConsumer::buildContentSelectionParameters($provider, (int) $ref_id, ilObjLTIConsumer::getIliasHttpPath()."/".$DIC->ctrl()->getLinkTarget($this, 'contentSelectionResponse'),$loginData['nonce']);
+            $data = ilObjLTIConsumer::buildContentSelectionParameters($provider, (int) $ref_id, ilObjLTIConsumer::getIliasHttpPath() . "/" . $DIC->ctrl()->getLinkTarget($this, 'contentSelectionResponse'), $loginData['nonce']);
             $tplContentSelection = new ilTemplate("tpl.lti_jwt_autosubmit.html", true, true, "Modules/LTIConsumer");
             $tplContentSelection->setVariable("LTI_JWT_FORM_ACTION", $provider->getContentItemUrl());
             $tplContentSelection->setVariable("LTI_JWT_ID_TOKEN", $data['id_token']);
@@ -440,7 +438,8 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         }
     }
 
-    public function contentSelectionResponse(): void {
+    public function contentSelectionResponse(): void
+    {
         global $DIC;
         if (!ilLTIConsumerAccess::hasCustomProviderCreationAccess()) {
             throw new ilLtiConsumerException('permission denied!');
@@ -454,14 +453,14 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $DIC->language()->loadLanguageModule($new_type);
         $token = '';
         if ($DIC->http()->wrapper()->post()->has('JWT')) {
-            $token = $DIC->http()->wrapper()->post()->retrieve('JWT',$DIC->refinery()->kindlyTo()->string());
+            $token = $DIC->http()->wrapper()->post()->retrieve('JWT', $DIC->refinery()->kindlyTo()->string());
         }
         if ($DIC->http()->wrapper()->post()->has('jwt')) {
-            $token = $DIC->http()->wrapper()->post()->retrieve('jwt',$DIC->refinery()->kindlyTo()->string());
+            $token = $DIC->http()->wrapper()->post()->retrieve('jwt', $DIC->refinery()->kindlyTo()->string());
         }
         if (!empty($token)) {
             $provider = new ilLTIConsumeProvider((int) $provider_id);
-            $this->saveContentSelection($provider,$token);
+            $this->saveContentSelection($provider, $token);
         } else {
             echo "no token";
             exit;
@@ -480,27 +479,31 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class, 'create');
     }
 
-    public function saveContentSelection(ilLTIConsumeProvider $provider, string $token): void {
+    public function saveContentSelection(ilLTIConsumeProvider $provider, string $token): void
+    {
         global $DIC;
         //ToDo: fetch with file_get_contents ok? needs caching?
         $jwks = file_get_contents($provider->getPublicKeyset());
         //ToDo: Errorhandling
-        $keyset = json_decode($jwks,true);
+        $keyset = json_decode($jwks, true);
         $keys = Firebase\JWT\JWK::parseKeySet($keyset);
         $data = Firebase\JWT\JWT::decode($token, $keys);
-        //echo var_export($data,true);
-        //exit;
         $refId = $this->getRequestValue('ref_id');
 
         foreach ($data->{'https://purl.imsglobal.org/spec/lti-dl/claim/content_items'} as $item) {
-            $newObj = $this->createNewObject('lti', $item->title,'');
-            // apply didactic template?
-            $dtpl = $this->getDidacticTemplateVar("dtpl");
+            //ToDo: i don't know why but this works :-}
+            $gui = new ilObjLTIConsumerGUI(0, self::REPOSITORY_NODE_ID, (int) $refId);
+            $description = "";
+            if (isset($item->description)) {
+                $description = $item->description;
+            }
+            $newObj = $gui->createNewObject('lti', $item->title, $description);
+            $dtpl = $gui->getDidacticTemplateVar("dtpl");
             if ($dtpl) {
                 $newObj->applyDidacticTemplate($dtpl);
             }
             // auto rating
-            $this->handleAutoRating($newObj);
+            $gui->handleAutoRating($newObj);
             $newObj->setProviderId($provider->getId());
             $newObj->setProvider($provider);
             // custom params
@@ -515,7 +518,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             $this->initMetadata($newObj);
         }
         $type = ilObjectFactory::getTypeByRefId((int) $refId);
-        $template = new ilTemplate('tpl.lti_content_selection_finished.html', true,true, 'Modules/LTIConsumer');
+        $template = new ilTemplate('tpl.lti_content_selection_finished.html', true, true, 'Modules/LTIConsumer');
         $redirect = ilObjLTIConsumer::getIliasHttpPath() . "/" . "goto.php?target=" . $type . "_" . $refId;
         $template->setVariable("CONTENT_SELECTION_REDIRECT", $redirect);
         echo $template->get();
@@ -818,7 +821,7 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
             $provider = new ilLTIConsumeProvider((int)$providerId);
             // check if post variables from contentSelectionResponse
             if ($DIC->http()->wrapper()->post()->has('JWT')) {
-               // ToDo:
+                // ToDo:
             } else {
                 if ($provider->isContentItem() && !empty($provider->getContentItemUrl())) {
                     $this->contentSelection($providerId, $newType, $refId, $provider);
