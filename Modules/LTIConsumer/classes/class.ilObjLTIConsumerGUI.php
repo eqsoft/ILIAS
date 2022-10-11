@@ -452,17 +452,21 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $ref_id = $this->getRequestValue("ref_id");
         $DIC->ctrl()->setParameter($this, "ref_id", $ref_id);
         $DIC->language()->loadLanguageModule($new_type);
-        $DIC->http()->wrapper()->post()->retrieve('JWT',$DIC->refinery()->kindlyTo()->string());
-        $provider = new ilLTIConsumeProvider((int) $provider_id);
-        //ToDo: fetch with file_get_contents ok? needs caching?
-        $jwks = file_get_contents($provider->getPublicKeyset());
-        //ToDo: Errorhandling
-        $keyset = json_decode($jwks,true);
-        $token = $DIC->http()->wrapper()->post()->retrieve('JWT',$DIC->refinery()->kindlyTo()->string());
-        $keys = Firebase\JWT\JWK::parseKeySet($keyset);
-        $data = Firebase\JWT\JWT::decode($token, $keys);
-        echo var_export($data,true);
-        exit;
+        $token = '';
+        if ($DIC->http()->wrapper()->post()->has('JWT')) {
+            $token = $DIC->http()->wrapper()->post()->retrieve('JWT',$DIC->refinery()->kindlyTo()->string());
+        }
+        if ($DIC->http()->wrapper()->post()->has('jwt')) {
+            $token = $DIC->http()->wrapper()->post()->retrieve('jwt',$DIC->refinery()->kindlyTo()->string());
+        }
+        if (!empty($token)) {
+            $provider = new ilLTIConsumeProvider((int) $provider_id);
+            $this->saveContentSelection($provider,$token);
+        } else {
+            echo "no token";
+            exit;
+            //ToDo:
+        }
     }
 
     public function cancelContentSelection(): void
@@ -474,6 +478,48 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
         $new_type = $this->getRequestValue("new_type");
         $DIC->ctrl()->setParameterByClass(ilRepositoryGUI::class, 'new_type', $new_type);
         $DIC->ctrl()->redirectByClass(ilRepositoryGUI::class, 'create');
+    }
+
+    public function saveContentSelection(ilLTIConsumeProvider $provider, string $token): void {
+        global $DIC;
+        //ToDo: fetch with file_get_contents ok? needs caching?
+        $jwks = file_get_contents($provider->getPublicKeyset());
+        //ToDo: Errorhandling
+        $keyset = json_decode($jwks,true);
+        $keys = Firebase\JWT\JWK::parseKeySet($keyset);
+        $data = Firebase\JWT\JWT::decode($token, $keys);
+        //echo var_export($data,true);
+        //exit;
+        $refId = $this->getRequestValue('ref_id');
+
+        foreach ($data->{'https://purl.imsglobal.org/spec/lti-dl/claim/content_items'} as $item) {
+            $newObj = $this->createNewObject('lti', $item->title,'');
+            // apply didactic template?
+            $dtpl = $this->getDidacticTemplateVar("dtpl");
+            if ($dtpl) {
+                $newObj->applyDidacticTemplate($dtpl);
+            }
+            // auto rating
+            $this->handleAutoRating($newObj);
+            $newObj->setProviderId($provider->getId());
+            $newObj->setProvider($provider);
+            // custom params
+            $customParams = [];
+            foreach ($item->{'custom'} as $key => $value) {
+                $customParams[] = $key . "=" . $value;
+            }
+            if (count($customParams) > 0) {
+                $newObj->setCustomParams(implode(";", $customParams));
+            }
+            $newObj->save();
+            $this->initMetadata($newObj);
+        }
+        $type = ilObjectFactory::getTypeByRefId((int) $refId);
+        $template = new ilTemplate('tpl.lti_content_selection_finished.html', true,true, 'Modules/LTIConsumer');
+        $redirect = ilObjLTIConsumer::getIliasHttpPath() . "/" . "goto.php?target=" . $type . "_" . $refId;
+        $template->setVariable("CONTENT_SELECTION_REDIRECT", $redirect);
+        echo $template->get();
+        exit;
     }
 
     protected function afterSave(\ilObject $newObject): void
@@ -764,15 +810,21 @@ class ilObjLTIConsumerGUI extends ilObject2GUI
 
     protected function checkContentSelection(): void
     {
+        global $DIC;
         $providerId = $this->getRequestValue('provider_id');
         $newType = $this->getRequestValue('new_type');
         $refId = $this->getRequestValue('ref_id');
         if ($providerId !== null && $newType == 'lti' && $refId != null) {
             $provider = new ilLTIConsumeProvider((int)$providerId);
-            if ($provider->isContentItem() && !empty($provider->getContentItemUrl())) {
-                $this->contentSelection($providerId, $newType, $refId, $provider);
+            // check if post variables from contentSelectionResponse
+            if ($DIC->http()->wrapper()->post()->has('JWT')) {
+               // ToDo:
             } else {
-                $this->save();
+                if ($provider->isContentItem() && !empty($provider->getContentItemUrl())) {
+                    $this->contentSelection($providerId, $newType, $refId, $provider);
+                } else {
+                    $this->save();
+                }
             }
         } else {
             $this->save();
